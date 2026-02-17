@@ -140,6 +140,7 @@
   var $btnCopyPlain = document.getElementById("btn-copy-plain");
   var $btnCopyMd = document.getElementById("btn-copy-markdown");
   var $btnReset = document.getElementById("btn-reset");
+  var $btnBack = document.getElementById("btn-back");
 
   var CONFIGS = window.LLM_CONFIGS || { PROVIDERS: {}, FRAMEWORKS: {} };
 
@@ -579,6 +580,42 @@
       updateModelBadge();
       renderPreview();
     });
+
+    // ── Back / Return to Dashboard ──
+    if ($btnBack) {
+      $btnBack.addEventListener("click", function () {
+        // Prefer focusing/closing opener when present
+        try {
+          if (window.opener && !window.opener.closed) {
+            try {
+              window.opener.focus();
+            } catch (e) {
+              // ignore
+            }
+            // Attempt to close this window (may be blocked in some contexts)
+            try {
+              window.close();
+              // If close is blocked, navigate back as fallback
+              setTimeout(function () {
+                if (!window.closed) window.location.href = "../../index.html";
+              }, 250);
+              return;
+            } catch (e) {
+              // fallthrough to navigation fallback
+            }
+          }
+        } catch (e) {
+          // ignore errors and fallback to navigation
+        }
+
+        // Fallback: navigate to root index.html relative path
+        try {
+          window.location.href = "../../index.html";
+        } catch (e) {
+          console.warn("Back navigation failed", e);
+        }
+      });
+    }
 
     // ── Copy Plain ──
     $btnCopyPlain.addEventListener("click", function () {
