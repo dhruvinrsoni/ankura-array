@@ -23,6 +23,16 @@
     Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono",
     "Cascadia Code", Consolas, monospace;
+  /* Compatibility / helper tokens used across app rules */
+  --radius-xs: 6px;
+  --text-on-accent: #11110e;
+  --danger: #e05959;
+  --success: #2ea44f;
+  --bg-input: #151515;
+  --bg-input-focus: #1c1c1c;
+  --bg-surface: #171717;
+  --accent-subtle: rgba(212,160,60,0.06);
+  --border-focus: rgba(212,160,60,0.14);
 }
 
 /* Reset */
