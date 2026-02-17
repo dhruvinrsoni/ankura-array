@@ -41,14 +41,12 @@ window.LLM_CONFIGS = {
         },
         {
           label: "Task",
-          placeholder:
-            "e.g. analyse the Q3 revenue report and identify key trends",
+          placeholder: "e.g. analyse the Q3 revenue report and identify key trends",
           target: "user",
         },
         {
           label: "Context",
-          placeholder:
-            "e.g. The report covers APAC markets. Focus on YoY growth.",
+          placeholder: "e.g. The report covers APAC markets. Focus on YoY growth.",
           target: "user",
         },
         {
@@ -63,6 +61,7 @@ window.LLM_CONFIGS = {
       userTemplate:
         "Your task is to {{Task}}.\n\nHere is the context:\n{{Context}}\n\nPlease format the output as:\n{{Format}}",
     },
+
     "copilot-gcse": {
       name: "Copilot G.C.S.E.",
       description: "Goal → Context → Source → Expectations",
@@ -72,43 +71,6 @@ window.LLM_CONFIGS = {
           placeholder:
             "e.g. Refactor the authentication module to use JWT tokens",
           target: "user",
-      "GEMINI_ENTERPRISE": {
-        name: "Gemini Enterprise Pro (Role/Task/Context/Source/Expectations)",
-        description:
-          "Highly-structured enterprise prompt template: Role, Task, Context, Source, Expectations.",
-        sections: [
-          {
-            label: "Role",
-            placeholder: "e.g. Senior Systems Architect, Security Lead",
-            target: "system",
-          },
-          {
-            label: "Task",
-            placeholder: "e.g. Design a migration plan for microservices",
-            target: "user",
-          },
-          {
-            label: "Context",
-            placeholder:
-              "Provide high-level context, philosophy, and key constraints (business, legal, performance)",
-            target: "user",
-          },
-          {
-            label: "Source",
-            placeholder: "Attach source material: code, logs, docs, or datasets",
-            target: "user",
-          },
-          {
-            label: "Expectations",
-            placeholder:
-              "Define exact output format, file structure, or style requirements. Be specific.",
-            target: "user",
-          },
-        ],
-        systemTemplate: "# 1. GOAL (The Directive)\n**Role:** {{Role}}\n**Task:** {{Task}}",
-        userTemplate:
-          "# 1. GOAL (The Directive)\n**Role:** [Insert Role]\n**Task:** [Insert Task]\n\n# 2. CONTEXT (The Background)\n[Provide high-level context, philosophy, and constraints]\n\n# 3. SOURCE (The Input Data)\n[Provide the source code, text, or documentation here]\n\n# 4. EXPECTATIONS (The Output Format)\n[Define the exact output format, file structure, or style requirements. Be specific.]",
-      },
         },
         {
           label: "Context",
@@ -132,6 +94,74 @@ window.LLM_CONFIGS = {
       systemTemplate: "# SOURCE\n{{Source}}",
       userTemplate:
         "# GOAL\n{{Goal}}\n\n# CONTEXT\n{{Context}}\n\n# EXPECTATIONS\n{{Expectations}}",
+    },
+
+    "GEMINI_ENTERPRISE": {
+      name: "Gemini Enterprise Pro (Role/Task/Context/Source/Expectations)",
+      description:
+        "Highly-structured enterprise prompt template: Role, Task, Context, Source, Expectations.",
+      sections: [
+        {
+          label: "Role",
+          placeholder: "e.g. Senior Systems Architect, Security Lead",
+          target: "system",
+        },
+        {
+          label: "Task",
+          placeholder: "e.g. Design a migration plan for microservices",
+          target: "user",
+        },
+        {
+          label: "Context",
+          placeholder:
+            "Provide high-level context, philosophy, and key constraints (business, legal, performance)",
+          target: "user",
+        },
+        {
+          label: "Source",
+          placeholder: "Attach source material: code, logs, docs, or datasets",
+          target: "user",
+        },
+        {
+          label: "Expectations",
+          placeholder:
+            "Define exact output format, file structure, or style requirements. Be specific.",
+          target: "user",
+        },
+      ],
+      systemTemplate: "# 1. GOAL (The Directive)\n**Role:** {{Role}}\n**Task:** {{Task}}",
+      userTemplate:
+        "# 1. GOAL (The Directive)\n**Role:** [Insert Role]\n**Task:** [Insert Task]\n\n# 2. CONTEXT (The Background)\n[Provide high-level context, philosophy, and constraints]\n\n# 3. SOURCE (The Input Data)\n[Provide the source code, text, or documentation here]\n\n# 4. EXPECTATIONS (The Output Format)\n[Define the exact output format, file structure, or style requirements. Be specific.]",
+    },
+
+    "ARCHITECT": {
+      name: "The Architect (Role/Context/Action)",
+      description: "Architect's Command — Role/Task/Context/Action Checklist/Output",
+      sections: [
+        { label: "Role", placeholder: "e.g. Senior Software Architect", target: "system" },
+        { label: "Task", placeholder: "e.g. Define the migration strategy for X", target: "user" },
+        { label: "Context", placeholder: "Background info, constraints, and current state", target: "user" },
+        { label: "Action Checklist", placeholder: "Step-by-step instructions for the AI", target: "user" },
+        { label: "Output", placeholder: "Define exactly what you want to see", target: "user" },
+      ],
+      template: `
+# Role
+[Insert Role, e.g., Senior Software Architect]
+
+# Task
+[Insert the specific objective]
+
+# Context
+[Background info, constraints, and current state]
+
+# Action Checklist
+[Step-by-step instructions for the AI]
+1.  ...
+2.  ...
+
+# Output
+[Define exactly what you want to see]
+`,
     },
   },
 };
