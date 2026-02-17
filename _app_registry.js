@@ -1,0 +1,18 @@
+/**
+ * Ankura-Array — App Registry
+ * ─────────────────────────────
+ * Protocol A: Script-Injection Pattern.
+ * This file is loaded via <script> to avoid fetch/CORS issues on file://.
+ * Add new Nano Apps by appending objects to this array.
+ */
+window.ANKURA_REGISTRY = [
+  {
+    id: "llm-prompt-builder",
+    name: "LLM Prompt Builder",
+    description:
+      "Engineer structured prompts using proven frameworks like Google Standard and Copilot G.C.S.E. Configure provider-specific parameters and export production-ready prompts.",
+    icon: "🧠",
+    path: "nanoapps/llm-prompt-builder/index.html",
+    version: "1.0.0",
+  },
+];

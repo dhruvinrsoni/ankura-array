@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ankura-Array — Garden of Apps</title>
+    <meta
+      name="description"
+      content="A robust, offline-first platform for hosting static Nano Applications."
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ── Header ──────────────────────────────────── -->
+    <header class="site-header">
+      <h1><span class="accent">Ankura</span>-Array</h1>
+      <p>Garden of Apps &mdash; Done and Dusted.</p>
+    </header>
+
+    <!-- ── Main ────────────────────────────────────── -->
+    <main class="main-content">
+      <div class="section-label">Nano Applications</div>
+      <div id="app-grid" class="app-grid">
+        <!-- Cards rendered by script below -->
+      </div>
+      <div id="empty-state" class="empty-state" hidden>
+        No applications registered. Add entries to
+        <code>_app_registry.js</code> to get started.
+      </div>
+    </main>
+
+    <!-- ── Footer ──────────────────────────────────── -->
+    <footer class="site-footer">
+      Ankura-Array &middot; Zero dependencies &middot; Works offline
+    </footer>
+
+    <!-- ── Registry (Protocol A: Script-Injection) ── -->
+    <script src="_app_registry.js"></script>
+
+    <!-- ── Dashboard Logic ─────────────────────────── -->
+    <script>
+      (function () {
+        "use strict";
+
+        const grid = document.getElementById("app-grid");
+        const emptyState = document.getElementById("empty-state");
+        const registry = window.ANKURA_REGISTRY || [];
+
+        if (!registry.length) {
+          emptyState.hidden = false;
+          return;
+        }
+
+        registry.forEach(function (app) {
+          const card = document.createElement("article");
+          card.className = "app-card";
+          card.innerHTML =
+            '<div class="app-card__icon">' +
+            escapeHTML(app.icon || "📦") +
+            "</div>" +
+            '<h2 class="app-card__name">' +
+            escapeHTML(app.name) +
+            "</h2>" +
+            '<p class="app-card__desc">' +
+            escapeHTML(app.description) +
+            "</p>" +
+            (app.version
+              ? '<span class="app-card__version">v' +
+                escapeHTML(app.version) +
+                "</span>"
+              : "") +
+            '<button class="app-card__launch" data-path="' +
+            escapeHTML(app.path) +
+            '">&#9654; Launch</button>';
+
+          card
+            .querySelector(".app-card__launch")
+            .addEventListener("click", function () {
+              launchApp(app.path);
+            });
+
+          grid.appendChild(card);
+        });
+
+        /**
+         * Generate a UUID and open the app in a new tab with ?instanceId=UUID.
+         */
+        function launchApp(appPath) {
+          var instanceId =
+            typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : fallbackUUID();
+          var separator = appPath.indexOf("?") === -1 ? "?" : "&";
+          var url = appPath + separator + "instanceId=" + instanceId;
+          window.open(url, "_blank");
+        }
+
+        /**
+         * Fallback UUID v4 generator for older browsers / insecure contexts.
+         */
+        function fallbackUUID() {
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+            /[xy]/g,
+            function (c) {
+              var r = (Math.random() * 16) | 0;
+              var v = c === "x" ? r : (r & 0x3) | 0x8;
+              return v.toString(16);
+            }
+          );
+        }
+
+        /**
+         * Basic HTML escaping to prevent injection.
+         */
+        function escapeHTML(str) {
+          var div = document.createElement("div");
+          div.appendChild(document.createTextNode(str));
+          return div.innerHTML;
+        }
+      })();
+    </script>
+  </body>
+</html>
