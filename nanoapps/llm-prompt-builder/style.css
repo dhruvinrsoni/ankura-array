@@ -390,6 +390,19 @@ body {
   font-family: var(--font-stack);
 }
 
+/* Provider hint shown above the preview - non-editable guidance only */
+.provider-hint {
+  background: rgba(212,160,60,0.06);
+  border: 1px dashed rgba(212,160,60,0.12);
+  color: var(--text-secondary);
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+  min-height: 28px;
+  display: none;
+}
+
 /* ── Model Badge ───────────────────────────────────── */
 
 .model-badge {

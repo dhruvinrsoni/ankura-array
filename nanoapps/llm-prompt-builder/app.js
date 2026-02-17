@@ -141,6 +141,9 @@
   var $btnCopyMd = document.getElementById("btn-copy-markdown");
   var $btnReset = document.getElementById("btn-reset");
   var $btnBack = document.getElementById("btn-back");
+  var $providerInfo = document.getElementById("provider-info");
+  var $btnApplyGuidance = document.getElementById("btn-apply-guidance");
+  var $providerHint = document.getElementById("provider-hint");
 
   var CONFIGS = window.LLM_CONFIGS || { PROVIDERS: {}, FRAMEWORKS: {} };
 
@@ -154,6 +157,7 @@
     hydrateState();
     syncSliderRanges();
     updateModelBadge();
+    updateApplyButtonState();
     renderPreview();
     bindEvents();
   }
@@ -270,8 +274,26 @@
     if (provider) {
       $modelBadge.textContent = "⚡ " + provider.model;
       $modelBadge.style.display = "";
+      // Show provider info (max tokens, defaults)
+      $providerInfo.textContent =
+        "Max tokens: " + provider.maxTokens +
+        " • default temp: " + provider.temperature.default.toFixed(2) +
+        " • default topP: " + provider.topP.default.toFixed(2);
+      // Provider hint (non-editable) shown above preview
+      if ($providerHint) {
+        $providerHint.textContent =
+          provider.name + " — " + provider.model + " • Max tokens: " + provider.maxTokens +
+          ". Recommended temp: " + provider.temperature.default.toFixed(2) +
+          ", top_p: " + provider.topP.default.toFixed(2) + ".";
+        $providerHint.style.display = "block";
+      }
     } else {
       $modelBadge.style.display = "none";
+      $providerInfo.textContent = "";
+      if ($providerHint) {
+        $providerHint.textContent = "";
+        $providerHint.style.display = "none";
+      }
     }
   }
 
@@ -319,6 +341,71 @@
       textarea.value = current + "\n\n--- (Framework Template) ---\n\n" + template;
     }
   }
+
+    // Guidance toggle helper functions
+    function guidanceMarkers(provider) {
+      var model = provider.model.replace(/\s+/g, "_");
+      var start = "\n\n--- Provider Guidance (" + model + ") START ---\n";
+      var end = "\n--- Provider Guidance (" + model + ") END ---\n";
+      return { start: start, end: end };
+    }
+
+    function buildGuidance(provider) {
+      return (
+        "Provider Guidance:\n" +
+        "- Model: " + provider.model + "\n" +
+        "- Max tokens: " + provider.maxTokens + "\n" +
+        "- Recommended temperature: " + provider.temperature.default.toFixed(2) + "\n" +
+        "- Recommended top_p: " + provider.topP.default.toFixed(2) + "\n\n" +
+        "Behavioral guidance: Keep responses concise and prefer structured output when possible."
+      );
+    }
+
+    function isGuidancePresentFor(provider) {
+      if (!provider) return false;
+      var markers = guidanceMarkers(provider);
+      return $system.value.indexOf(markers.start) !== -1 && $system.value.indexOf(markers.end) !== -1;
+    }
+
+    function removeGuidanceFor(provider) {
+      if (!provider) return;
+      var markers = guidanceMarkers(provider);
+      var idx = $system.value.indexOf(markers.start);
+      if (idx === -1) return;
+      var idxEnd = $system.value.indexOf(markers.end, idx);
+      if (idxEnd === -1) return;
+      var before = $system.value.slice(0, idx);
+      var after = $system.value.slice(idxEnd + markers.end.length);
+      $system.value = before.trim() + (after.trim() ? "\n\n" + after.trim() : "");
+      State.save("systemInstructions", $system.value);
+    }
+
+    function insertGuidanceFor(provider) {
+      if (!provider) return;
+      var markers = guidanceMarkers(provider);
+      var guidance = buildGuidance(provider);
+      if (!$system.value.trim()) {
+        $system.value = guidance + "\n";
+      } else {
+        $system.value = $system.value.trim() + markers.start + guidance + markers.end;
+      }
+      State.save("systemInstructions", $system.value);
+    }
+
+    function updateApplyButtonState() {
+      var providerKey = $provider.value;
+      var provider = CONFIGS.PROVIDERS[providerKey];
+      if (!$btnApplyGuidance) return;
+      if (provider && isGuidancePresentFor(provider)) {
+        $btnApplyGuidance.textContent = "Remove Guidance";
+        $btnApplyGuidance.classList.add("btn--danger");
+        $btnApplyGuidance.classList.remove("btn--outline");
+      } else {
+        $btnApplyGuidance.textContent = "Apply Guidance";
+        $btnApplyGuidance.classList.remove("btn--danger");
+        $btnApplyGuidance.classList.add("btn--outline");
+      }
+    }
 
   /* ═══════════════════════════════════════════════════
      §7  OUTPUT ASSEMBLY & PREVIEW
@@ -511,6 +598,7 @@
       State.save("provider", $provider.value);
       syncSliderRanges();
       updateModelBadge();
+      updateApplyButtonState();
       renderPreview();
     });
 
@@ -632,6 +720,23 @@
       if (!md.trim()) return;
       copyToClipboard(md, $btnCopyMd);
     });
+
+    // ── Apply Guidance toggle ──
+    if ($btnApplyGuidance) {
+      $btnApplyGuidance.addEventListener("click", function () {
+        var providerKey = $provider.value;
+        var provider = CONFIGS.PROVIDERS[providerKey];
+        if (!provider) return;
+
+        if (isGuidancePresentFor(provider)) {
+          removeGuidanceFor(provider);
+        } else {
+          insertGuidanceFor(provider);
+        }
+        updateApplyButtonState();
+        renderPreview();
+      });
+    }
   }
 
   /* ═══════════════════════════════════════════════════

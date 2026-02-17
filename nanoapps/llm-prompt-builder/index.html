@@ -45,8 +45,11 @@
         </div>
 
         <!-- Model Badge -->
-        <div style="margin-bottom: 1rem;">
+        <div style="margin-bottom: 1rem; display:flex; gap:0.75rem; align-items:center;">
           <span id="model-badge" class="model-badge"></span>
+          <div id="provider-info" style="color:var(--text-secondary); font-size:0.85rem;
+            font-family:var(--font-stack);">&nbsp;</div>
+          <button id="btn-apply-guidance" class="btn btn--outline" title="Insert provider guidance into System Instructions">Apply Guidance</button>
         </div>
 
         <!-- System Instructions -->
@@ -119,6 +122,7 @@
             </button>
           </div>
         </div>
+        <div id="provider-hint" class="provider-hint" aria-hidden="true"></div>
         <pre id="output-preview" class="preview-content preview-content--empty">Configure your prompt to see a live preview…</pre>
       </div>
     </div>
