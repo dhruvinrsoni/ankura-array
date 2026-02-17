@@ -1,5 +1,5 @@
 /**
- * Ankura-Array — App Registry
+ * Ankura-Array — App Registry (renamed)
  * ─────────────────────────────
  * Protocol A: Script-Injection Pattern.
  * This file is loaded via <script> to avoid fetch/CORS issues on file://.
