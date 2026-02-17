@@ -1,74 +1,93 @@
-Ankura-Array
-=================
+# Ankura-Array (अंकुर-Array) 🪴
 
-A digital garden of "Once in and all like Done and Dusted" nano-applications.
+*A digital incubator for high-precision, offline-first nano applications.*
 
-▼ Why this thing exists
------------------------
+![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+![Tech: Vanilla JS](https://img.shields.io/badge/tech-Vanilla%20JS-yellow.svg)
+![Status: Active](https://img.shields.io/badge/status-active-brightgreen.svg)
 
-This repository is an ugly, honest, technical home for tiny apps that do one thing well and keep their state where you can see it — in plain files, in the browser, and without any nonsense build chain. If you can open it with `file://` and it still works, it's doing its job.
+---
 
-**Nomenclature**
+## 🔧 The Idea (Raw)
+
+Ankura-Array is a small, opinionated collection of single-purpose web tools — "nano-apps" — that you can open, use, and understand without a package manager, build pipeline or server. These apps are made to be durable: open `index.html` locally (`file://`), and they still work.
+
+Each nano-app is deliberately small: the mental model is ship tiny, document everything, avoid friction.
+
+## 🧾 The Nomenclature: Why "Ankura-Array"? (▼)
 
 <details>
-<summary>▼ Why the name 'Ankura-Array'? (The Naming Log)</summary>
+<summary>▼ The Nomenclature: Why 'Ankura-Array'?</summary>
 
-We argued about the name for too long. Names matter because they're mental models; they say what the project thinks it is. What follows is the dev diary version of that argument, warts and all.
+Short version: we wanted a name that married meaning and implementation.
 
-Core conflict: we wanted to fuse two things that each carry weight — Vedic/Sanatani concepts (the Soul) and modern engineering terms (the Body). The Soul gives intention and humility; the Body gives structure and chewable primitives for programmers.
+- Concept: blend Vedic meaning (the Soul) with practical engineering (the Body).
+- Rejected names and reasons (dev-diary tone):
+  - *Ankura-Grid* — Too rigid; felt like a prison.
+  - *Srijan-Forge* — Too heavy; industrial, not a garden.
+  - *Beej-Byte* — Nice sound, but disconnected.
 
-Rejected Candidates (and why they failed, brutally honest):
+- The winner: **Ankura** (sprout/potential) + **Array** (the literal JS structure that holds apps). It points at the code and keeps humility in the name.
 
-- Ankura-Grid: "Good, but too rigid. Felt like a prison."
-- Srijan-Forge: "Too heavy. Sounds like an industrial factory, not a garden."
-- Bindu-Base: "Just... awkward. Hard pass."
-- Beej-Bay: "Disconnected. Words didn't talk to each other."
-- Yukti-Stack: "The absolute worst. Rejected immediately."
-- Anu-Shard: "Too extreme. Lost the plot."
-
-Winner: Ankura-Array
-
-- Ankura (Sprout): The atomic unit of potential — small, quiet, expects sunlight. It's the idea that a nano-app is not a finished product, it's a lived-in seed.
-- Array (Structure): A practical, literal word for what holds the project together — a JavaScript array inside a tiny registry file (`_app_registry.js`). It honors the code: the mental model should point at the implementation, not a marketing adjective.
+First app: **Vaak-Smith** — the smith of speech. Prompting is speech with intent.
 
 </details>
 
-Vaak-Smith — a quick note
--------------------------
+## 🗂️ The Array (Apps)
 
-Even the first app had an identity crisis. It started as "LLM Prompt Builder" (boring), flirted with "Aadesh-Auth" (too aggressive), and then settled on **Vaak-Smith** — the smith of speech. Prompting is not just text; it's a way of speaking with intent. The app builds that speech.
+| App Name | Description | Status | Launch |
+|---|---|:---:|---|
+| Vaak-Smith | Precision prompt engineering cockpit for LLMs. | ✅ Live | [Launch](./vaak-smith/index.html) |
 
-Done and Dusted Manifesto
--------------------------
+More tiny tools will be added over time. Each app should be understandable by reading its folder.
 
-This project is deliberately stubborn about a few things. The guiding principles are short and non-negotiable:
+## ✨ Key Principles
 
-- No build steps. No transpilers. No hidden toolchains that make the repo fragile.
-- No node_modules sitting in the tree. If you want dependencies, you pin them explicitly and manage them outside the repo.
-- Works on `file://`. Open an `index.html` and it should work. No dev server required for development sanity.
-- Tiny, composable apps. Each nano-app is one folder, one HTML, a bit of CSS and JS, maybe a small config file. Keep the mental overhead low.
-- Protocol A — Script-injected registry: apps are discovered by a small global registry script (the literal array I mentioned). This avoids fetch/CORS problems in local contexts and makes launching apps trivial.
-- Protocol B — Per-tab instance identity: when you open an app, it either uses the `?instanceId=` from the URL or creates a tab-scoped identity and namespaces all localStorage keys with it. You get per-tab, non-colliding drafts and no surprise overwrites.
-- UX > ceremony. The UI should favor simple, discoverable controls over layers of abstraction. Save drafts automatically, provide lossless exports, and avoid surprises.
+- **Zero dependencies.** No `npm install` or `node_modules` required to use the apps.
+- **Protocol-agnostic.** Works on GitHub Pages and `file://` (no fetch/CORS failures for the dashboard).
+- **State isolation.** Per-tab `instanceId` prevents accidental cross-tab overwrites.
+- **Privacy-first.** Data stays in the browser unless you explicitly wire an integration.
 
-Longevity claim (yes, it's a claim):
+## 🏗 Technical Architecture (brief)
 
-If this repo is still around in 2050 and browsers haven't completely reinvented the DOM, Ankura-Array will still open and let you tinker. That's the yardstick we used when making design choices: simple, durable, explainable.
+- **Registry pattern (script injection).** The dashboard loads a tiny registry script (`app_registry.js`) with a JS array of app descriptors. Loading via a `<script>` avoids fetch/CORS issues when opening files locally.
 
-Contributing (short)
---------------------
+- **Instance Identity Protocol.** Apps accept an optional `?instanceId=` URL parameter. If absent, the app generates a UUID and persists it in `sessionStorage`. All persistent keys are namespaced with the instance ID (e.g., `${instanceId}__system`) so multiple tabs can hold independent drafts.
 
-I want small, clear patches. If you add a nano-app:
+## 🚀 Install & Use
 
-1. Add a small folder at the repo root.
-2. Add an `index.html`, `style.css` (optional), `app.js` (optional), and a tiny entry in the registry script.
-3. No build steps. No registration ceremony.
+Clone the repo and open the dashboard or any app directly.
 
-If you have a strong opinion about names, please write it down in a PR. This README has been edited in the open; keep that spirit.
+```bash
+git clone https://github.com/dhruvinrsoni/ankura-array.git
+cd ankura-array
+# Option A: open the dashboard directly (double-click index.html or open via file://)
+# Option B: run a quick local server and browse (recommended for convenience):
+python -m http.server 8000
+# then open http://localhost:8000
+```
 
-License
--------
+Open `vaak-smith/index.html` to try the first app.
 
-This is free software. Do what you want, but don't be a jerk.
+## 🔍 Privacy & Security
+
+By default, apps store data client-side in `localStorage` and `sessionStorage`. Integration with remote APIs must be explicit and opt-in per app.
+
+## 🤝 Contributing
+
+Small, well-documented PRs welcome. To add a nano-app:
+
+1. Create a directory at the repository root.
+2. Add `index.html` (required) and optionally `style.css`, `app.js`, and a tiny README.
+3. Add an entry to `app_registry.js` following existing examples.
+4. Keep it build-free; document any external steps in the app's README.
+
+## 📄 License
+
+Apache License 2.0 — see `LICENSE`.
+
+---
+
+If you want a PR template, contributor guide, CI check (e.g., prevent `node_modules`), or a prettier homepage, tell me and I will add it.
 
 — The maintainer
