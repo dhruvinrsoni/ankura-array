@@ -72,6 +72,43 @@ window.LLM_CONFIGS = {
           placeholder:
             "e.g. Refactor the authentication module to use JWT tokens",
           target: "user",
+      "GEMINI_ENTERPRISE": {
+        name: "Gemini Enterprise Pro (Role/Task/Context/Source/Expectations)",
+        description:
+          "Highly-structured enterprise prompt template: Role, Task, Context, Source, Expectations.",
+        sections: [
+          {
+            label: "Role",
+            placeholder: "e.g. Senior Systems Architect, Security Lead",
+            target: "system",
+          },
+          {
+            label: "Task",
+            placeholder: "e.g. Design a migration plan for microservices",
+            target: "user",
+          },
+          {
+            label: "Context",
+            placeholder:
+              "Provide high-level context, philosophy, and key constraints (business, legal, performance)",
+            target: "user",
+          },
+          {
+            label: "Source",
+            placeholder: "Attach source material: code, logs, docs, or datasets",
+            target: "user",
+          },
+          {
+            label: "Expectations",
+            placeholder:
+              "Define exact output format, file structure, or style requirements. Be specific.",
+            target: "user",
+          },
+        ],
+        systemTemplate: "# 1. GOAL (The Directive)\n**Role:** {{Role}}\n**Task:** {{Task}}",
+        userTemplate:
+          "# 1. GOAL (The Directive)\n**Role:** [Insert Role]\n**Task:** [Insert Task]\n\n# 2. CONTEXT (The Background)\n[Provide high-level context, philosophy, and constraints]\n\n# 3. SOURCE (The Input Data)\n[Provide the source code, text, or documentation here]\n\n# 4. EXPECTATIONS (The Output Format)\n[Define the exact output format, file structure, or style requirements. Be specific.]",
+      },
         },
         {
           label: "Context",
