@@ -1,9 +1,6 @@
 /**
- * Ankura-Array — App Registry (renamed)
- * ─────────────────────────────
- * Protocol A: Script-Injection Pattern.
- * This file is loaded via <script> to avoid fetch/CORS issues on file://.
- * Add new Nano Apps by appending objects to this array.
+ * Ankura-Array — App Registry (mirror)
+ * This mirror exists for callers that expect the underscore filename.
  */
 window.ANKURA_REGISTRY = [
   {

@@ -1,5 +1,5 @@
 /**
- * LLM Prompt Builder — Configuration Data (copied for Vaak-Smith)
+ * Vaak-Smith — Configuration Data
  */
 window.LLM_CONFIGS = {
   /* ── Provider Definitions ──────────────────────── */
