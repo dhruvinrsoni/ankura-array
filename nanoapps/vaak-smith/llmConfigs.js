@@ -1,8 +1,5 @@
 /**
- * LLM Prompt Builder — Configuration Data
- * ─────────────────────────────────────────
- * Protocol A: Script-Injection Pattern.
- * Loaded via <script> — no fetch, no CORS, works on file://.
+ * LLM Prompt Builder — Configuration Data (copied for Vaak-Smith)
  */
 window.LLM_CONFIGS = {
   /* ── Provider Definitions ──────────────────────── */

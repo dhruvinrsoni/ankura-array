@@ -7,12 +7,12 @@
  */
 window.ANKURA_REGISTRY = [
   {
-    id: "llm-prompt-builder",
-    name: "LLM Prompt Builder",
+    id: "vaak-smith",
+    name: "Vaak-Smith",
     description:
-      "Engineer structured prompts using proven frameworks like Google Standard and Copilot G.C.S.E. Configure provider-specific parameters and export production-ready prompts.",
+      "Vaak-Smith (LLM Prompt Builder) — Engineer structured prompts using proven frameworks like Google Standard and Copilot G.C.S.E. Configure provider-specific parameters and export production-ready prompts.",
     icon: "🧠",
-    path: "nanoapps/llm-prompt-builder/index.html",
+    path: "nanoapps/vaak-smith/index.html",
     version: "1.0.0",
   },
 ];

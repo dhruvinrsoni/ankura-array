@@ -1,0 +1,43 @@
+/* Copied styles for Vaak-Smith (LLM Prompt Builder) */
+:root {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #222222;
+  --bg-surface: #2d2d2d;
+  --bg-input: #252525;
+  --bg-input-focus: #2a2a2a;
+  --accent: #d4a03c;
+  --accent-hover: #e8b84a;
+  --accent-glow: rgba(212, 160, 60, 0.2);
+  --accent-subtle: rgba(212, 160, 60, 0.08);
+  --text-primary: #e8e6e3;
+  --text-secondary: #a09b93;
+  --text-muted: #6b6560;
+  --text-on-accent: #1a1a1a;
+  --border: #3d3d3d;
+  --border-focus: #d4a03c;
+  --danger: #c0392b;
+  --danger-hover: #e74c3c;
+  --success: #27ae60;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --transition: 0.2s ease;
+  --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono",
+    "Cascadia Code", Consolas, monospace;
+}
+
+/* minimal: reuse styles from original app */
+.provider-hint {
+  background: rgba(212,160,60,0.06);
+  border: 1px dashed rgba(212,160,60,0.12);
+  color: var(--text-secondary);
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+  min-height: 28px;
+  display: none;
+}

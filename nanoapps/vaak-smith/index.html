@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LLM Prompt Builder — Ankura-Array</title>
+    <title>Vaak-Smith (LLM Prompt Builder) — Ankura-Array</title>
     <meta
       name="description"
-      content="Engineer structured prompts using proven frameworks. Configure provider-specific parameters and export production-ready prompts."
+      content="Vaak-Smith — Engineer structured prompts using proven frameworks. Configure provider-specific parameters and export production-ready prompts."
     />
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -14,7 +14,7 @@
     <!-- ── Top Bar ─────────────────────────────────── -->
     <header class="top-bar">
       <h1 class="top-bar__title">
-        <span class="accent">🧠</span> LLM Prompt Builder
+        <span class="accent">🧠</span> Vaak-Smith (LLM Prompt Builder)
       </h1>
       <div class="top-bar__actions">
         <button id="btn-back" class="btn btn--outline" title="Back to dashboard">← Back</button>
@@ -26,100 +26,60 @@
 
     <!-- ── App Layout ──────────────────────────────── -->
     <div class="app-layout">
-      <!-- ── Editor Panel ────────────────────────── -->
+      <!-- content will be populated by local app.js -->
       <div class="panel panel--editor">
         <!-- Config Row -->
         <div class="config-row">
           <div class="config-group">
             <label class="field-label" for="select-provider">Provider</label>
-            <select id="select-provider" class="select">
-              <!-- Populated by app.js -->
-            </select>
+            <select id="select-provider" class="select"></select>
           </div>
           <div class="config-group">
             <label class="field-label" for="select-framework">Framework</label>
-            <select id="select-framework" class="select">
-              <!-- Populated by app.js -->
-            </select>
+            <select id="select-framework" class="select"></select>
           </div>
         </div>
 
-        <!-- Model Badge -->
         <div style="margin-bottom: 1rem; display:flex; gap:0.75rem; align-items:center;">
           <span id="model-badge" class="model-badge"></span>
-          <div id="provider-info" style="color:var(--text-secondary); font-size:0.85rem;
-            font-family:var(--font-stack);">&nbsp;</div>
+          <div id="provider-info" style="color:var(--text-secondary); font-size:0.85rem; font-family:var(--font-stack);">&nbsp;</div>
           <button id="btn-apply-guidance" class="btn btn--outline" title="Insert provider guidance into System Instructions">Apply Guidance</button>
         </div>
 
-        <!-- System Instructions -->
         <div class="editor-section">
-          <label class="field-label" for="system-instructions"
-            >System Instructions</label
-          >
-          <textarea
-            id="system-instructions"
-            class="textarea textarea--system"
-            placeholder="Define the AI's role, persona, and behavioral guidelines..."
-          ></textarea>
+          <label class="field-label" for="system-instructions">System Instructions</label>
+          <textarea id="system-instructions" class="textarea textarea--system" placeholder="Define the AI's role, persona, and behavioral guidelines..."></textarea>
         </div>
 
-        <!-- User Prompt -->
         <div class="editor-section">
           <label class="field-label" for="user-prompt">User Prompt</label>
-          <textarea
-            id="user-prompt"
-            class="textarea textarea--user"
-            placeholder="Write your task, context, and expectations here..."
-          ></textarea>
+          <textarea id="user-prompt" class="textarea textarea--user" placeholder="Write your task, context, and expectations here..."></textarea>
         </div>
 
-        <!-- Parameters -->
         <div class="params-row">
           <div class="param-group">
             <div class="param-header">
               <label class="field-label" for="slider-temp">Temperature</label>
               <span id="val-temp" class="param-value">1.00</span>
             </div>
-            <input
-              id="slider-temp"
-              type="range"
-              class="slider"
-              min="0"
-              max="2"
-              step="0.01"
-              value="1"
-            />
+            <input id="slider-temp" type="range" class="slider" min="0" max="2" step="0.01" value="1" />
           </div>
           <div class="param-group">
             <div class="param-header">
               <label class="field-label" for="slider-topp">Top P</label>
               <span id="val-topp" class="param-value">1.00</span>
             </div>
-            <input
-              id="slider-topp"
-              type="range"
-              class="slider"
-              min="0"
-              max="1"
-              step="0.01"
-              value="1"
-            />
+            <input id="slider-topp" type="range" class="slider" min="0" max="1" step="0.01" value="1" />
           </div>
         </div>
       </div>
 
-      <!-- ── Preview Panel ───────────────────────── -->
       <div class="panel panel--preview">
         <div class="preview-header">
           <span class="preview-title">Output Preview</span>
           <div class="preview-actions">
-            <button id="btn-copy-plain" class="btn btn--outline" title="Copy as plain text">
-              📋 Copy Plain
-            </button>
-            <button id="btn-copy-markdown" class="btn btn--solid" title="Copy as structured Markdown">
-              📝 Copy Markdown
-            </button>
+            <button id="btn-copy-plain" class="btn btn--outline" title="Copy as plain text">📋 Copy Plain</button>
+            <button id="btn-copy-markdown" class="btn btn--solid" title="Copy as structured Markdown">📝 Copy Markdown</button>
           </div>
         </div>
         <div id="provider-hint" class="provider-hint" aria-hidden="true"></div>
@@ -127,7 +87,6 @@
       </div>
     </div>
 
-    <!-- ── Scripts (Protocol A: Script-Injection) ── -->
     <script src="llmConfigs.js"></script>
     <script src="app.js"></script>
   </body>

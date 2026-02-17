@@ -1,5 +1,5 @@
 /**
- * LLM Prompt Builder — Application Logic
+ * Vaak-Smith — Application Logic
  * ────────────────────────────────────────
  * Implements:
  *   • Protocol B  — Instance Identity (state isolation per tab)
