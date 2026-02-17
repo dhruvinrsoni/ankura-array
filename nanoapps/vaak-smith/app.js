@@ -424,6 +424,30 @@
       $preview.textContent = text;
       $preview.classList.remove("preview-content--empty");
     }
+    updatePreviewStatus();
+  }
+
+  /**
+   * Update the status bar with a rough token estimate and provider name.
+   */
+  function updatePreviewStatus() {
+    var provider = CONFIGS.PROVIDERS[$provider.value];
+    var providerName = provider ? provider.name + " (" + provider.model + ")" : "—";
+    var sys = $system.value || "";
+    var usr = $user.value || "";
+    var words = 0;
+    try {
+      words = (sys + " " + usr).split(/\s+/).filter(Boolean).length;
+    } catch (e) {
+      words = 0;
+    }
+    // Rough token estimate: words * 1.3 (very approximate)
+    var tokens = Math.max(0, Math.ceil(words * 1.3));
+    var status = "Tokens: ~" + tokens + " | Provider: " + (provider ? provider.model : "—");
+    var $status = document.getElementById("preview-status");
+    if ($status) {
+      $status.textContent = status;
+    }
   }
 
   /**

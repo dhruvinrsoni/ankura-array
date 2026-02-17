@@ -62,3 +62,83 @@
   border-color: rgba(0,0,0,0.1);
   box-shadow: 0 4px 14px var(--accent-glow);
 }
+
+/* CONTROL PANEL LAYOUT */
+.app-layout {
+  display: grid;
+  grid-template-columns: 1fr 440px;
+  gap: 20px;
+  padding: 18px;
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.12));
+  border: 1px solid rgba(255,255,255,0.03);
+  padding: 14px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.panel--editor { min-height: 640px; }
+.panel--preview { min-height: 640px; display:flex; flex-direction:column; }
+
+/* Editor header inline toggle */
+.editor-section__header {
+  display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px;
+}
+
+/* Tuning module */
+.tuning-module {
+  border: 1px solid rgba(255,255,255,0.03);
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.tuning-title { font-weight:700; color:var(--text-secondary); font-size:0.85rem; margin-bottom:8px; }
+.params-row { display:flex; gap:12px; }
+.param-group { flex:1; }
+.param-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.param-value { font-family: var(--font-mono); color:var(--text-secondary); }
+
+/* Fader-style sliders */
+.slider--fader { -webkit-appearance:none; appearance:none; height:10px; border-radius:10px; background:linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03)); outline:none; position:relative; }
+.slider--fader::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:var(--accent); box-shadow:0 4px 10px var(--accent-glow); transform:translateY(-5px); cursor:pointer; border:2px solid rgba(0,0,0,0.2); }
+.slider--fader::-moz-range-thumb { width:20px; height:20px; border-radius:50%; background:var(--accent); box-shadow:0 4px 10px var(--accent-glow); border:2px solid rgba(0,0,0,0.2); }
+
+/* Tick marks using background gradients (approx positions at 20%,50%,80%) */
+.slider--fader { background-image: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%), repeating-linear-gradient(90deg, transparent, transparent 19%, rgba(255,255,255,0.06) 20%, transparent 21%, transparent 49%, rgba(255,255,255,0.06) 50%, transparent 51%, transparent 79%, rgba(255,255,255,0.06) 80%, transparent 81%); background-size:100% 100%, 100% 100%; }
+
+/* Toggle (look like a lit push-button) */
+.btn--toggle { padding:0.4rem 0.7rem; border-radius:999px; font-weight:600; font-size:0.86rem; }
+.btn--toggle.btn--active { box-shadow: 0 6px 20px rgba(212,160,60,0.18), 0 0 8px rgba(212,160,60,0.12) inset; }
+
+/* Preview monitor */
+.preview-monitor { background: #0f0f10; border-radius:8px; border:1px solid rgba(255,255,255,0.03); padding:10px; display:flex; flex-direction:column; flex:1; }
+.preview-content { font-family: var(--font-mono); font-size:0.92rem; color: #dfe6e9; background: transparent; border-radius:6px; padding:12px; overflow:auto; flex:1; white-space:pre-wrap; }
+.preview-content--empty { color: var(--text-muted); }
+.preview-status { font-size:0.82rem; color:var(--text-secondary); padding:8px 10px 6px; border-top:1px solid rgba(255,255,255,0.02); text-align:right; }
+
+/* Scanlines and gutter to mimic a terminal/log monitor */
+.preview-content {
+  background-image: linear-gradient(rgba(255,255,255,0.01) 1px, transparent 1px);
+  background-size: 100% 20px;
+  padding-left: 18px;
+  position:relative;
+}
+.preview-monitor { padding-left: 12px; }
+.preview-monitor::before {
+  content: "";
+  position:absolute;
+  left:8px; top:18px; bottom:46px; width:1px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  opacity:0.25;
+}
+.preview-monitor { position:relative; }
+
+/* Slightly brighter status bar when tokens exceed a threshold (visual cue) */
+.preview-status.high-tokens { color: #ffdca8; }
+
+/* compact top bar tweaks */
+.top-bar { display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid rgba(255,255,255,0.02); background:transparent; }
+

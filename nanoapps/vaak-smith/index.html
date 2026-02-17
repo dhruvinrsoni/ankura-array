@@ -43,11 +43,14 @@
         <div style="margin-bottom: 1rem; display:flex; gap:0.75rem; align-items:center;">
           <span id="model-badge" class="model-badge"></span>
           <div id="provider-info" style="color:var(--text-secondary); font-size:0.85rem; font-family:var(--font-stack);">&nbsp;</div>
-          <button id="btn-apply-guidance" class="btn btn--outline" title="Toggle provider guidance in System Instructions" aria-pressed="false">Toggle Guidance</button>
         </div>
 
+
         <div class="editor-section">
-          <label class="field-label" for="system-instructions">System Instructions</label>
+          <div class="editor-section__header">
+            <label class="field-label" for="system-instructions">System Instructions</label>
+            <button id="btn-apply-guidance" class="btn btn--toggle btn--outline" title="Toggle provider guidance in System Instructions" aria-pressed="false">Toggle Guidance</button>
+          </div>
           <textarea id="system-instructions" class="textarea textarea--system" placeholder="Define the AI's role, persona, and behavioral guidelines..."></textarea>
         </div>
 
@@ -56,20 +59,23 @@
           <textarea id="user-prompt" class="textarea textarea--user" placeholder="Write your task, context, and expectations here..."></textarea>
         </div>
 
-        <div class="params-row">
-          <div class="param-group">
-            <div class="param-header">
-              <label class="field-label" for="slider-temp">Temperature</label>
-              <span id="val-temp" class="param-value">1.00</span>
+        <div class="tuning-module">
+          <div class="tuning-title">Tuning</div>
+          <div class="params-row">
+            <div class="param-group fader">
+              <div class="param-header">
+                <label class="field-label" for="slider-temp">Temperature</label>
+                <span id="val-temp" class="param-value">1.00</span>
+              </div>
+              <input id="slider-temp" type="range" class="slider slider--fader" min="0" max="2" step="0.01" value="1" />
             </div>
-            <input id="slider-temp" type="range" class="slider" min="0" max="2" step="0.01" value="1" />
-          </div>
-          <div class="param-group">
-            <div class="param-header">
-              <label class="field-label" for="slider-topp">Top P</label>
-              <span id="val-topp" class="param-value">1.00</span>
+            <div class="param-group fader">
+              <div class="param-header">
+                <label class="field-label" for="slider-topp">Top P</label>
+                <span id="val-topp" class="param-value">1.00</span>
+              </div>
+              <input id="slider-topp" type="range" class="slider slider--fader" min="0" max="1" step="0.01" value="1" />
             </div>
-            <input id="slider-topp" type="range" class="slider" min="0" max="1" step="0.01" value="1" />
           </div>
         </div>
       </div>
@@ -83,7 +89,10 @@
           </div>
           <div id="preview-hint" class="preview-hint" aria-hidden="true"></div>
         </div>
-        <pre id="output-preview" class="preview-content preview-content--empty">Configure your prompt to see a live preview…</pre>
+        <div class="preview-monitor">
+          <pre id="output-preview" class="preview-content preview-content--empty">Configure your prompt to see a live preview…</pre>
+          <div id="preview-status" class="preview-status">Tokens: ~— | Provider: —</div>
+        </div>
       </div>
     </div>
 
