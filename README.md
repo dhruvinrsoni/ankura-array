@@ -1,4 +1,4 @@
-# Ankura-Array (अंकुर-Array) 🪴
+# 🌱 Ankura-Array (अंकुर-Array) ▦▦▦ 🪴
 
 *A digital incubator for high-precision, offline-first nano applications.*
 
@@ -65,6 +65,8 @@ cd ankura-array
 # Option B: run a quick local server and browse (recommended for convenience):
 python -m http.server 8000
 # then open http://localhost:8000
+
+[Click to open the local server: http://localhost:8000](http://localhost:8000)
 ```
 
 Open `vaak-smith/index.html` to try the first app.
