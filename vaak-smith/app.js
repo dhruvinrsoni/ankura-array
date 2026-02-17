@@ -384,13 +384,13 @@
       if (!provider) return;
       var markers = guidanceMarkers(provider);
       var guidance = buildGuidance(provider);
-        // Prevent duplicate insertion: only insert when absent
-        if (isGuidancePresentFor(provider)) return;
-        if (!$system.value.trim()) {
-          $system.value = guidance + "\n";
-        } else {
-          $system.value = $system.value.trim() + markers.start + guidance + markers.end;
-        }
+      // Prevent duplicate insertion: only insert when absent
+      if (isGuidancePresentFor(provider)) return;
+      if (!$system.value.trim()) {
+        $system.value = guidance + "\n";
+      } else {
+        $system.value = $system.value.trim() + markers.start + guidance + markers.end;
+      }
       State.save("systemInstructions", $system.value);
     }
 
@@ -447,6 +447,7 @@
     var $status = document.getElementById("preview-status");
     if ($status) {
       $status.textContent = status;
+      if (tokens > 1500) $status.classList.add("high-tokens"); else $status.classList.remove("high-tokens");
     }
   }
 
@@ -713,7 +714,7 @@
               window.close();
               // If close is blocked, navigate back as fallback
               setTimeout(function () {
-                if (!window.closed) window.location.href = "../../index.html";
+                if (!window.closed) window.location.href = "../index.html";
               }, 250);
               return;
             } catch (e) {
@@ -726,7 +727,7 @@
 
         // Fallback: navigate to root index.html relative path
         try {
-          window.location.href = "../../index.html";
+          window.location.href = "../index.html";
         } catch (e) {
           console.warn("Back navigation failed", e);
         }
@@ -778,3 +779,4 @@
     init();
   }
 })();
+
