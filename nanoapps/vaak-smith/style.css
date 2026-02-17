@@ -41,3 +41,24 @@
   min-height: 28px;
   display: none;
 }
+
+/* Preview hint badge (top-right inside preview header) */
+.preview-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.03);
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  margin-left: 0.75rem;
+  align-self: center;
+  display: none;
+}
+
+/* Button active visual state for the toggle guidance */
+.btn--active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-color: rgba(0,0,0,0.1);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}

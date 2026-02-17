@@ -143,7 +143,7 @@
   var $btnBack = document.getElementById("btn-back");
   var $providerInfo = document.getElementById("provider-info");
   var $btnApplyGuidance = document.getElementById("btn-apply-guidance");
-  var $providerHint = document.getElementById("provider-hint");
+  var $previewHint = document.getElementById("preview-hint");
 
   var CONFIGS = window.LLM_CONFIGS || { PROVIDERS: {}, FRAMEWORKS: {} };
 
@@ -279,20 +279,20 @@
         "Max tokens: " + provider.maxTokens +
         " • default temp: " + provider.temperature.default.toFixed(2) +
         " • default topP: " + provider.topP.default.toFixed(2);
-      // Provider hint (non-editable) shown above preview
-      if ($providerHint) {
-        $providerHint.textContent =
-          provider.name + " — " + provider.model + " • Max tokens: " + provider.maxTokens +
-          ". Recommended temp: " + provider.temperature.default.toFixed(2) +
-          ", top_p: " + provider.topP.default.toFixed(2) + ".";
-        $providerHint.style.display = "block";
+
+      // Preview hint (top-right, non-editable inside preview panel)
+      if ($previewHint) {
+        $previewHint.textContent =
+          "Max Tokens: " + provider.maxTokens +
+          " | Recommended Temp: " + provider.temperature.default.toFixed(2);
+        $previewHint.style.display = "inline-block";
       }
     } else {
       $modelBadge.style.display = "none";
       $providerInfo.textContent = "";
-      if ($providerHint) {
-        $providerHint.textContent = "";
-        $providerHint.style.display = "none";
+      if ($previewHint) {
+        $previewHint.textContent = "";
+        $previewHint.style.display = "none";
       }
     }
   }
@@ -384,11 +384,13 @@
       if (!provider) return;
       var markers = guidanceMarkers(provider);
       var guidance = buildGuidance(provider);
-      if (!$system.value.trim()) {
-        $system.value = guidance + "\n";
-      } else {
-        $system.value = $system.value.trim() + markers.start + guidance + markers.end;
-      }
+        // Prevent duplicate insertion: only insert when absent
+        if (isGuidancePresentFor(provider)) return;
+        if (!$system.value.trim()) {
+          $system.value = guidance + "\n";
+        } else {
+          $system.value = $system.value.trim() + markers.start + guidance + markers.end;
+        }
       State.save("systemInstructions", $system.value);
     }
 
@@ -396,14 +398,16 @@
       var providerKey = $provider.value;
       var provider = CONFIGS.PROVIDERS[providerKey];
       if (!$btnApplyGuidance) return;
+      // Always show the same label; indicate active state via class + aria-pressed
+      $btnApplyGuidance.textContent = "Toggle Guidance";
       if (provider && isGuidancePresentFor(provider)) {
-        $btnApplyGuidance.textContent = "Remove Guidance";
-        $btnApplyGuidance.classList.add("btn--danger");
+        $btnApplyGuidance.classList.add("btn--active");
         $btnApplyGuidance.classList.remove("btn--outline");
+        $btnApplyGuidance.setAttribute("aria-pressed", "true");
       } else {
-        $btnApplyGuidance.textContent = "Apply Guidance";
-        $btnApplyGuidance.classList.remove("btn--danger");
+        $btnApplyGuidance.classList.remove("btn--active");
         $btnApplyGuidance.classList.add("btn--outline");
+        $btnApplyGuidance.setAttribute("aria-pressed", "false");
       }
     }
 

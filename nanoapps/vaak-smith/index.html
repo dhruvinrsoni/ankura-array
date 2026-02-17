@@ -43,7 +43,7 @@
         <div style="margin-bottom: 1rem; display:flex; gap:0.75rem; align-items:center;">
           <span id="model-badge" class="model-badge"></span>
           <div id="provider-info" style="color:var(--text-secondary); font-size:0.85rem; font-family:var(--font-stack);">&nbsp;</div>
-          <button id="btn-apply-guidance" class="btn btn--outline" title="Insert provider guidance into System Instructions">Apply Guidance</button>
+          <button id="btn-apply-guidance" class="btn btn--outline" title="Toggle provider guidance in System Instructions" aria-pressed="false">Toggle Guidance</button>
         </div>
 
         <div class="editor-section">
@@ -81,8 +81,8 @@
             <button id="btn-copy-plain" class="btn btn--outline" title="Copy as plain text">📋 Copy Plain</button>
             <button id="btn-copy-markdown" class="btn btn--solid" title="Copy as structured Markdown">📝 Copy Markdown</button>
           </div>
+          <div id="preview-hint" class="preview-hint" aria-hidden="true"></div>
         </div>
-        <div id="provider-hint" class="provider-hint" aria-hidden="true"></div>
         <pre id="output-preview" class="preview-content preview-content--empty">Configure your prompt to see a live preview…</pre>
       </div>
     </div>
