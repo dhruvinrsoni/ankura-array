@@ -140,9 +140,7 @@
   var $btnCopyMd = document.getElementById("btn-copy-markdown");
   var $btnReset = document.getElementById("btn-reset");
   var $btnBack = document.getElementById("btn-back");
-  var $providerInfo = document.getElementById("provider-info");
   var $btnApplyGuidance = document.getElementById("btn-apply-guidance");
-  var $previewHint = document.getElementById("preview-hint");
 
   var CONFIGS = window.LLM_CONFIGS || { PROVIDERS: {}, FRAMEWORKS: {} };
 
@@ -424,25 +422,10 @@
       $modelBadge.textContent = "⚡ " + provider.model;
       $modelBadge.style.display = "";
       // Show provider info (max tokens, defaults)
-      $providerInfo.textContent =
-        "Max tokens: " + provider.maxTokens +
-        " • default temp: " + provider.temperature.default.toFixed(2) +
-        " • default topP: " + provider.topP.default.toFixed(2);
-
-      // Preview hint (top-right, non-editable inside preview panel)
-      if ($previewHint) {
-        $previewHint.textContent =
-          "Max Tokens: " + provider.maxTokens +
-          " | Recommended Temp: " + provider.temperature.default.toFixed(2);
-        $previewHint.style.display = "inline-block";
-      }
+      // provider-specific details removed (keeps UI future-proof)
     } else {
       $modelBadge.style.display = "none";
-      $providerInfo.textContent = "";
-      if ($previewHint) {
-        $previewHint.textContent = "";
-        $previewHint.style.display = "none";
-      }
+      // provider info removed
     }
   }
 

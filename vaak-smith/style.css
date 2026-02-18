@@ -7,7 +7,7 @@
 .provider-hint { background: rgba(212,160,60,0.06); border:1px dashed rgba(212,160,60,0.12); color:var(--text-secondary); padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem; margin-bottom:0.75rem; min-height:28px; display:none }
 
 /* Preview hint badge */
-.preview-hint { font-size:0.8rem; color:var(--text-secondary); background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.03); padding:0.35rem 0.6rem; border-radius:999px; margin-left:0.75rem; align-self:center; display:none }
+.preview-hint { display:none }
 
 /* Button active */
 .btn--active { background:var(--accent); color:var(--bg-primary); border-color:rgba(0,0,0,0.1); box-shadow:0 4px 14px var(--accent-glow) }
