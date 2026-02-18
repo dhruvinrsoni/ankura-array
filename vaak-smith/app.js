@@ -441,6 +441,25 @@
     } catch (e) {
       // ignore
     }
+
+    // Trigger input events on all rendered textareas so their debounced handlers
+    // run and persist composed user/system text into State and refresh preview.
+    try {
+      var allTAs = container.querySelectorAll('textarea[data-section-label], textarea.textarea--user');
+      allTAs.forEach(function (el) {
+        // Fire an input event to simulate user interaction and invoke listeners
+        try {
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch (e) {
+          // fallback for older browsers
+          var evt = document.createEvent('Event');
+          evt.initEvent('input', true, true);
+          el.dispatchEvent(evt);
+        }
+      });
+    } catch (e) {
+      // ignore
+    }
   }
 
   /**
