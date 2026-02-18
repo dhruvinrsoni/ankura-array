@@ -597,6 +597,32 @@
      §7  OUTPUT ASSEMBLY & PREVIEW
      ═══════════════════════════════════════════════════ */
 
+  /**
+   * Return an ordered array of {label, value} for the current framework or
+   * for the no-framework sandbox. Only include sections that have content.
+   */
+  function assembleSectionsPairs() {
+    var fwKey = $framework ? $framework.value : "";
+    var pairs = [];
+
+    if (!fwKey) {
+      var sys = $system && $system.value ? $system.value.trim() : "";
+      var usr = getUserText() ? getUserText().trim() : "";
+      if (sys) pairs.push({ label: "System", value: sys });
+      if (usr) pairs.push({ label: "User", value: usr });
+      return pairs;
+    }
+
+    var fw = CONFIGS.FRAMEWORKS[fwKey];
+    var sectionsDef = (fw && fw.sections && fw.sections.length) ? fw.sections : deriveSectionsFromTemplates(fw || {});
+    var stored = loadFrameworkSections(fwKey) || {};
+    sectionsDef.forEach(function (s) {
+      var v = (stored[s.label] || "").trim();
+      if (v) pairs.push({ label: s.label, value: v });
+    });
+    return pairs;
+  }
+
   function renderPreview() {
     var text = assemblePreviewText();
     if (!text) {
@@ -635,21 +661,11 @@
    * Build plain-text preview from current field values.
    */
   function assemblePreviewText() {
-    var systemText = $system.value.trim();
-    var userText = getUserText().trim();
-
-    if (!systemText && !userText) return "";
-
-    var parts = [];
-
-    if (systemText) {
-      parts.push("=== System Instructions ===\n" + systemText);
-    }
-
-    if (userText) {
-      parts.push("=== User Prompt ===\n" + userText);
-    }
-
+    var pairs = assembleSectionsPairs();
+    if (!pairs || !pairs.length) return "";
+    var parts = pairs.map(function (p) {
+      return p.label + "\n" + p.value;
+    });
     return parts.join("\n\n");
   }
 
@@ -657,19 +673,10 @@
    * Build structured Markdown output for clipboard.
    */
   function assembleMarkdown() {
-    var systemText = $system.value.trim();
-    var userText = getUserText().trim();
-
-    var parts = [];
-
-    if (systemText) {
-      parts.push("## System Instructions\n\n" + systemText);
-    }
-
-    if (userText) {
-      parts.push("## User Prompt\n\n" + userText);
-    }
-
+    var pairs = assembleSectionsPairs();
+    var parts = pairs.map(function (p) {
+      return "## " + p.label + "\n\n" + p.value;
+    });
     return parts.join("\n\n");
   }
 
@@ -677,19 +684,10 @@
    * Build plain-text output for clipboard (cleaner than preview).
    */
   function assemblePlainText() {
-    var systemText = $system.value.trim();
-    var userText = getUserText().trim();
-
-    var parts = [];
-
-    if (systemText) {
-      parts.push("System Instructions:\n" + systemText);
-    }
-
-    if (userText) {
-      parts.push("User Prompt:\n" + userText);
-    }
-
+    var pairs = assembleSectionsPairs();
+    var parts = pairs.map(function (p) {
+      return p.label + ":\n" + p.value;
+    });
     return parts.join("\n\n");
   }
 
