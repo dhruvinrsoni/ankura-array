@@ -234,6 +234,157 @@
     $valTopP.textContent = parseFloat($sliderTopP.value).toFixed(2);
   }
 
+  /* ── Per-framework sections storage (JSON) & helpers ── */
+  function frameworkSectionsKey(frameworkKey) {
+    return "VAAK_GLOBAL__FRAMEWORK_SECTIONS_" + (frameworkKey || "");
+  }
+
+  function loadFrameworkSections(frameworkKey) {
+    try {
+      var raw = localStorage.getItem(frameworkSectionsKey(frameworkKey));
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveFrameworkSections(frameworkKey, obj) {
+    try {
+      localStorage.setItem(frameworkSectionsKey(frameworkKey), JSON.stringify(obj));
+      // keep legacy single prompt in sync for compatibility
+      var systemCombined = combineSectionsToText(obj, "system");
+      if (systemCombined) localStorage.setItem(globalSystemKey(frameworkKey), systemCombined);
+      else localStorage.removeItem(globalSystemKey(frameworkKey));
+    } catch (e) {
+      console.warn("[VaakFramework] save sections failed", e);
+    }
+  }
+
+  function globalSystemKey(frameworkKey) {
+    return "VAAK_GLOBAL__SYSTEM_PROMPT_" + (frameworkKey || "");
+  }
+
+  function loadGlobalSystem(frameworkKey) {
+    try {
+      var raw = localStorage.getItem(globalSystemKey(frameworkKey));
+      if (!raw || raw === "") return null;
+      return raw;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function combineSectionsToText(obj, target) {
+    var parts = [];
+    if (!obj) return "";
+    var fw = CONFIGS.FRAMEWORKS[$framework.value];
+    if (!fw || !fw.sections) return "";
+    fw.sections.forEach(function (s) {
+      if (s.target === target) {
+        var v = (obj[s.label] || "").trim();
+        if (v) parts.push(v);
+      }
+    });
+    return parts.join("\n\n");
+  }
+
+  function deriveSectionsFromTemplates(fw) {
+    var seen = {};
+    var out = [];
+    function pushLabel(label, target) {
+      label = (label || "").trim();
+      if (!label) return;
+      if (seen[label]) return;
+      seen[label] = true;
+      out.push({ label: label, placeholder: "", target: target });
+    }
+
+    var sys = fw.systemTemplate || "";
+    var usr = fw.userTemplate || "";
+    var tpl = fw.template || "";
+
+    // match {{Token}} occurrences
+    var re = /\{\{\s*([^}]+?)\s*\}\}/g;
+    var m;
+    while ((m = re.exec(sys))) {
+      pushLabel(m[1], "system");
+    }
+    // user template
+    while ((m = re.exec(usr))) {
+      pushLabel(m[1], "user");
+    }
+
+    // Also inspect generic `template` text for bracketed placeholders like [Insert Role]
+    var reBr = /\[([^\]]+?)\]/g;
+    while ((m = reBr.exec(tpl))) {
+      var label = m[1].replace(/Insert\s*/i, "").trim();
+      var target = /role|source/i.test(label) ? "system" : "user";
+      pushLabel(label, target);
+    }
+
+    return out;
+  }
+
+  function renderFrameworkFields(frameworkKey) {
+    // ensure container exists
+    var container = document.getElementById("framework-fields");
+    if (!container) return;
+    container.innerHTML = "";
+
+    var fw = CONFIGS.FRAMEWORKS[frameworkKey];
+    if (!fw) return;
+
+    var sectionsDef = (fw.sections && fw.sections.length) ? fw.sections : deriveSectionsFromTemplates(fw);
+    if (!sectionsDef || !sectionsDef.length) return;
+
+    var stored = loadFrameworkSections(frameworkKey) || {};
+    var legacy = loadGlobalSystem(frameworkKey);
+
+    sectionsDef.forEach(function (section) {
+      var wrap = document.createElement('div');
+      wrap.className = 'editor-section';
+
+      var header = document.createElement('div');
+      header.className = 'editor-section__header';
+      var label = document.createElement('label');
+      label.className = 'field-label';
+      label.textContent = section.label + (section.target === 'system' ? ' (system)' : ' (user)');
+      header.appendChild(label);
+      wrap.appendChild(header);
+
+      var ta = document.createElement('textarea');
+      ta.className = 'textarea';
+      ta.rows = section.target === 'system' ? 4 : 3;
+      ta.placeholder = section.placeholder || '';
+      ta.dataset.sectionLabel = section.label;
+
+      if (stored && stored[section.label]) {
+        ta.value = stored[section.label];
+      } else if (legacy && section.target === 'system' && !Object.keys(stored).length) {
+        ta.value = legacy;
+        legacy = null;
+      }
+
+      var deb = debounce(function () {
+        var nodes = container.querySelectorAll('textarea[data-section-label]');
+        var obj = {};
+        nodes.forEach(function (n) { obj[n.dataset.sectionLabel] = n.value; });
+        saveFrameworkSections(frameworkKey, obj);
+        // update combined textareas
+        $system.value = combineSectionsToText(obj, 'system');
+        $user.value = combineSectionsToText(obj, 'user');
+        State.save('userPrompt', $user.value);
+        renderPreview();
+      }, 400);
+
+      ta.addEventListener('input', deb);
+
+      wrap.appendChild(ta);
+      container.appendChild(wrap);
+    });
+  }
+
   /**
    * Update slider min/max/step/default based on selected provider.
    */
@@ -636,7 +787,16 @@
       var key = $framework.value;
       State.save("framework", key);
       if (key) {
-        applyFramework(key);
+        // Render per-section inputs (and hydrate from stored sections or legacy global)
+        renderFrameworkFields(key);
+        var sections = loadFrameworkSections(key);
+        if (sections) {
+          $system.value = combineSectionsToText(sections, 'system');
+          $user.value = combineSectionsToText(sections, 'user');
+        } else {
+          var legacy = loadGlobalSystem(key);
+          if (legacy) $system.value = legacy;
+        }
       }
       renderPreview();
     });
@@ -766,6 +926,40 @@
         renderPreview();
       });
     }
+
+    // ── Cross-tab sync for framework sections & global system prompt ──
+    window.addEventListener('storage', function (ev) {
+      try {
+        if (!ev.key) return;
+        if (ev.key.indexOf('VAAK_GLOBAL__FRAMEWORK_SECTIONS_') === 0) {
+          var fk = ev.key.replace('VAAK_GLOBAL__FRAMEWORK_SECTIONS_', '');
+          if ($framework.value === fk) {
+            renderFrameworkFields(fk);
+            var sections = loadFrameworkSections(fk);
+            if (sections) {
+              $system.value = combineSectionsToText(sections, 'system');
+              $user.value = combineSectionsToText(sections, 'user');
+            } else {
+              var legacy = loadGlobalSystem(fk);
+              if (legacy) $system.value = legacy;
+            }
+            renderPreview();
+          }
+        }
+
+        if (ev.key.indexOf('VAAK_GLOBAL__SYSTEM_PROMPT_') === 0) {
+          var fk2 = ev.key.replace('VAAK_GLOBAL__SYSTEM_PROMPT_', '');
+          if ($framework.value === fk2) {
+            var v = loadGlobalSystem(fk2);
+            if (v === null) $system.value = '';
+            else $system.value = v;
+            renderPreview();
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    });
   }
 
   /* ═══════════════════════════════════════════════════
