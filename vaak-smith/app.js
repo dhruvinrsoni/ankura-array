@@ -135,6 +135,13 @@
   var $sliderTopP = document.getElementById("slider-topp");
   var $valTemp = document.getElementById("val-temp");
   var $valTopP = document.getElementById("val-topp");
+  // Safe fallbacks when provider/tuning UI removed from DOM
+  if (!$provider) {
+    $provider = { value: "", addEventListener: function () {}, selectedIndex: 0 };
+  }
+  if (!$modelBadge) {
+    $modelBadge = { textContent: "", style: { display: "none" } };
+  }
   var $preview = document.getElementById("output-preview");
   var $btnCopyPlain = document.getElementById("btn-copy-plain");
   var $btnCopyMd = document.getElementById("btn-copy-markdown");
@@ -150,13 +157,11 @@
      ═══════════════════════════════════════════════════ */
 
   function init() {
-    populateProviders();
     populateFrameworks();
     hydrateState();
     // Render framework-specific fields (including the no-framework sandbox)
     renderFrameworkFields($framework.value);
-    syncSliderRanges();
-    updateModelBadge();
+    // tuning/provider UI removed — slider/model sync omitted
     updateApplyButtonState();
     renderPreview();
     bindEvents();
@@ -175,6 +180,8 @@
       $provider.appendChild(opt);
     });
   }
+
+  // Provider list is intentionally no-op when provider UI is absent.
 
   /**
    * Fill the framework <select> with a "None" option + all frameworks.
@@ -199,11 +206,6 @@
    * Restore all saved field values from namespaced localStorage.
    */
   function hydrateState() {
-    var savedProvider = State.load("provider");
-    if (savedProvider && CONFIGS.PROVIDERS[savedProvider]) {
-      $provider.value = savedProvider;
-    }
-
     var savedFramework = State.load("framework");
     if (savedFramework !== null) {
       $framework.value = savedFramework;
@@ -212,22 +214,11 @@
     // System instructions are intentionally left empty by default.
     $system.value = "";
 
-    var savedUser = State.load("userPrompt");
-    // user content is derived from per-framework section fields; instance fallback kept in storage
-
-    var savedTemp = State.load("temperature");
-    if (savedTemp !== null) {
-      $sliderTemp.value = savedTemp;
-    }
-
-    var savedTopP = State.load("topP");
-    if (savedTopP !== null) {
-      $sliderTopP.value = savedTopP;
-    }
-
-    // Sync displayed values
-    $valTemp.textContent = parseFloat($sliderTemp.value).toFixed(2);
-    $valTopP.textContent = parseFloat($sliderTopP.value).toFixed(2);
+    // If sliders/vals are not present (tuning removed), provide safe defaults
+    if (!$sliderTemp) $sliderTemp = { value: "1", addEventListener: function () {} };
+    if (!$sliderTopP) $sliderTopP = { value: "1", addEventListener: function () {} };
+    if (!$valTemp) $valTemp = { textContent: "1.00" };
+    if (!$valTopP) $valTopP = { textContent: "1.00" };
   }
 
   /* ── Per-framework sections storage (JSON) & helpers ── */
@@ -430,48 +421,15 @@
    * Update slider min/max/step/default based on selected provider.
    */
   function syncSliderRanges() {
-    var providerKey = $provider.value;
-    var provider = CONFIGS.PROVIDERS[providerKey];
-    if (!provider) return;
-
-    var temp = provider.temperature;
-    $sliderTemp.min = temp.min;
-    $sliderTemp.max = temp.max;
-    $sliderTemp.step = temp.step;
-
-    // Clamp current value within new range
-    var currentTemp = parseFloat($sliderTemp.value);
-    if (currentTemp < temp.min) $sliderTemp.value = temp.min;
-    if (currentTemp > temp.max) $sliderTemp.value = temp.max;
-
-    var topP = provider.topP;
-    $sliderTopP.min = topP.min;
-    $sliderTopP.max = topP.max;
-    $sliderTopP.step = topP.step;
-
-    var currentTopP = parseFloat($sliderTopP.value);
-    if (currentTopP < topP.min) $sliderTopP.value = topP.min;
-    if (currentTopP > topP.max) $sliderTopP.value = topP.max;
-
-    $valTemp.textContent = parseFloat($sliderTemp.value).toFixed(2);
-    $valTopP.textContent = parseFloat($sliderTopP.value).toFixed(2);
+    // Tuning removed: no-op to keep calls safe
   }
 
   /**
    * Show the current model name in the badge.
    */
   function updateModelBadge() {
-    var providerKey = $provider.value;
-    var provider = CONFIGS.PROVIDERS[providerKey];
-    if (provider) {
-      $modelBadge.textContent = "⚡ " + provider.model;
-      $modelBadge.style.display = "";
-      // Show provider info (max tokens, defaults)
-      // provider-specific details removed (keeps UI future-proof)
-    } else {
-      $modelBadge.style.display = "none";
-      // provider info removed
-    }
+    // Provider UI removed — hide badge when present
+    if ($modelBadge && $modelBadge.style) $modelBadge.style.display = "none";
   }
 
   /* ═══════════════════════════════════════════════════
@@ -610,8 +568,6 @@
    * Update the status bar with a rough token estimate and provider name.
    */
   function updatePreviewStatus() {
-    var provider = CONFIGS.PROVIDERS[$provider.value];
-    var providerName = provider ? provider.name + " (" + provider.model + ")" : "—";
     var sys = $system.value || "";
     var usr = getUserText() || "";
     var words = 0;
@@ -622,7 +578,7 @@
     }
     // Rough token estimate: words * 1.3 (very approximate)
     var tokens = Math.max(0, Math.ceil(words * 1.3));
-    var status = "Tokens: ~" + tokens + " | Provider: " + (provider ? provider.model : "—");
+    var status = "Tokens: ~" + tokens;
     var $status = document.getElementById("preview-status");
     if ($status) {
       $status.textContent = status;
@@ -639,9 +595,6 @@
 
     if (!systemText && !userText) return "";
 
-    var provider = CONFIGS.PROVIDERS[$provider.value];
-    var modelName = provider ? provider.model : "Unknown";
-
     var parts = [];
 
     if (systemText) {
@@ -652,13 +605,6 @@
       parts.push("=== User Prompt ===\n" + userText);
     }
 
-    parts.push(
-      "=== Parameters ===\n" +
-        "Model: " + modelName + "\n" +
-        "Temperature: " + parseFloat($sliderTemp.value).toFixed(2) + "\n" +
-        "Top P: " + parseFloat($sliderTopP.value).toFixed(2)
-    );
-
     return parts.join("\n\n");
   }
 
@@ -668,8 +614,6 @@
   function assembleMarkdown() {
     var systemText = $system.value.trim();
     var userText = getUserText().trim();
-    var provider = CONFIGS.PROVIDERS[$provider.value];
-    var modelName = provider ? provider.model : "Unknown";
 
     var parts = [];
 
@@ -681,13 +625,6 @@
       parts.push("## User Prompt\n\n" + userText);
     }
 
-    parts.push(
-      "## Parameters\n\n" +
-        "- **Model:** " + modelName + "\n" +
-        "- **Temperature:** " + parseFloat($sliderTemp.value).toFixed(2) + "\n" +
-        "- **Top P:** " + parseFloat($sliderTopP.value).toFixed(2)
-    );
-
     return parts.join("\n\n");
   }
 
@@ -697,8 +634,6 @@
   function assemblePlainText() {
     var systemText = $system.value.trim();
     var userText = getUserText().trim();
-    var provider = CONFIGS.PROVIDERS[$provider.value];
-    var modelName = provider ? provider.model : "Unknown";
 
     var parts = [];
 
@@ -709,13 +644,6 @@
     if (userText) {
       parts.push("User Prompt:\n" + userText);
     }
-
-    parts.push(
-      "Parameters:\n" +
-        "  Model: " + modelName + "\n" +
-        "  Temperature: " + parseFloat($sliderTemp.value).toFixed(2) + "\n" +
-        "  Top P: " + parseFloat($sliderTopP.value).toFixed(2)
-    );
 
     return parts.join("\n\n");
   }
@@ -800,22 +728,7 @@
 
     // userPrompt now derived from framework section fields; no direct user textarea
 
-    var debouncedSaveTemp = debounce(function () {
-      State.save("temperature", $sliderTemp.value);
-    }, 500);
-
-    var debouncedSaveTopP = debounce(function () {
-      State.save("topP", $sliderTopP.value);
-    }, 500);
-
-    // ── Provider change ──
-    $provider.addEventListener("change", function () {
-      State.save("provider", $provider.value);
-      syncSliderRanges();
-      updateModelBadge();
-      updateApplyButtonState();
-      renderPreview();
-    });
+    // Tuning/provider controls removed; no-op handlers retained for safety.
 
     // ── Framework change ──
     $framework.addEventListener("change", function () {
@@ -843,19 +756,7 @@
 
     // ── User Prompt input removed (user content is now composed from section fields)
 
-    // ── Temperature slider ──
-    $sliderTemp.addEventListener("input", function () {
-      $valTemp.textContent = parseFloat($sliderTemp.value).toFixed(2);
-      debouncedSaveTemp();
-      renderPreview();
-    });
-
-    // ── Top P slider ──
-    $sliderTopP.addEventListener("input", function () {
-      $valTopP.textContent = parseFloat($sliderTopP.value).toFixed(2);
-      debouncedSaveTopP();
-      renderPreview();
-    });
+    // Tuning sliders removed from UI.
 
     // ── Reset ──
     $btnReset.addEventListener("click", function () {
@@ -865,26 +766,10 @@
 
       State.clearAll();
 
-      // Reset to defaults
-      $provider.selectedIndex = 0;
+      // Reset to defaults (framework/system).
       $framework.value = "";
       $system.value = "";
       // instance userPrompt state cleared by State.clearAll();
-
-      var defaultProvider = CONFIGS.PROVIDERS[$provider.value];
-      if (defaultProvider) {
-        $sliderTemp.value = defaultProvider.temperature.default;
-        $sliderTopP.value = defaultProvider.topP.default;
-      } else {
-        $sliderTemp.value = 1;
-        $sliderTopP.value = 1;
-      }
-
-      $valTemp.textContent = parseFloat($sliderTemp.value).toFixed(2);
-      $valTopP.textContent = parseFloat($sliderTopP.value).toFixed(2);
-
-      syncSliderRanges();
-      updateModelBadge();
       renderPreview();
     });
 
@@ -927,9 +812,7 @@
     // ── Copy Plain ──
     $btnCopyPlain.addEventListener("click", function () {
       var text = assemblePlainText();
-      if (!text.trim() || text === "Parameters:\n  Model: Unknown\n  Temperature: 1.00\n  Top P: 1.00") {
-        return;
-      }
+      if (!text.trim()) return;
       copyToClipboard(text, $btnCopyPlain);
     });
 
