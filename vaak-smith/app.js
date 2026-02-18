@@ -131,7 +131,6 @@
   var $framework = document.getElementById("select-framework");
   var $modelBadge = document.getElementById("model-badge");
   var $system = document.getElementById("system-instructions");
-  var $user = document.getElementById("user-prompt");
   var $sliderTemp = document.getElementById("slider-temp");
   var $sliderTopP = document.getElementById("slider-topp");
   var $valTemp = document.getElementById("val-temp");
@@ -213,9 +212,7 @@
     $system.value = "";
 
     var savedUser = State.load("userPrompt");
-    if (savedUser !== null) {
-      $user.value = savedUser;
-    }
+    // user content is derived from per-framework section fields; instance fallback kept in storage
 
     var savedTemp = State.load("temperature");
     if (savedTemp !== null) {
@@ -284,6 +281,14 @@
       }
     });
     return parts.join("\n\n");
+  }
+
+  function getUserText() {
+    var fwKey = $framework ? $framework.value : "";
+    var sections = loadFrameworkSections(fwKey);
+    if (sections) return combineSectionsToText(sections, 'user');
+    var inst = State.load('userPrompt');
+    return inst || "";
   }
 
   function deriveSectionsFromTemplates(fw) {
@@ -365,9 +370,9 @@
         var obj = {};
         nodes.forEach(function (n) { obj[n.dataset.sectionLabel] = n.value; });
         saveFrameworkSections(frameworkKey, obj);
-        // Only sync user-targeted sections into the instance-scoped user textarea.
-        $user.value = combineSectionsToText(obj, 'user');
-        State.save('userPrompt', $user.value);
+        // Only sync user-targeted sections into the instance-scoped saved userPrompt.
+        var combinedUser = combineSectionsToText(obj, 'user');
+        State.save('userPrompt', combinedUser);
         renderPreview();
       }, 400);
 
@@ -460,14 +465,18 @@
     // System template
     // NOTE: Do not auto-insert system templates. System instructions stay empty by default.
 
-    // User template
+    // User template: save into instance `userPrompt` (so preview shows it)
     if (fw.userTemplate) {
-      insertTemplate($user, fw.userTemplate);
+      var cur = State.load('userPrompt') || "";
+      if (!cur.trim()) {
+        State.save('userPrompt', fw.userTemplate);
+      } else {
+        State.save('userPrompt', cur + "\n\n--- (Framework Template) ---\n\n" + fw.userTemplate);
+      }
     }
 
-    // Save immediately
+    // Save system (empty by design) and ensure preview updates
     State.save("systemInstructions", $system.value);
-    State.save("userPrompt", $user.value);
     renderPreview();
   }
 
@@ -576,7 +585,7 @@
     var provider = CONFIGS.PROVIDERS[$provider.value];
     var providerName = provider ? provider.name + " (" + provider.model + ")" : "—";
     var sys = $system.value || "";
-    var usr = $user.value || "";
+    var usr = getUserText() || "";
     var words = 0;
     try {
       words = (sys + " " + usr).split(/\s+/).filter(Boolean).length;
@@ -598,7 +607,7 @@
    */
   function assemblePreviewText() {
     var systemText = $system.value.trim();
-    var userText = $user.value.trim();
+    var userText = getUserText().trim();
 
     if (!systemText && !userText) return "";
 
@@ -630,7 +639,7 @@
    */
   function assembleMarkdown() {
     var systemText = $system.value.trim();
-    var userText = $user.value.trim();
+    var userText = getUserText().trim();
     var provider = CONFIGS.PROVIDERS[$provider.value];
     var modelName = provider ? provider.model : "Unknown";
 
@@ -659,7 +668,7 @@
    */
   function assemblePlainText() {
     var systemText = $system.value.trim();
-    var userText = $user.value.trim();
+    var userText = getUserText().trim();
     var provider = CONFIGS.PROVIDERS[$provider.value];
     var modelName = provider ? provider.model : "Unknown";
 
@@ -752,9 +761,7 @@
       State.save("systemInstructions", $system.value);
     }, 500);
 
-    var debouncedSaveUser = debounce(function () {
-      State.save("userPrompt", $user.value);
-    }, 500);
+    // userPrompt now derived from framework section fields; no direct user textarea
 
     var debouncedSaveTemp = debounce(function () {
       State.save("temperature", $sliderTemp.value);
@@ -784,9 +791,9 @@
         // Always keep the System Instructions textarea empty by default.
         $system.value = "";
         if (sections) {
-          // Only populate the user textarea from stored user-targeted sections.
-          $user.value = combineSectionsToText(sections, 'user');
-          State.save('userPrompt', $user.value);
+          // Save combined user-targeted sections into instance state.
+          var combined = combineSectionsToText(sections, 'user');
+          State.save('userPrompt', combined);
         }
       }
       renderPreview();
@@ -798,11 +805,7 @@
       renderPreview();
     });
 
-    // ── User Prompt input ──
-    $user.addEventListener("input", function () {
-      debouncedSaveUser();
-      renderPreview();
-    });
+    // ── User Prompt input removed (user content is now composed from section fields)
 
     // ── Temperature slider ──
     $sliderTemp.addEventListener("input", function () {
@@ -830,7 +833,7 @@
       $provider.selectedIndex = 0;
       $framework.value = "";
       $system.value = "";
-      $user.value = "";
+      // instance userPrompt state cleared by State.clearAll();
 
       var defaultProvider = CONFIGS.PROVIDERS[$provider.value];
       if (defaultProvider) {
@@ -928,9 +931,9 @@
             renderFrameworkFields(fk);
             var sections = loadFrameworkSections(fk);
             if (sections) {
-              // Only sync user-targeted sections into the user textarea.
-              $user.value = combineSectionsToText(sections, 'user');
-              State.save('userPrompt', $user.value);
+              // Only sync user-targeted sections into instance state.
+              var combined = combineSectionsToText(sections, 'user');
+              State.save('userPrompt', combined);
             }
             renderPreview();
           }
