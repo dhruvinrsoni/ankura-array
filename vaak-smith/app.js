@@ -143,6 +143,7 @@
   var $btnApplyGuidance = document.getElementById("btn-apply-guidance");
 
   var CONFIGS = window.LLM_CONFIGS || { PROVIDERS: {}, FRAMEWORKS: {} };
+  var NO_FRAMEWORK_KEY = "__NO_FRAMEWORK__";
 
   /* ═══════════════════════════════════════════════════
      §5  INITIALIZATION / HYDRATION
@@ -152,6 +153,8 @@
     populateProviders();
     populateFrameworks();
     hydrateState();
+    // Render framework-specific fields (including the no-framework sandbox)
+    renderFrameworkFields($framework.value);
     syncSliderRanges();
     updateModelBadge();
     updateApplyButtonState();
@@ -331,6 +334,48 @@
     var container = document.getElementById("framework-fields");
     if (!container) return;
     container.innerHTML = "";
+
+    // If no framework selected, show a generic user prompt editor
+    if (!frameworkKey) {
+      // Load global system prompt for no-framework, or set a sensible default
+      var g = loadGlobalSystem(NO_FRAMEWORK_KEY);
+      if (g !== null) {
+        $system.value = g;
+      } else if (!$system.value.trim()) {
+        $system.value = "You are a helpful, concise AI assistant. Follow the user's instructions precisely and provide clear, structured output when appropriate.";
+      }
+
+      var wrap = document.createElement('div');
+      wrap.className = 'editor-section';
+
+      var header = document.createElement('div');
+      header.className = 'editor-section__header';
+      var label = document.createElement('label');
+      label.className = 'field-label';
+      label.textContent = 'User Instructions (Sandbox)';
+      header.appendChild(label);
+      wrap.appendChild(header);
+
+      var ta = document.createElement('textarea');
+      ta.className = 'textarea textarea--user';
+      ta.rows = 12;
+      ta.placeholder = 'Freeform user instructions — full sandbox. The composed prompt will appear in the preview.';
+      ta.setAttribute('aria-label', 'User Instructions Sandbox');
+      var saved = State.load('userPrompt');
+      if (saved) ta.value = saved;
+
+      var deb = debounce(function () {
+        State.save('userPrompt', ta.value);
+        renderPreview();
+      }, 300);
+
+      ta.addEventListener('input', deb);
+      // focus the sandbox for quick entry
+      setTimeout(function () { try { ta.focus(); } catch (e) {} }, 20);
+      wrap.appendChild(ta);
+      container.appendChild(wrap);
+      return;
+    }
 
     var fw = CONFIGS.FRAMEWORKS[frameworkKey];
     if (!fw) return;
@@ -741,7 +786,16 @@
   function bindEvents() {
     // Debounced save helpers
     var debouncedSaveSystem = debounce(function () {
-      State.save("systemInstructions", $system.value);
+      // If no framework selected, persist the system prompt globally so it's shared across tabs/instances.
+      if (!$framework.value) {
+        try {
+          localStorage.setItem(globalSystemKey(NO_FRAMEWORK_KEY), $system.value);
+        } catch (e) {
+          console.warn('[Vaak] failed saving global system for no-framework', e);
+        }
+      } else {
+        State.save("systemInstructions", $system.value);
+      }
     }, 500);
 
     // userPrompt now derived from framework section fields; no direct user textarea
@@ -767,14 +821,13 @@
     $framework.addEventListener("change", function () {
       var key = $framework.value;
       State.save("framework", key);
+      // Always render the appropriate framework UI (including no-framework)
+      renderFrameworkFields(key);
       if (key) {
-        // Render per-section inputs and hydrate from stored sections.
-        renderFrameworkFields(key);
+        // hydrate state for the selected framework
         var sections = loadFrameworkSections(key);
-        // Always keep the System Instructions textarea empty by default.
         $system.value = "";
         if (sections) {
-          // Save combined user-targeted sections into instance state.
           var combined = combineSectionsToText(sections, 'user');
           State.save('userPrompt', combined);
         }
@@ -918,6 +971,14 @@
               var combined = combineSectionsToText(sections, 'user');
               State.save('userPrompt', combined);
             }
+            renderPreview();
+          }
+        }
+        // sync for no-framework global system prompt
+        if (ev.key === globalSystemKey(NO_FRAMEWORK_KEY)) {
+          if (!$framework.value) {
+            var v = loadGlobalSystem(NO_FRAMEWORK_KEY);
+            $system.value = v || "";
             renderPreview();
           }
         }
