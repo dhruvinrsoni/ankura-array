@@ -225,10 +225,19 @@
   function frameworkSectionsKey(frameworkKey) {
     return "VAAK_GLOBAL__FRAMEWORK_SECTIONS_" + (frameworkKey || "");
   }
+  // Global key for system-targeted sections (shared across tabs)
+  function frameworkSystemKey(frameworkKey) {
+    return "VAAK_GLOBAL__FRAMEWORK_SECTIONS_" + (frameworkKey || "");
+  }
 
-  function loadFrameworkSections(frameworkKey) {
+  // Instance-scoped key for user-targeted sections (namespaced by instance)
+  function frameworkInstanceKey(frameworkKey) {
+    return "FRAMEWORK_INSTANCE__SECTIONS_" + (frameworkKey || "");
+  }
+
+  function loadFrameworkSystemSections(frameworkKey) {
     try {
-      var raw = localStorage.getItem(frameworkSectionsKey(frameworkKey));
+      var raw = localStorage.getItem(frameworkSystemKey(frameworkKey));
       if (!raw) return null;
       return JSON.parse(raw);
     } catch (e) {
@@ -236,14 +245,29 @@
     }
   }
 
-  function saveFrameworkSections(frameworkKey, obj) {
+  function saveFrameworkSystemSections(frameworkKey, obj) {
     try {
-      localStorage.setItem(frameworkSectionsKey(frameworkKey), JSON.stringify(obj));
-      // Note: do NOT auto-populate or persist a combined system prompt.
-      // System instructions should remain empty by default; only user-targeted
-      // sections are synchronized into the instance `userPrompt` textarea.
+      localStorage.setItem(frameworkSystemKey(frameworkKey), JSON.stringify(obj));
     } catch (e) {
-      console.warn("[VaakFramework] save sections failed", e);
+      console.warn("[VaakFramework] save system sections failed", e);
+    }
+  }
+
+  function loadFrameworkInstanceSections(frameworkKey) {
+    try {
+      var raw = State.load(frameworkInstanceKey(frameworkKey));
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveFrameworkInstanceSections(frameworkKey, obj) {
+    try {
+      State.save(frameworkInstanceKey(frameworkKey), JSON.stringify(obj));
+    } catch (e) {
+      console.warn("[VaakFramework] save instance sections failed", e);
     }
   }
 
@@ -277,7 +301,7 @@
 
   function getUserText() {
     var fwKey = $framework ? $framework.value : "";
-    var sections = loadFrameworkSections(fwKey);
+    var sections = loadFrameworkInstanceSections(fwKey);
     if (sections) return combineSectionsToText(sections, 'user');
     var inst = State.load('userPrompt');
     return inst || "";
@@ -374,7 +398,7 @@
     var sectionsDef = (fw.sections && fw.sections.length) ? fw.sections : deriveSectionsFromTemplates(fw);
     if (!sectionsDef || !sectionsDef.length) return;
 
-    var stored = loadFrameworkSections(frameworkKey) || {};
+    var stored = loadFrameworkInstanceSections(frameworkKey) || {};
     var legacy = loadGlobalSystem(frameworkKey);
 
     sectionsDef.forEach(function (section) {
@@ -401,18 +425,27 @@
 
       var deb = debounce(function () {
         var nodes = container.querySelectorAll('textarea[data-section-label]');
-        var obj = {};
-        nodes.forEach(function (n) { obj[n.dataset.sectionLabel] = n.value; });
-        saveFrameworkSections(frameworkKey, obj);
-        // Only sync user-targeted sections into the instance-scoped saved userPrompt.
-        var combinedUser = combineSectionsToText(obj, 'user');
+        var all = {};
+        nodes.forEach(function (n) { all[n.dataset.sectionLabel] = n.value; });
+
+        // Split into system-targeted (global) and user-targeted (instance) objects
+        var systemObj = {};
+        var userObj = {};
+        sectionsDef.forEach(function (s) {
+          var val = all[s.label] || "";
+          if (s.target === 'system') systemObj[s.label] = val;
+          else userObj[s.label] = val;
+        });
+
+        // Persist accordingly
+        saveFrameworkSystemSections(frameworkKey, systemObj);
+        saveFrameworkInstanceSections(frameworkKey, userObj);
+
+        // Update instance userPrompt composed value for preview
+        var combinedUser = combineSectionsToText(userObj, 'user');
         State.save('userPrompt', combinedUser);
-        // Also derive system-targeted sections and apply to the System Instructions box
-        var combinedSystem = combineSectionsToText(obj, 'system');
-        if (typeof combinedSystem === 'string') {
-          $system.value = combinedSystem;
-          State.save('systemInstructions', combinedSystem);
-        }
+
+        // Do NOT mutate the shared system textarea here.
         renderPreview();
       }, 400);
 
@@ -425,12 +458,8 @@
     // After rendering all fields, initialize System Instructions from stored system-targeted sections
     try {
       var initSections = stored || {};
-      var combinedSysInit = combineSectionsToText(initSections, 'system');
-      if (combinedSysInit && combinedSysInit.trim()) {
-        $system.value = combinedSysInit;
-      } else if (legacy && legacy.trim()) {
-        $system.value = legacy;
-      }
+      // Do NOT populate the global `#system-instructions` from framework sections.
+      // Keep system instructions as a distinct, shared textbox across instances.
       // Also initialize & persist composed user text so preview reflects loaded fields
       var combinedUserInit = combineSectionsToText(initSections, 'user');
       if (typeof combinedUserInit === 'string') {
@@ -506,8 +535,11 @@
       }
     }
 
-    // Save system (empty by design) and ensure preview updates
-    State.save("systemInstructions", $system.value);
+    // Save system (empty by design) into global per-framework storage and ensure preview updates
+    try {
+      var key = frameworkKey || NO_FRAMEWORK_KEY;
+      localStorage.setItem(globalSystemKey(key), $system.value);
+    } catch (e) {}
     renderPreview();
   }
 
@@ -559,7 +591,7 @@
       var before = $system.value.slice(0, idx);
       var after = $system.value.slice(idxEnd + markers.end.length);
       $system.value = before.trim() + (after.trim() ? "\n\n" + after.trim() : "");
-      State.save("systemInstructions", $system.value);
+      try { localStorage.setItem(globalSystemKey($framework.value || NO_FRAMEWORK_KEY), $system.value); } catch (e) {}
     }
 
     function insertGuidanceFor(provider) {
@@ -573,7 +605,7 @@
       } else {
         $system.value = $system.value.trim() + markers.start + guidance + markers.end;
       }
-      State.save("systemInstructions", $system.value);
+      try { localStorage.setItem(globalSystemKey($framework.value || NO_FRAMEWORK_KEY), $system.value); } catch (e) {}
     }
 
     function updateApplyButtonState() {
@@ -596,32 +628,6 @@
   /* ═══════════════════════════════════════════════════
      §7  OUTPUT ASSEMBLY & PREVIEW
      ═══════════════════════════════════════════════════ */
-
-  /**
-   * Return an ordered array of {label, value} for the current framework or
-   * for the no-framework sandbox. Only include sections that have content.
-   */
-  function assembleSectionsPairs() {
-    var fwKey = $framework ? $framework.value : "";
-    var pairs = [];
-
-    if (!fwKey) {
-      var sys = $system && $system.value ? $system.value.trim() : "";
-      var usr = getUserText() ? getUserText().trim() : "";
-      if (sys) pairs.push({ label: "System", value: sys });
-      if (usr) pairs.push({ label: "User", value: usr });
-      return pairs;
-    }
-
-    var fw = CONFIGS.FRAMEWORKS[fwKey];
-    var sectionsDef = (fw && fw.sections && fw.sections.length) ? fw.sections : deriveSectionsFromTemplates(fw || {});
-    var stored = loadFrameworkSections(fwKey) || {};
-    sectionsDef.forEach(function (s) {
-      var v = (stored[s.label] || "").trim();
-      if (v) pairs.push({ label: s.label, value: v });
-    });
-    return pairs;
-  }
 
   function renderPreview() {
     var text = assemblePreviewText();
@@ -663,9 +669,7 @@
   function assemblePreviewText() {
     var pairs = assembleSectionsPairs();
     if (!pairs || !pairs.length) return "";
-    var parts = pairs.map(function (p) {
-      return p.label + "\n" + p.value;
-    });
+    var parts = pairs.map(function (p) { return p.label + "\n" + p.value; });
     return parts.join("\n\n");
   }
 
@@ -674,9 +678,7 @@
    */
   function assembleMarkdown() {
     var pairs = assembleSectionsPairs();
-    var parts = pairs.map(function (p) {
-      return "## " + p.label + "\n\n" + p.value;
-    });
+    var parts = pairs.map(function (p) { return "## " + p.label + "\n\n" + p.value; });
     return parts.join("\n\n");
   }
 
@@ -685,10 +687,39 @@
    */
   function assemblePlainText() {
     var pairs = assembleSectionsPairs();
-    var parts = pairs.map(function (p) {
-      return p.label + ":\n" + p.value;
-    });
+    var parts = pairs.map(function (p) { return p.label + ":\n" + p.value; });
     return parts.join("\n\n");
+  }
+
+  /**
+   * Build an ordered array of {label, value} for the active framework
+   * using instance-scoped user sections and global system sections.
+   */
+  function assembleSectionsPairs() {
+    var fwKey = $framework ? $framework.value : "";
+    var pairs = [];
+
+    if (!fwKey) {
+      var sys = $system && $system.value ? $system.value.trim() : "";
+      var usr = getUserText() ? getUserText().trim() : "";
+      if (sys) pairs.push({ label: "System", value: sys });
+      if (usr) pairs.push({ label: "User", value: usr });
+      return pairs;
+    }
+
+    var fw = CONFIGS.FRAMEWORKS[fwKey] || {};
+    var sectionsDef = (fw.sections && fw.sections.length) ? fw.sections : deriveSectionsFromTemplates(fw || {});
+    var instanceStored = loadFrameworkInstanceSections(fwKey) || {};
+    var globalStored = loadFrameworkSystemSections(fwKey) || {};
+
+    sectionsDef.forEach(function (s) {
+      var v = "";
+      if (s.target === 'system') v = (globalStored[s.label] || "").trim();
+      else v = (instanceStored[s.label] || "").trim();
+      if (v) pairs.push({ label: s.label, value: v });
+    });
+
+    return pairs;
   }
 
   /* ═══════════════════════════════════════════════════
@@ -757,15 +788,13 @@
   function bindEvents() {
     // Debounced save helpers
     var debouncedSaveSystem = debounce(function () {
-      // If no framework selected, persist the system prompt globally so it's shared across tabs/instances.
-      if (!$framework.value) {
-        try {
-          localStorage.setItem(globalSystemKey(NO_FRAMEWORK_KEY), $system.value);
-        } catch (e) {
-          console.warn('[Vaak] failed saving global system for no-framework', e);
-        }
-      } else {
-        State.save("systemInstructions", $system.value);
+      // Persist the system prompt globally per-framework (including no-framework),
+      // so it's shared across tabs/instances.
+      var fwKey = $framework && $framework.value ? $framework.value : NO_FRAMEWORK_KEY;
+      try {
+        localStorage.setItem(globalSystemKey(fwKey), $system.value);
+      } catch (e) {
+        console.warn('[Vaak] failed saving global system prompt', e);
       }
     }, 500);
 
@@ -781,12 +810,12 @@
       renderFrameworkFields(key);
       if (key) {
         // hydrate state for the selected framework
-        var sections = loadFrameworkSections(key);
-        $system.value = "";
+        var sections = loadFrameworkInstanceSections(key);
         if (sections) {
           var combined = combineSectionsToText(sections, 'user');
           State.save('userPrompt', combined);
         }
+        // Do not modify the global System Instructions textbox here.
       }
       renderPreview();
     });
@@ -890,19 +919,12 @@
         if (ev.key.indexOf('VAAK_GLOBAL__FRAMEWORK_SECTIONS_') === 0) {
           var fk = ev.key.replace('VAAK_GLOBAL__FRAMEWORK_SECTIONS_', '');
           if ($framework.value === fk) {
+            // Global (system) sections changed — re-render fields so system fields
+            // reflect the latest global values. Do NOT copy these into `$system`.
             renderFrameworkFields(fk);
-            var sections = loadFrameworkSections(fk);
+            var sections = loadFrameworkSystemSections(fk);
             if (sections) {
-              // Only sync user-targeted sections into instance state.
-              var combined = combineSectionsToText(sections, 'user');
-              State.save('userPrompt', combined);
-              // Also sync system-targeted sections into the system textarea
-              try {
-                var combinedSys = combineSectionsToText(sections, 'system');
-                if (combinedSys && combinedSys.trim()) {
-                  $system.value = combinedSys;
-                }
-              } catch (e) {}
+              // No instance user sync here; preview will read instance user sections.
             }
             renderPreview();
           }
