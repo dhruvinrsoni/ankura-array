@@ -37,7 +37,7 @@ window.LLM_CONFIGS = {
           label: "Persona",
           placeholder:
             "e.g. a senior data analyst with 10 years of experience in financial modelling",
-          target: "system",
+          target: "user",
         },
         {
           label: "Task",
@@ -104,7 +104,7 @@ window.LLM_CONFIGS = {
         {
           label: "Role",
           placeholder: "e.g. Senior Systems Architect, Security Lead",
-          target: "system",
+          target: "user",
         },
         {
           label: "Task",
@@ -138,7 +138,7 @@ window.LLM_CONFIGS = {
       name: "The Architect (Role/Context/Action)",
       description: "Architect's Command — Role/Task/Context/Action Checklist/Output",
       sections: [
-        { label: "Role", placeholder: "e.g. Senior Software Architect", target: "system" },
+        { label: "Role", placeholder: "e.g. Senior Software Architect", target: "user" },
         { label: "Task", placeholder: "e.g. Define the migration strategy for X", target: "user" },
         { label: "Context", placeholder: "Background info, constraints, and current state", target: "user" },
         { label: "Action Checklist", placeholder: "Step-by-step instructions for the AI", target: "user" },

@@ -398,7 +398,8 @@
     var sectionsDef = (fw.sections && fw.sections.length) ? fw.sections : deriveSectionsFromTemplates(fw);
     if (!sectionsDef || !sectionsDef.length) return;
 
-    var stored = loadFrameworkInstanceSections(frameworkKey) || {};
+    var instanceStored = loadFrameworkInstanceSections(frameworkKey) || {};
+    var globalStored = loadFrameworkSystemSections(frameworkKey) || {};
     var legacy = loadGlobalSystem(frameworkKey);
 
     sectionsDef.forEach(function (section) {
@@ -418,9 +419,14 @@
       ta.rows = section.target === 'system' ? 4 : 3;
       ta.placeholder = section.placeholder || '';
       ta.dataset.sectionLabel = section.label;
+      ta.dataset.sectionTarget = section.target;
 
-      if (stored && stored[section.label]) {
-        ta.value = stored[section.label];
+      // Load initial value: system-targeted sections come from global storage;
+      // user-targeted sections come from instance-scoped storage.
+      if (section.target === 'system') {
+        if (globalStored && globalStored[section.label]) ta.value = globalStored[section.label];
+      } else {
+        if (instanceStored && instanceStored[section.label]) ta.value = instanceStored[section.label];
       }
 
       var deb = debounce(function () {
