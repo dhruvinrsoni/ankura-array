@@ -407,6 +407,12 @@
         // Only sync user-targeted sections into the instance-scoped saved userPrompt.
         var combinedUser = combineSectionsToText(obj, 'user');
         State.save('userPrompt', combinedUser);
+        // Also derive system-targeted sections and apply to the System Instructions box
+        var combinedSystem = combineSectionsToText(obj, 'system');
+        if (typeof combinedSystem === 'string') {
+          $system.value = combinedSystem;
+          State.save('systemInstructions', combinedSystem);
+        }
         renderPreview();
       }, 400);
 
@@ -415,6 +421,26 @@
       wrap.appendChild(ta);
       container.appendChild(wrap);
     });
+
+    // After rendering all fields, initialize System Instructions from stored system-targeted sections
+    try {
+      var initSections = stored || {};
+      var combinedSysInit = combineSectionsToText(initSections, 'system');
+      if (combinedSysInit && combinedSysInit.trim()) {
+        $system.value = combinedSysInit;
+      } else if (legacy && legacy.trim()) {
+        $system.value = legacy;
+      }
+      // Also initialize & persist composed user text so preview reflects loaded fields
+      var combinedUserInit = combineSectionsToText(initSections, 'user');
+      if (typeof combinedUserInit === 'string') {
+        State.save('userPrompt', combinedUserInit);
+      }
+      // Ensure preview updates to reflect loaded data
+      renderPreview();
+    } catch (e) {
+      // ignore
+    }
   }
 
   /**
@@ -853,6 +879,13 @@
               // Only sync user-targeted sections into instance state.
               var combined = combineSectionsToText(sections, 'user');
               State.save('userPrompt', combined);
+              // Also sync system-targeted sections into the system textarea
+              try {
+                var combinedSys = combineSectionsToText(sections, 'system');
+                if (combinedSys && combinedSys.trim()) {
+                  $system.value = combinedSys;
+                }
+              } catch (e) {}
             }
             renderPreview();
           }
