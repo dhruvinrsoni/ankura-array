@@ -209,10 +209,8 @@
       $framework.value = savedFramework;
     }
 
-    var savedSystem = State.load("systemInstructions");
-    if (savedSystem !== null) {
-      $system.value = savedSystem;
-    }
+    // System instructions are intentionally left empty by default.
+    $system.value = "";
 
     var savedUser = State.load("userPrompt");
     if (savedUser !== null) {
@@ -252,10 +250,9 @@
   function saveFrameworkSections(frameworkKey, obj) {
     try {
       localStorage.setItem(frameworkSectionsKey(frameworkKey), JSON.stringify(obj));
-      // keep legacy single prompt in sync for compatibility
-      var systemCombined = combineSectionsToText(obj, "system");
-      if (systemCombined) localStorage.setItem(globalSystemKey(frameworkKey), systemCombined);
-      else localStorage.removeItem(globalSystemKey(frameworkKey));
+      // Note: do NOT auto-populate or persist a combined system prompt.
+      // System instructions should remain empty by default; only user-targeted
+      // sections are synchronized into the instance `userPrompt` textarea.
     } catch (e) {
       console.warn("[VaakFramework] save sections failed", e);
     }
@@ -279,8 +276,8 @@
     var parts = [];
     if (!obj) return "";
     var fw = CONFIGS.FRAMEWORKS[$framework.value];
-    if (!fw || !fw.sections) return "";
-    fw.sections.forEach(function (s) {
+    var sectionsList = (fw && fw.sections && fw.sections.length) ? fw.sections : deriveSectionsFromTemplates(fw || {});
+    sectionsList.forEach(function (s) {
       if (s.target === target) {
         var v = (obj[s.label] || "").trim();
         if (v) parts.push(v);
@@ -361,9 +358,6 @@
 
       if (stored && stored[section.label]) {
         ta.value = stored[section.label];
-      } else if (legacy && section.target === 'system' && !Object.keys(stored).length) {
-        ta.value = legacy;
-        legacy = null;
       }
 
       var deb = debounce(function () {
@@ -371,8 +365,7 @@
         var obj = {};
         nodes.forEach(function (n) { obj[n.dataset.sectionLabel] = n.value; });
         saveFrameworkSections(frameworkKey, obj);
-        // update combined textareas
-        $system.value = combineSectionsToText(obj, 'system');
+        // Only sync user-targeted sections into the instance-scoped user textarea.
         $user.value = combineSectionsToText(obj, 'user');
         State.save('userPrompt', $user.value);
         renderPreview();
@@ -465,9 +458,7 @@
     if (!fw) return;
 
     // System template
-    if (fw.systemTemplate) {
-      insertTemplate($system, fw.systemTemplate);
-    }
+    // NOTE: Do not auto-insert system templates. System instructions stay empty by default.
 
     // User template
     if (fw.userTemplate) {
@@ -787,15 +778,15 @@
       var key = $framework.value;
       State.save("framework", key);
       if (key) {
-        // Render per-section inputs (and hydrate from stored sections or legacy global)
+        // Render per-section inputs and hydrate from stored sections.
         renderFrameworkFields(key);
         var sections = loadFrameworkSections(key);
+        // Always keep the System Instructions textarea empty by default.
+        $system.value = "";
         if (sections) {
-          $system.value = combineSectionsToText(sections, 'system');
+          // Only populate the user textarea from stored user-targeted sections.
           $user.value = combineSectionsToText(sections, 'user');
-        } else {
-          var legacy = loadGlobalSystem(key);
-          if (legacy) $system.value = legacy;
+          State.save('userPrompt', $user.value);
         }
       }
       renderPreview();
@@ -937,22 +928,10 @@
             renderFrameworkFields(fk);
             var sections = loadFrameworkSections(fk);
             if (sections) {
-              $system.value = combineSectionsToText(sections, 'system');
+              // Only sync user-targeted sections into the user textarea.
               $user.value = combineSectionsToText(sections, 'user');
-            } else {
-              var legacy = loadGlobalSystem(fk);
-              if (legacy) $system.value = legacy;
+              State.save('userPrompt', $user.value);
             }
-            renderPreview();
-          }
-        }
-
-        if (ev.key.indexOf('VAAK_GLOBAL__SYSTEM_PROMPT_') === 0) {
-          var fk2 = ev.key.replace('VAAK_GLOBAL__SYSTEM_PROMPT_', '');
-          if ($framework.value === fk2) {
-            var v = loadGlobalSystem(fk2);
-            if (v === null) $system.value = '';
-            else $system.value = v;
             renderPreview();
           }
         }
