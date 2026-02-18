@@ -399,7 +399,6 @@
     if (!sectionsDef || !sectionsDef.length) return;
 
     var instanceStored = loadFrameworkInstanceSections(frameworkKey) || {};
-    var globalStored = loadFrameworkSystemSections(frameworkKey) || {};
     var legacy = loadGlobalSystem(frameworkKey);
 
     sectionsDef.forEach(function (section) {
@@ -421,37 +420,18 @@
       ta.dataset.sectionLabel = section.label;
       ta.dataset.sectionTarget = section.target;
 
-      // Load initial value: system-targeted sections come from global storage;
-      // user-targeted sections come from instance-scoped storage.
-      if (section.target === 'system') {
-        if (globalStored && globalStored[section.label]) ta.value = globalStored[section.label];
-      } else {
-        if (instanceStored && instanceStored[section.label]) ta.value = instanceStored[section.label];
-      }
+      // Load initial value from instance-scoped storage for all section fields.
+      if (instanceStored && instanceStored[section.label]) ta.value = instanceStored[section.label];
 
       var deb = debounce(function () {
         var nodes = container.querySelectorAll('textarea[data-section-label]');
-        var all = {};
-        nodes.forEach(function (n) { all[n.dataset.sectionLabel] = n.value; });
-
-        // Split into system-targeted (global) and user-targeted (instance) objects
-        var systemObj = {};
-        var userObj = {};
-        sectionsDef.forEach(function (s) {
-          var val = all[s.label] || "";
-          if (s.target === 'system') systemObj[s.label] = val;
-          else userObj[s.label] = val;
-        });
-
-        // Persist accordingly
-        saveFrameworkSystemSections(frameworkKey, systemObj);
-        saveFrameworkInstanceSections(frameworkKey, userObj);
-
-        // Update instance userPrompt composed value for preview
-        var combinedUser = combineSectionsToText(userObj, 'user');
+        var obj = {};
+        nodes.forEach(function (n) { obj[n.dataset.sectionLabel] = n.value; });
+        // Persist all section fields per-instance (do not sync across instances)
+        saveFrameworkInstanceSections(frameworkKey, obj);
+        // Update composed userPrompt for preview
+        var combinedUser = combineSectionsToText(obj, 'user');
         State.save('userPrompt', combinedUser);
-
-        // Do NOT mutate the shared system textarea here.
         renderPreview();
       }, 400);
 
@@ -461,17 +441,13 @@
       container.appendChild(wrap);
     });
 
-    // After rendering all fields, initialize System Instructions from stored system-targeted sections
+    // After rendering all fields, initialize composed user text so preview reflects loaded fields
     try {
-      var initSections = stored || {};
-      // Do NOT populate the global `#system-instructions` from framework sections.
-      // Keep system instructions as a distinct, shared textbox across instances.
-      // Also initialize & persist composed user text so preview reflects loaded fields
+      var initSections = instanceStored || {};
       var combinedUserInit = combineSectionsToText(initSections, 'user');
       if (typeof combinedUserInit === 'string') {
         State.save('userPrompt', combinedUserInit);
       }
-      // Ensure preview updates to reflect loaded data
       renderPreview();
     } catch (e) {
       // ignore
@@ -716,12 +692,9 @@
     var fw = CONFIGS.FRAMEWORKS[fwKey] || {};
     var sectionsDef = (fw.sections && fw.sections.length) ? fw.sections : deriveSectionsFromTemplates(fw || {});
     var instanceStored = loadFrameworkInstanceSections(fwKey) || {};
-    var globalStored = loadFrameworkSystemSections(fwKey) || {};
 
     sectionsDef.forEach(function (s) {
-      var v = "";
-      if (s.target === 'system') v = (globalStored[s.label] || "").trim();
-      else v = (instanceStored[s.label] || "").trim();
+      var v = (instanceStored[s.label] || "").trim();
       if (v) pairs.push({ label: s.label, value: v });
     });
 
@@ -922,23 +895,13 @@
     window.addEventListener('storage', function (ev) {
       try {
         if (!ev.key) return;
-        if (ev.key.indexOf('VAAK_GLOBAL__FRAMEWORK_SECTIONS_') === 0) {
-          var fk = ev.key.replace('VAAK_GLOBAL__FRAMEWORK_SECTIONS_', '');
+        // Sync the per-framework global System Instructions when the active
+        // framework matches the changed key. This ensures the System box is
+        // kept in sync across tabs/instances for the selected framework.
+        if (ev.key && ev.key.indexOf('VAAK_GLOBAL__SYSTEM_PROMPT_') === 0) {
+          var fk = ev.key.replace('VAAK_GLOBAL__SYSTEM_PROMPT_', '');
           if ($framework.value === fk) {
-            // Global (system) sections changed — re-render fields so system fields
-            // reflect the latest global values. Do NOT copy these into `$system`.
-            renderFrameworkFields(fk);
-            var sections = loadFrameworkSystemSections(fk);
-            if (sections) {
-              // No instance user sync here; preview will read instance user sections.
-            }
-            renderPreview();
-          }
-        }
-        // sync for no-framework global system prompt
-        if (ev.key === globalSystemKey(NO_FRAMEWORK_KEY)) {
-          if (!$framework.value) {
-            var v = loadGlobalSystem(NO_FRAMEWORK_KEY);
+            var v = loadGlobalSystem(fk);
             $system.value = v || "";
             renderPreview();
           }
