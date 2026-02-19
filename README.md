@@ -38,8 +38,13 @@ First app: **Vaak-Smith** — the smith of speech. Prompting is speech with inte
 | App Name | Description | Status | Launch |
 |---|---|:---:|---|
 | Vaak-Smith | Precision prompt engineering cockpit for LLMs. | ✅ Live | [Launch](./vaak-smith/index.html) |
+| GenAI-Yukti-Deck | A tactical deck of psychological exploits and prompt hacks. | ✅ Live | [Launch](./genai-yukti-deck/index.html) |
 
 More tiny tools will be added over time. Each app should be understandable by reading its folder.
+
+### 🃏 GenAI-Yukti-Deck — Origin Story
+
+> Inspired by the idea of a Spy's Attaché Case. We needed a place for "Forbidden Knowledge" — tricks that gaslight or manipulate the AI. **Yukti** (Trick/Strategy) + **Deck** (Playable Cards) was the perfect fit.
 
 ## ✨ Key Principles
 

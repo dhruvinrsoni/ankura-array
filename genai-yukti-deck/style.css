@@ -1,0 +1,424 @@
+/* ═══════════════════════════════════════════════════════
+   GenAI-Yukti-Deck — App-Specific Styles
+   Cyber-Noir · Tactical · TCG card metaphor
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Layout ────────────────────────────────────────── */
+
+.yukti-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+  min-height: calc(100vh - 56px);
+}
+
+.yukti-panel {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.yukti-panel--deck {
+  border-right: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+
+.yukti-panel--workbench {
+  background: var(--bg-secondary);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.panel-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.badge {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-glow);
+  border-radius: 100px;
+  padding: 0.15rem 0.55rem;
+}
+
+/* ── Card Grid ─────────────────────────────────────── */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+/* ── Individual Card (TCG / Cyberpunk Chip) ────────── */
+
+.yukti-card {
+  position: relative;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1rem 1rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  overflow: hidden;
+}
+
+/* Decorative corner notch — cyberpunk chip feel */
+.yukti-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    var(--border) 50%,
+    var(--border) 51%,
+    transparent 51%
+  );
+  pointer-events: none;
+}
+
+.yukti-card:hover {
+  border-color: var(--border-hover);
+  box-shadow:
+    0 0 12px rgba(212, 160, 60, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Glow on hover */
+.yukti-card:hover::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius);
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(212, 160, 60, 0.06) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* ── Active / Selected Card ────────────────────────── */
+
+.yukti-card--active {
+  border-color: #2ea44f;
+  box-shadow:
+    0 0 8px rgba(46, 164, 79, 0.2),
+    0 0 24px rgba(46, 164, 79, 0.06);
+  background: var(--bg-input-focus);
+}
+
+.yukti-card--active::before {
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    #2ea44f 50%,
+    #2ea44f 51%,
+    transparent 51%
+  );
+}
+
+.yukti-card--active:hover {
+  border-color: #3fb95e;
+  box-shadow:
+    0 0 12px rgba(46, 164, 79, 0.3),
+    0 0 32px rgba(46, 164, 79, 0.08);
+}
+
+/* Card innards */
+.yukti-card__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.yukti-card__type {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  width: fit-content;
+}
+
+.yukti-card__snippet {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 0.15rem;
+}
+
+.yukti-card__desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.45;
+  margin-top: auto;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Active indicator dot */
+.yukti-card__indicator {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.yukti-card--active .yukti-card__indicator {
+  background: #2ea44f;
+  box-shadow: 0 0 6px rgba(46, 164, 79, 0.5);
+}
+
+/* ── Active Stack ──────────────────────────────────── */
+
+.active-stack {
+  min-height: 60px;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.active-stack__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-style: italic;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+}
+
+/* Stack Item */
+.stack-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-left: 3px solid #2ea44f;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.78rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.stack-item:hover {
+  background: var(--bg-input-focus);
+}
+
+.stack-item__order {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.stack-item__order button {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.stack-item__order button:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.stack-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.stack-item__name {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.stack-item__template {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* Variable mini-inputs inside stack items */
+.stack-item__vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.var-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.var-input-group__label {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.var-input-group__input {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+  width: 120px;
+  transition: border-color 0.15s ease;
+}
+
+.var-input-group__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.stack-item__remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  transition: color 0.15s ease;
+  line-height: 1;
+}
+
+.stack-item__remove:hover {
+  color: var(--danger);
+}
+
+/* ── Workbench Sections ────────────────────────────── */
+
+.workbench-section {
+  margin-bottom: 1.25rem;
+}
+
+.output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.output-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ── Compiled Output ───────────────────────────────── */
+
+.compiled-output {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text-color);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 160px;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.compiled-output__empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-stack);
+}
+
+/* ── Responsive ────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .yukti-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .yukti-panel--deck {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .yukti-panel {
+    padding: 1rem;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}

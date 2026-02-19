@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GenAI-Yukti-Deck</title>
+    <meta
+      name="description"
+      content="GenAI-Yukti-Deck — A tactical deck of psychological exploits and prompt hacks."
+    />
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="../_app_registry.js"></script>
+    <script src="yuktiRegistry.js"></script>
+  </head>
+  <body>
+    <!-- ── Top Bar ─────────────────────────────────── -->
+    <header class="top-bar">
+      <h1 class="top-bar__title">
+        <span class="accent">🃏</span> GenAI-Yukti-Deck
+      </h1>
+      <div class="top-bar__actions">
+        <button id="btn-back" class="btn btn--outline" title="Back to dashboard">← Back</button>
+        <button id="btn-reset" class="btn btn--danger" title="Clear stack and inputs">↺ Reset</button>
+        <select id="theme-select" class="select" title="Theme">
+          <option value="auto">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- ── App Layout ──────────────────────────────── -->
+    <div class="yukti-layout">
+      <!-- ── Left: The Deck ───────────────────────── -->
+      <section class="yukti-panel yukti-panel--deck">
+        <div class="panel-header">
+          <h2 class="panel-label">The Deck</h2>
+          <span id="deck-count" class="badge">0 / 8</span>
+        </div>
+        <div id="card-grid" class="card-grid">
+          <!-- Cards rendered by app.js -->
+        </div>
+      </section>
+
+      <!-- ── Right: The Workbench ─────────────────── -->
+      <section class="yukti-panel yukti-panel--workbench">
+        <!-- Active Stack -->
+        <div class="panel-header">
+          <h2 class="panel-label">Active Stack</h2>
+          <span id="stack-count" class="badge">0</span>
+        </div>
+        <div id="active-stack" class="active-stack">
+          <div class="active-stack__empty">No cards played. Click a card to add it.</div>
+        </div>
+
+        <!-- Base Prompt -->
+        <div class="workbench-section">
+          <label class="field-label" for="base-prompt">Base Prompt</label>
+          <textarea
+            id="base-prompt"
+            class="textarea textarea--user"
+            rows="4"
+            placeholder="Enter your base prompt or question here..."
+          ></textarea>
+        </div>
+
+        <!-- Compiled Output -->
+        <div class="workbench-section">
+          <div class="output-header">
+            <label class="field-label">Compiled Prompt</label>
+            <div class="output-actions">
+              <button id="btn-copy" class="btn btn--solid" title="Copy compiled prompt">📋 Copy</button>
+            </div>
+          </div>
+          <pre id="compiled-output" class="compiled-output"><span class="compiled-output__empty">Play cards and write a base prompt to compile…</span></pre>
+        </div>
+      </section>
+    </div>
+
+    <!-- ── App Logic ───────────────────────────────── -->
+    <script src="app.js"></script>
+  </body>
+</html>

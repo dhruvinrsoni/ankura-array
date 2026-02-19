@@ -12,4 +12,14 @@ window.ANKURA_REGISTRY = [
     path: "vaak-smith/index.html",
     version: "1.0.0",
   },
+  {
+    id: "genai-yukti-deck",
+    name: "GenAI-Yukti-Deck",
+    description:
+      "A tactical deck of psychological exploits and prompt hacks.",
+    icon: "🃏",
+    path: "genai-yukti-deck/index.html",
+    tags: ["Hacking", "Psychology", "Advanced"],
+    version: "1.0.0",
+  },
 ];
