@@ -394,6 +394,93 @@
   font-family: var(--font-stack);
 }
 
+/* ── Booster / Legendary Card ──────────────────────── */
+
+.yukti-card--booster {
+  border-color: rgba(212, 160, 60, 0.45);
+  background:
+    linear-gradient(160deg, rgba(212, 160, 60, 0.06) 0%, transparent 40%),
+    var(--bg-input);
+}
+
+.yukti-card--booster::before {
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    var(--accent) 50%,
+    var(--accent) 51%,
+    transparent 51%
+  );
+}
+
+.yukti-card--booster:hover {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 14px rgba(212, 160, 60, 0.15),
+    0 0 32px rgba(212, 160, 60, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.yukti-card--booster.yukti-card--active {
+  border-color: var(--accent-hover);
+  box-shadow:
+    0 0 12px rgba(212, 160, 60, 0.25),
+    0 0 36px rgba(212, 160, 60, 0.08);
+}
+
+.yukti-card--booster.yukti-card--active::before {
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    var(--accent-hover) 50%,
+    var(--accent-hover) 51%,
+    transparent 51%
+  );
+}
+
+.yukti-card--booster .yukti-card__indicator {
+  /* gold dot instead of green */
+}
+
+.yukti-card--booster.yukti-card--active .yukti-card__indicator {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(212, 160, 60, 0.6);
+}
+
+/* Category badge inside the card */
+.yukti-card__category {
+  display: inline-block;
+  font-size: 0.55rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-hover);
+  background: rgba(212, 160, 60, 0.1);
+  border: 1px solid rgba(212, 160, 60, 0.25);
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  width: fit-content;
+}
+
+/* Citation line at bottom of card */
+.yukti-card__citation {
+  font-size: 0.58rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  line-height: 1.35;
+  opacity: 0.7;
+}
+
+/* Booster stack item — gold left border */
+.stack-item--booster {
+  border-left-color: var(--accent);
+}
+
+.stack-item--booster:hover {
+  border-left-color: var(--accent-hover);
+}
+
 /* ── Responsive ────────────────────────────────────── */
 
 @media (max-width: 768px) {

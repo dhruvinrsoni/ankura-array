@@ -8,9 +8,16 @@
  *   id          — unique slug
  *   card        — display name shown on the card face
  *   content     — the prompt template ({{VAR}} = user-fillable)
- *   type        — "prefix" | "wrapper" | "suffix" (default: "suffix")
+ *   type        — "prefix" | "suffix" | "wrapper"
+ *                 prefix  → prepended before base prompt
+ *                 suffix  → appended after base prompt (default)
+ *                 wrapper → structural booster that sandwiches the ENTIRE
+ *                           compiled prompt (applied last, after all
+ *                           prefix/suffix injectors)
+ *   category    — optional grouping ("Injector" | "Structural Booster")
  *   defaults    — optional map of default values for {{VAR}} placeholders
  *   description — short tactical note shown on hover / detail
+ *   citation    — optional attribution / research source
  */
 window.YUKTI_DECK = [
   {
@@ -83,8 +90,22 @@ window.YUKTI_DECK = [
     card: "Version 2.0",
     content: "Give me a Version 2.0 of this idea.",
     type: "suffix",
+    category: "Injector",
     defaults: {},
     description:
       "Meta-upgrade hack. Tells the model its first answer was a draft — it often improves significantly.",
+  },
+  {
+    id: "attention-anchor",
+    card: "Attention Anchor (The Sandwich)",
+    content:
+      "{{INSTRUCTION}}\n\n--- CONTEXT START ---\n{{CONTEXT}}\n--- CONTEXT END ---\n\n{{INSTRUCTION}}",
+    type: "wrapper",
+    category: "Structural Booster",
+    defaults: {},
+    description:
+      "Sandwiches the prompt with the instruction to seize attention. (2× Token Cost).",
+    citation:
+      "Based on Google Research: 'Lost in the Middle' Phenomenon.",
   },
 ];

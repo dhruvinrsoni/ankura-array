@@ -174,19 +174,32 @@
     $cardGrid.innerHTML = "";
     DECK.forEach(function (card) {
       var isActive = activeStack.indexOf(card.id) !== -1;
+      var isBooster = card.category === "Structural Booster";
       var el = document.createElement("div");
-      el.className = "yukti-card" + (isActive ? " yukti-card--active" : "");
+      el.className =
+        "yukti-card" +
+        (isActive ? " yukti-card--active" : "") +
+        (isBooster ? " yukti-card--booster" : "");
       el.setAttribute("data-id", card.id);
       el.setAttribute("role", "button");
       el.setAttribute("tabindex", "0");
       el.setAttribute("title", card.description || "");
 
+      var categoryBadge = isBooster
+        ? '<span class="yukti-card__category">' + escapeHTML(card.category) + "</span>"
+        : "";
+      var citationLine = card.citation
+        ? '<span class="yukti-card__citation">' + escapeHTML(card.citation) + "</span>"
+        : "";
+
       el.innerHTML =
         '<span class="yukti-card__indicator"></span>' +
         '<span class="yukti-card__name">' + escapeHTML(card.card) + "</span>" +
+        categoryBadge +
         '<span class="yukti-card__type">' + escapeHTML(card.type || "suffix") + "</span>" +
         '<span class="yukti-card__snippet">' + escapeHTML(card.content) + "</span>" +
-        '<span class="yukti-card__desc">' + escapeHTML(card.description || "") + "</span>";
+        '<span class="yukti-card__desc">' + escapeHTML(card.description || "") + "</span>" +
+        citationLine;
 
       el.addEventListener("click", function () {
         toggleCard(card.id);
@@ -221,9 +234,15 @@
       var card = cardById(id);
       if (!card) return;
 
+      var isBooster = card.category === "Structural Booster";
       var vars = extractVars(card.content);
+      // For wrapper cards, hide the auto-detected {{CONTEXT}} var —
+      // context is the entire compiled prompt, injected automatically.
+      if (card.type === "wrapper") {
+        vars = vars.filter(function (v) { return v !== "CONTEXT"; });
+      }
       var el = document.createElement("div");
-      el.className = "stack-item";
+      el.className = "stack-item" + (isBooster ? " stack-item--booster" : "");
 
       // Order buttons
       var orderHTML =
@@ -330,6 +349,13 @@
 
   /* ── Compile ────────────────────────────────────── */
 
+  /**
+   * Order of operations:
+   *   1. Collect prefixes, suffixes, and wrappers from the active stack.
+   *   2. Build the "inner" prompt: prefixes → base prompt → suffixes.
+   *   3. Apply structural wrappers LAST — each wrapper receives the
+   *      fully-assembled inner prompt as its {{CONTEXT}} placeholder.
+   */
   function compile() {
     var base = ($basePrompt.value || "").trim();
     if (activeStack.length === 0 && !base) {
@@ -339,39 +365,46 @@
     }
 
     var prefixes = [];
-    var wrappers = [];
+    var wrapperCards = [];   // keep full card refs — we need template + vars
     var suffixes = [];
 
     activeStack.forEach(function (id) {
       var card = cardById(id);
       if (!card) return;
-      var resolved = resolveTemplate(card);
       var type = (card.type || "suffix").toLowerCase();
-      if (type === "prefix") prefixes.push(resolved);
-      else if (type === "wrapper") wrappers.push(resolved);
-      else suffixes.push(resolved);
+      if (type === "wrapper") {
+        wrapperCards.push(card);
+      } else {
+        var resolved = resolveTemplate(card);
+        if (type === "prefix") prefixes.push(resolved);
+        else suffixes.push(resolved);
+      }
     });
 
-    var parts = [];
+    // Step 1 — build inner prompt (prefix + base + suffix)
+    var innerParts = [];
+    if (prefixes.length) innerParts.push(prefixes.join("\n"));
+    if (base) innerParts.push(base);
+    if (suffixes.length) innerParts.push(suffixes.join("\n"));
+    var innerPrompt = innerParts.join("\n\n");
 
-    // Prefixes first
-    if (prefixes.length) parts.push(prefixes.join("\n"));
-
-    // Base prompt (possibly wrapped)
-    var baseBlock = base || "";
-    if (wrappers.length) {
-      // Wrappers enclose the base prompt
-      wrappers.forEach(function (w) {
-        baseBlock = w + "\n" + baseBlock;
+    // Step 2 — apply each wrapper around the inner prompt
+    var finalPrompt = innerPrompt;
+    wrapperCards.forEach(function (card) {
+      // Resolve all user-filled vars EXCEPT {{CONTEXT}} first
+      var vals = varValues[card.id] || {};
+      var text = card.content;
+      extractVars(card.content).forEach(function (v) {
+        if (v === "CONTEXT") return; // handled below
+        var replacement =
+          vals[v] || (card.defaults && card.defaults[v]) || "{{" + v + "}}";
+        text = text.replace(new RegExp("\\{\\{" + v + "\\}\\}", "g"), replacement);
       });
-    }
-    if (baseBlock) parts.push(baseBlock);
+      // Inject the full inner prompt as {{CONTEXT}}
+      finalPrompt = text.replace(/\{\{CONTEXT\}\}/g, finalPrompt);
+    });
 
-    // Suffixes last
-    if (suffixes.length) parts.push(suffixes.join("\n"));
-
-    var final = parts.join("\n\n");
-    $compiled.textContent = final;
+    $compiled.textContent = finalPrompt;
   }
 
   /* ── Events ─────────────────────────────────────── */
