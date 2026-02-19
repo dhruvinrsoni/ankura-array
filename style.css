@@ -35,6 +35,61 @@
   --bg-surface: #171717;
   --accent-subtle: rgba(212,160,60,0.06);
   --border-focus: rgba(212,160,60,0.14);
+
+  /* New simplified theme variables (used by theme switcher) */
+  --bg-color: var(--bg-primary);
+  --text-color: var(--text-primary);
+  --card-bg: var(--bg-card);
+  --card-bg-hover: var(--bg-card-hover);
+  --surface-bg: var(--bg-surface);
+}
+
+/* Light theme override (class applied on <body>) */
+.light-theme {
+  --bg-color: #ffffff;
+  --text-color: #111111;
+  --card-bg: #f6f6f6;
+  --card-bg-hover: #efefef;
+  --surface-bg: #ffffff;
+  /* Map legacy variables so existing rules inherit correctly */
+  --bg-primary: var(--bg-color);
+  --bg-secondary: var(--surface-bg);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: var(--card-bg-hover);
+  --bg-input: #ffffff;
+  --bg-input-focus: #ffffff;
+  --bg-surface: var(--surface-bg);
+  --text-primary: var(--text-color);
+  --text-secondary: #333333;
+  --text-muted: #6b6560;
+  --border: #e6e6e6;
+  --border-hover: #dcdcdc;
+  --accent-subtle: rgba(212,160,60,0.04);
+  --border-focus: rgba(212,160,60,0.08);
+}
+
+/* Dark theme override (class applied on <body>) */
+.dark-theme {
+  --bg-color: #0f0f10;
+  --text-color: #e8e6e3;
+  --card-bg: #1f1f1f;
+  --card-bg-hover: #282828;
+  --surface-bg: #171717;
+  /* Map legacy variables for dark theme as well */
+  --bg-primary: var(--bg-color);
+  --bg-secondary: var(--surface-bg);
+  --bg-card: var(--card-bg);
+  --bg-card-hover: var(--card-bg-hover);
+  --bg-input: #151515;
+  --bg-input-focus: #1c1c1c;
+  --bg-surface: var(--surface-bg);
+  --text-primary: var(--text-color);
+  --text-secondary: #a09b93;
+  --text-muted: #6b6560;
+  --border: #3d3d3d;
+  --border-hover: #4d4d4d;
+  --accent-subtle: rgba(212,160,60,0.06);
+  --border-focus: rgba(212,160,60,0.14);
 }
 
 /* ── Reset ─────────────────────────────────────────── */
@@ -55,8 +110,8 @@ html {
 
 body {
   font-family: var(--font-stack);
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--bg-color);
+  color: var(--text-color);
   line-height: 1.6;
   min-height: 100vh;
 }
@@ -114,7 +169,7 @@ body {
 }
 
 .app-card {
-  background: var(--bg-card);
+  background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.75rem;
@@ -311,7 +366,7 @@ body {
 .preview-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem }
 .preview-title { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted) }
 .preview-actions { display:flex; gap:0.5rem }
-.preview-content { background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem 1.25rem; font-family:var(--font-mono); font-size:0.82rem; line-height:1.7; color:var(--text-secondary); white-space:pre-wrap; word-break:break-word; min-height:300px; overflow-y:auto }
+.preview-content { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem 1.25rem; font-family:var(--font-mono); font-size:0.82rem; line-height:1.7; color:var(--text-color); white-space:pre-wrap; word-break:break-word; min-height:300px; overflow-y:auto }
 .preview-content--empty { display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-style:italic; font-family:var(--font-stack) }
 
 /* Model Badge */

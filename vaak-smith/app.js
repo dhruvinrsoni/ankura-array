@@ -162,9 +162,42 @@
     // Render framework-specific fields (including the no-framework sandbox)
     renderFrameworkFields($framework.value);
     // tuning/provider UI removed — slider/model sync omitted
+    initTheme();
     updateApplyButtonState();
     renderPreview();
     bindEvents();
+  }
+
+  // Theme handling: instance-scoped via State (INSTANCE_ID prefix)
+  function applyThemeValue(val) {
+    var mode = val || 'auto';
+    var useDark = false;
+    if (mode === 'auto') {
+      try {
+        useDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      } catch (e) { useDark = false; }
+    } else if (mode === 'dark') {
+      useDark = true;
+    } else {
+      useDark = false;
+    }
+    document.body.classList.toggle('dark-theme', useDark);
+    document.body.classList.toggle('light-theme', !useDark);
+  }
+
+  function initTheme() {
+    var sel = document.getElementById('theme-select');
+    if (!sel) return;
+    // load from instance-scoped State
+    var saved = State.load('theme');
+    var cur = (saved !== null) ? saved : 'auto';
+    try { sel.value = cur; } catch (e) {}
+    applyThemeValue(cur);
+    sel.addEventListener('change', function () {
+      var v = sel.value || 'auto';
+      State.save('theme', v);
+      applyThemeValue(v);
+    });
   }
 
   /**
