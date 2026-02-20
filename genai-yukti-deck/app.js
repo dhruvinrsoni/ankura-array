@@ -474,9 +474,11 @@
   function init() {
     initTheme();
 
-    // Restore base prompt
+    // Restore base prompt from instance-scoped State
     var savedBase = State.load("yukti_base", "");
-    if (savedBase) $basePrompt.value = savedBase;
+    if (savedBase) {
+      $basePrompt.value = savedBase;
+    }
 
     renderDeck();
     renderStack();

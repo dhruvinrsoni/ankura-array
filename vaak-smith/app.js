@@ -434,6 +434,12 @@
     var instanceStored = loadFrameworkInstanceSections(frameworkKey) || {};
     var legacy = loadGlobalSystem(frameworkKey);
 
+    // RESTORE SYSTEM PROMPT: if we have a loaded system prompt for this framework,
+    // apply it to the textarea (it was cleared in hydrateState())
+    if (legacy && legacy.trim()) {
+      $system.value = legacy;
+    }
+
     sectionsDef.forEach(function (section) {
       var wrap = document.createElement('div');
       wrap.className = 'editor-section';
