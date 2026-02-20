@@ -251,6 +251,7 @@
            */
           function scoreApp(app) {
             var name = (app.name || "").toLowerCase();
+            var shortForm = (app.shortForm || "").toLowerCase();
             var desc = (app.description || "").toLowerCase();
             var tagsStr = (app.tags || [])
               .map(function (t) { return t.toLowerCase(); })
@@ -262,14 +263,16 @@
             for (var i = 0; i < keywords.length; i++) {
               var keyword = keywords[i];
               var nameScore = scoreKeywordInField(keyword, name);
+              var shortFormScore = scoreKeywordInField(keyword, shortForm);
               var descScore = scoreKeywordInField(keyword, desc);
               var tagsScore = scoreKeywordInField(keyword, tagsStr);
 
-              // Weight the scores: name is most important
+              // Weight the scores: name and shortForm are most important
               var keywordScore = Math.max(
-                nameScore * 10,  // name matches are worth 10x
-                descScore * 2,   // description matches are worth 2x
-                tagsScore * 2    // tags matches are worth 2x
+                nameScore * 10,      // name matches are worth 10x
+                shortFormScore * 10, // shortForm matches (VS, GD) are worth 10x
+                descScore * 2,       // description matches are worth 2x
+                tagsScore * 2        // tags matches are worth 2x
               );
 
               // If this keyword doesn't match anywhere, the app is out
