@@ -37,8 +37,8 @@ First app: **Vaak-Smith** — the smith of speech. Prompting is speech with inte
 
 | App Name | Description | Status | Launch |
 |---|---|:---:|---|
-| Vaak-Smith | Precision prompt engineering cockpit for LLMs. | ✅ Live | [Launch](./vaak-smith/index.html) |
-| GenAI-Yukti-Deck | A tactical deck of psychological exploits and prompt hacks. | ✅ Live | [Launch](./genai-yukti-deck/index.html) |
+| Vaak-Smith | Precision prompt engineering cockpit for LLMs. | ✅ Live | [Launch](https://dhruvinrsoni.github.io/ankura-array/vaak-smith/index.html) |
+| GenAI-Yukti-Deck | A tactical deck of psychological exploits and prompt hacks. | ✅ Live | [Launch](https://dhruvinrsoni.github.io/ankura-array/genai-yukti-deck/index.html) |
 
 More tiny tools will be added over time. Each app should be understandable by reading its folder.
 
