@@ -201,24 +201,106 @@
         }
 
         /**
-         * Filter apps based on search term.
-         * Search in: name, description, and tags.
+         * Smart search with scoring and relevance ranking.
+         * 
+         * Features:
+         *   - Space-separated keywords (AND logic: all must match)
+         *   - Field weighting: name (10x) > description (2x) > tags (2x)
+         *   - Substring matching for flexibility
+         *   - Results sorted by relevance (highest score first)
+         *   - Handles partial word matches
          */
         function filterApps(searchTerm) {
           if (!searchTerm || searchTerm.trim() === "") {
             return registry;
           }
-          var term = searchTerm.toLowerCase();
-          return registry.filter(function (app) {
+
+          var keywords = searchTerm
+            .toLowerCase()
+            .trim()
+            .split(/\s+/)
+            .filter(function (k) { return k.length > 0; });
+
+          if (keywords.length === 0) {
+            return registry;
+          }
+
+          /**
+           * Score a single keyword against an app's field.
+           * Returns score (0 if no match, higher for better matches).
+           */
+          function scoreKeywordInField(keyword, field) {
+            if (!field || field.length === 0) return 0;
+            var lowerField = field.toLowerCase();
+            var lowerKeyword = keyword.toLowerCase();
+
+            // Exact match (entire field equals keyword)
+            if (lowerField === lowerKeyword) return 100;
+
+            // Starts with keyword (high relevance)
+            if (lowerField.startsWith(lowerKeyword)) return 50;
+
+            // Word boundary match (keyword starts a word in the field)
+            try {
+              var escaped = lowerKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              var wordBoundaryMatch = new RegExp("(^|\\s|-)" + escaped);
+              if (wordBoundaryMatch.test(lowerField)) return 30;
+            } catch (e) {}
+
+            // Substring match (keyword appears anywhere)
+            if (lowerField.includes(lowerKeyword)) return 10;
+
+            return 0;
+          }
+
+          /**
+           * Score an app against ALL keywords.
+           * Returns total score. Score is 0 if ANY keyword doesn't match.
+           */
+          function scoreApp(app) {
             var name = (app.name || "").toLowerCase();
             var desc = (app.description || "").toLowerCase();
-            var tagsStr = (app.tags || []).map(function (t) { return t.toLowerCase(); }).join(" ");
-            return (
-              name.includes(term) ||
-              desc.includes(term) ||
-              tagsStr.includes(term)
-            );
+            var tagsStr = (app.tags || [])
+              .map(function (t) { return t.toLowerCase(); })
+              .join(" ");
+
+            var totalScore = 0;
+
+            // For each keyword, it must match something
+            for (var i = 0; i < keywords.length; i++) {
+              var keyword = keywords[i];
+              var nameScore = scoreKeywordInField(keyword, name);
+              var descScore = scoreKeywordInField(keyword, desc);
+              var tagsScore = scoreKeywordInField(keyword, tagsStr);
+
+              // Weight the scores: name is most important
+              var keywordScore = Math.max(
+                nameScore * 10,  // name matches are worth 10x
+                descScore * 2,   // description matches are worth 2x
+                tagsScore * 2    // tags matches are worth 2x
+              );
+
+              // If this keyword doesn't match anywhere, the app is out
+              if (keywordScore === 0) {
+                return 0;
+              }
+
+              totalScore += keywordScore;
+            }
+
+            return totalScore;
+          }
+
+          // Score all apps and filter out zeros
+          var scored = registry.map(function (app) {
+            return { app: app, score: scoreApp(app) };
           });
+
+          // Filter to only matching apps and sort by score (descending)
+          return scored
+            .filter(function (item) { return item.score > 0; })
+            .sort(function (a, b) { return b.score - a.score; })
+            .map(function (item) { return item.app; });
         }
 
         // Setup search input listener
