@@ -15,7 +15,7 @@
     <header class="site-header">
       <h1><span class="accent">Ankura</span>-Array</h1>
       <p>Garden of Apps &mdash; Done and Dusted.</p>
-      <select id="theme-select" title="Theme" style="position:absolute;right:1rem;top:1rem;padding:0.35rem 0.6rem;">
+      <select id="theme-select" class="site-header__theme-select" title="Theme">
         <option value="auto">Auto</option>
         <option value="light">Light</option>
         <option value="dark">Dark</option>
@@ -24,13 +24,25 @@
 
     <!-- ── Main ────────────────────────────────────── -->
     <main class="main-content">
-      <div class="section-label">Nano Applications</div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="section-label">Nano Applications</div>
+        <input
+          id="search-apps"
+          type="text"
+          class="search-input"
+          placeholder="Type to search (prompt, AI, hacks, prompting...)"
+          autocomplete="off"
+        />
+      </div>
       <div id="app-grid" class="app-grid">
         <!-- Cards rendered by script below -->
       </div>
       <div id="empty-state" class="empty-state" hidden>
         No applications registered. Add entries to
         <code>app_registry.js</code> to get started.
+      </div>
+      <div id="no-results" class="empty-state" hidden>
+        No apps match your search. Try different keywords.
       </div>
 
       <!-- ── Instance Manager ────────────────────── -->
@@ -131,6 +143,8 @@
 
         const grid = document.getElementById("app-grid");
         const emptyState = document.getElementById("empty-state");
+        const noResults = document.getElementById("no-results");
+        const searchInput = document.getElementById("search-apps");
         const registry = window.ANKURA_REGISTRY || [];
 
         if (!registry.length) {
@@ -138,36 +152,85 @@
           return;
         }
 
-        registry.forEach(function (app) {
-          const card = document.createElement("article");
-          card.className = "app-card";
-          card.innerHTML =
-            '<div class="app-card__icon">' +
-            escapeHTML(app.icon || "📦") +
-            "</div>" +
-            '<h2 class="app-card__name">' +
-            escapeHTML(app.name) +
-            "</h2>" +
-            '<p class="app-card__desc">' +
-            escapeHTML(app.description) +
-            "</p>" +
-            (app.version
-              ? '<span class="app-card__version">v' +
-                escapeHTML(app.version) +
-                "</span>"
-              : "") +
-            '<button class="app-card__launch" data-path="' +
-            escapeHTML(app.path) +
-            '">&#9654; Launch</button>';
+        /**
+         * Render apps based on current search filter.
+         */
+        function renderApps(filteredApps) {
+          grid.innerHTML = "";
+          var appsToShow = filteredApps || registry;
 
-          card
-            .querySelector(".app-card__launch")
-            .addEventListener("click", function () {
-              launchApp(app.path);
-            });
+          if (appsToShow.length === 0) {
+            grid.hidden = true;
+            noResults.hidden = false;
+            return;
+          }
 
-          grid.appendChild(card);
-        });
+          grid.hidden = false;
+          noResults.hidden = true;
+
+          appsToShow.forEach(function (app) {
+            const card = document.createElement("article");
+            card.className = "app-card";
+            card.innerHTML =
+              '<div class="app-card__icon">' +
+              escapeHTML(app.icon || "📦") +
+              "</div>" +
+              '<h2 class="app-card__name">' +
+              escapeHTML(app.name) +
+              "</h2>" +
+              '<p class="app-card__desc">' +
+              escapeHTML(app.description) +
+              "</p>" +
+              (app.version
+                ? '<span class="app-card__version">v' +
+                  escapeHTML(app.version) +
+                  "</span>"
+                : "") +
+              '<button class="app-card__launch" data-path="' +
+              escapeHTML(app.path) +
+              '">&#9654; Launch</button>';
+
+            card
+              .querySelector(".app-card__launch")
+              .addEventListener("click", function () {
+                launchApp(app.path);
+              });
+
+            grid.appendChild(card);
+          });
+        }
+
+        /**
+         * Filter apps based on search term.
+         * Search in: name, description, and tags.
+         */
+        function filterApps(searchTerm) {
+          if (!searchTerm || searchTerm.trim() === "") {
+            return registry;
+          }
+          var term = searchTerm.toLowerCase();
+          return registry.filter(function (app) {
+            var name = (app.name || "").toLowerCase();
+            var desc = (app.description || "").toLowerCase();
+            var tagsStr = (app.tags || []).map(function (t) { return t.toLowerCase(); }).join(" ");
+            return (
+              name.includes(term) ||
+              desc.includes(term) ||
+              tagsStr.includes(term)
+            );
+          });
+        }
+
+        // Setup search input listener
+        if (searchInput) {
+          searchInput.addEventListener("input", function () {
+            var filtered = filterApps(searchInput.value);
+            renderApps(filtered);
+          });
+        }
+
+        // Initial render
+        renderApps(registry);
 
         /**
          * Generate a UUID and open the app in a new tab with ?instanceId=UUID.
