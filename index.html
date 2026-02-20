@@ -154,39 +154,97 @@
           noResults.hidden = true;
 
           appsToShow.forEach(function (app) {
+            var instances = getInstanceRegistry();
+            // Find instances that include this app
+            var instancesForApp = instances.filter(function (it) { return (it.apps || []).indexOf(app.id) !== -1; });
+
+            // Build instance meta list
+            var instMeta = instancesForApp.map(function (it) {
+              var iid = it.instanceId;
+              var rawU = null, rawC = null;
+              try { rawU = localStorage.getItem(iid + '__meta_updated'); } catch (e) {}
+              try { rawC = localStorage.getItem(iid + '__meta_created'); } catch (e) {}
+              var isoU = rawU, isoC = rawC;
+              try { isoU = JSON.parse(rawU); } catch (e) {}
+              try { isoC = JSON.parse(rawC); } catch (e) {}
+              var dU = null, dC = null;
+              try { dU = isoU ? new Date(isoU) : (rawU ? new Date(rawU) : null); } catch (e) { dU = null; }
+              try { dC = isoC ? new Date(isoC) : (rawC ? new Date(rawC) : null); } catch (e) { dC = null; }
+              return { instanceId: iid, updated: dU, created: dC, isoUpdated: isoU || rawU, isoCreated: isoC || rawC };
+            }).filter(function (m) { return m.updated || m.created; });
+
+            // Determine latest updated across instances
+            var latest = null;
+            instMeta.forEach(function (m) {
+              if (!m.updated) return;
+              if (!latest || m.updated > latest.updated) latest = m;
+            });
+
+            function timeAgo(d) {
+              if (!d) return '—';
+              var s = Math.floor((Date.now() - d.getTime()) / 1000);
+              if (s < 5) return 'now';
+              if (s < 60) return s + 's';
+              var m = Math.floor(s / 60);
+              if (m < 60) return m + 'm';
+              var h = Math.floor(m / 60);
+              if (h < 24) return h + 'h';
+              var days = Math.floor(h / 24);
+              return days + 'd';
+            }
+
+            var rel = latest && latest.updated ? timeAgo(latest.updated) : null;
+
             const card = document.createElement("article");
             card.className = "app-card";
             card.innerHTML =
-              '<div class="app-card__icon">' +
-              escapeHTML(app.icon || "📦") +
-              "</div>" +
+              '<div class="app-card__icon">' + escapeHTML(app.icon || "📦") + '</div>' +
               '<div style="display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px;">' +
-              '<h2 class="app-card__name">' +
-              escapeHTML(app.name) +
-              "</h2>" +
-              (app.shortForm
-                ? '<span style="font-size: 0.8em; font-weight: bold; background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px; letter-spacing: 0.5px;">' +
-                  escapeHTML(app.shortForm) +
-                  "</span>"
-                : "") +
-              "</div>" +
-              '<p class="app-card__desc">' +
-              escapeHTML(app.description) +
-              "</p>" +
-              (app.version
-                ? '<span class="app-card__version">v' +
-                  escapeHTML(app.version) +
-                  "</span>"
-                : "") +
-              '<button class="app-card__launch" data-path="' +
-              escapeHTML(app.path) +
-              '">&#9654; Launch</button>';
+                '<h2 class="app-card__name">' + escapeHTML(app.name) + '</h2>' +
+                (app.shortForm ? '<span style="font-size: 0.8em; font-weight: bold; background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px; letter-spacing: 0.5px;">' + escapeHTML(app.shortForm) + '</span>' : '') +
+              '</div>' +
+              '<p class="app-card__desc">' + escapeHTML(app.description) + '</p>' +
+              (app.version ? '<span class="app-card__version">v' + escapeHTML(app.version) + '</span>' : '') +
+              (rel ? '<span class="app-card__meta" title="Updated: ' + (latest ? (latest.isoUpdated || '') : '') + '\nCreated: ' + (latest ? (latest.isoCreated || '') : '') + '\nAbsolute: ' + (latest && latest.updated ? latest.updated.toLocaleString() : '') + '">Updated: ' + rel + '</span>' : '') +
+              '<button class="app-card__expand btn btn--outline" style="margin-left:8px; font-size:0.75rem;">Instances</button>' +
+              '<button class="app-card__launch" data-path="' + escapeHTML(app.path) + '">&#9654; Launch</button>' +
+              '<div class="app-card__instances" style="display:none; margin-top:0.75rem; font-size:0.9rem;"></div>';
 
-            card
-              .querySelector(".app-card__launch")
-              .addEventListener("click", function () {
-                launchApp(app.path);
-              });
+            // Launch handler
+            card.querySelector('.app-card__launch').addEventListener('click', function () { launchApp(app.path); });
+
+            // Expand instances handler
+            var expBtn = card.querySelector('.app-card__expand');
+            var instContainer = card.querySelector('.app-card__instances');
+            expBtn.addEventListener('click', function () {
+              if (instContainer.style.display === 'none' || instContainer.style.display === '') {
+                // populate list
+                instContainer.innerHTML = '';
+                if (instMeta.length === 0) {
+                  instContainer.textContent = 'No instances with metadata found.';
+                } else {
+                  var list = document.createElement('div');
+                  instMeta.sort(function(a,b){ var ta = a.updated ? a.updated.getTime() : 0; var tb = b.updated ? b.updated.getTime() : 0; return tb - ta; });
+                  instMeta.forEach(function (m) {
+                    var row = document.createElement('div');
+                    row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems = 'center'; row.style.gap = '0.5rem'; row.style.padding = '0.35rem 0';
+                    var idSpan = document.createElement('span'); idSpan.textContent = m.instanceId.slice(0,8) + (m.instanceId.length>8? '…':''); idSpan.title = m.instanceId;
+                    var timeSpan = document.createElement('span'); timeSpan.textContent = (m.updated ? timeAgo(m.updated) : (m.created ? 'created' : '—'));
+                    timeSpan.title = 'Updated: ' + (m.isoUpdated || '') + '\nCreated: ' + (m.isoCreated || '') + '\nLocal: ' + (m.updated ? (m.updated.toLocaleString()) : (m.created ? (m.created.toLocaleString()) : ''));
+                    var openBtn = document.createElement('button'); openBtn.className = 'btn btn--outline'; openBtn.textContent = 'Open';
+                    openBtn.addEventListener('click', function () { var sep = app.path.indexOf('?')===-1 ? '?' : '&'; window.open(app.path + sep + 'instanceId=' + encodeURIComponent(m.instanceId), '_blank'); });
+                    row.appendChild(idSpan); row.appendChild(timeSpan); row.appendChild(openBtn);
+                    list.appendChild(row);
+                  });
+                  instContainer.appendChild(list);
+                }
+                instContainer.style.display = 'block';
+                expBtn.textContent = 'Hide Instances';
+              } else {
+                instContainer.style.display = 'none';
+                expBtn.textContent = 'Instances';
+              }
+            });
 
             grid.appendChild(card);
           });
@@ -352,35 +410,48 @@
          * Returns { instanceId, apps: [list of app ids with data for this instance] }[]
          */
         function getInstanceRegistry() {
-          var instances = {};  // instanceId → { apps: Set }
+          var instances = {}; // instanceId -> { apps: Set }
           try {
             for (var i = 0; i < localStorage.length; i++) {
               var key = localStorage.key(i);
               if (!key) continue;
-              // Look for pattern: {UUID}__* or {inst-XXXX}__*
               var match = key.match(/^([a-f0-9-]+|inst-[a-z0-9]+)__(.+)$/);
               if (!match) continue;
               var instanceId = match[1];
-              var dataKey = match[2];
-              // Detect which app owns this data
-              var appId = null;
-              if (dataKey.includes("yukti")) appId = "genai-yukti-deck";
-              else appId = "vaak-smith";  // default to omdat-smith for generic keys
-              if (!instances[instanceId]) {
-                instances[instanceId] = { apps: new Set() };
+              var dataKey = match[2] || '';
+              if (!instances[instanceId]) instances[instanceId] = { apps: new Set() };
+
+              // Heuristics to detect app ownership:
+              // - If any key contains 'yukti' it's GenAI-Yukti-Deck
+              // - If any key contains 'VAAK_GLOBAL' or 'FRAMEWORK' or 'userPrompt' or 'system' it's Vaak-Smith
+              // - If both present, include both apps for that instance
+              var dk = dataKey.toLowerCase();
+              if (dk.indexOf('yukti') !== -1) instances[instanceId].apps.add('genai-yukti-deck');
+              if (dk.indexOf('vaak') !== -1) instances[instanceId].apps.add('vaak-smith');
+              if (dk.indexOf('framework_instance') !== -1 || dk.indexOf('framework_sections') !== -1 || dk.indexOf('userprompt') !== -1 || dk.indexOf('system') !== -1 || dk.indexOf('vaak_global') !== -1) {
+                instances[instanceId].apps.add('vaak-smith');
               }
-              instances[instanceId].apps.add(appId);
+              // If dataKey is meta_* and we've not detected ownership yet, we will defer; presence of other keys will assign apps.
+            }
+
+            // Second pass: for instances that still have empty apps sets, try to infer from any key prefixes
+            for (var j = 0; j < localStorage.length; j++) {
+              var k = localStorage.key(j);
+              if (!k) continue;
+              var m = k.match(/^([a-f0-9-]+|inst-[a-z0-9]+)__(.+)$/);
+              if (!m) continue;
+              var iid = m[1];
+              if (!instances[iid]) continue;
+              if (instances[iid].apps.size > 0) continue;
+              var full = k.toLowerCase();
+              if (full.indexOf('yukti') !== -1) instances[iid].apps.add('genai-yukti-deck');
+              else instances[iid].apps.add('vaak-smith');
             }
           } catch (e) {}
-          // Convert Sets to Arrays and sort
+
           var result = Object.keys(instances).map(function (id) {
-            return {
-              instanceId: id,
-              apps: Array.from(instances[id].apps).sort(),
-            };
-          }).sort(function (a, b) {
-            return a.instanceId.localeCompare(b.instanceId);
-          });
+            return { instanceId: id, apps: Array.from(instances[id].apps).sort() };
+          }).sort(function (a, b) { return a.instanceId.localeCompare(b.instanceId); });
           return result;
         }
 
@@ -473,14 +544,40 @@
           instances.forEach(function (inst) {
             var el = document.createElement("div");
             el.className = "instance-item";
+              // collect meta timestamps for this instance
+              var rawCreated = null, rawUpdated = null;
+              try { rawCreated = localStorage.getItem(inst.instanceId + '__meta_created'); } catch (e) {}
+              try { rawUpdated = localStorage.getItem(inst.instanceId + '__meta_updated'); } catch (e) {}
+              var isoC = rawCreated, isoU = rawUpdated;
+              try { isoC = JSON.parse(rawCreated); } catch (e) {}
+              try { isoU = JSON.parse(rawUpdated); } catch (e) {}
+              var dC = null, dU = null;
+              try { dC = isoC ? new Date(isoC) : (rawCreated ? new Date(rawCreated) : null); } catch (e) { dC = null; }
+              try { dU = isoU ? new Date(isoU) : (rawUpdated ? new Date(rawUpdated) : null); } catch (e) { dU = null; }
 
-            var infoHTML =
-              '<div class="instance-item__id">ID: ' + escapeHTML(inst.instanceId) + '</div>' +
-              '<div class="instance-item__apps">' +
-              inst.apps.map(function (appId) {
-                return '<span class="instance-item__app-tag">' + escapeHTML(appId) + '</span>';
-              }).join('') +
-              '</div>';
+              function timeAgo(d) {
+                if (!d) return '—';
+                var s = Math.floor((Date.now() - d.getTime()) / 1000);
+                if (s < 5) return 'now';
+                if (s < 60) return s + 's';
+                var m = Math.floor(s / 60);
+                if (m < 60) return m + 'm';
+                var h = Math.floor(m / 60);
+                if (h < 24) return h + 'h';
+                var days = Math.floor(h / 24);
+                return days + 'd';
+              }
+
+              var infoHTML =
+                '<div class="instance-item__id">ID: ' + escapeHTML(inst.instanceId) + '</div>' +
+                '<div class="instance-item__apps">' +
+                inst.apps.map(function (appId) {
+                  return '<span class="instance-item__app-tag">' + escapeHTML(appId) + '</span>';
+                }).join('') +
+                '</div>' +
+                '<div class="instance-item__ts">' +
+                  'Updated: <span title="' + (isoU || '') + '\nCreated: ' + (isoC || '') + '">' + (dU ? timeAgo(dU) : (dC ? 'created' : '—')) + '</span>' +
+                '</div>';
 
             var actionsHTML =
               inst.apps.map(function (appId) {

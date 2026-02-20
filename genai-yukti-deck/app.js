@@ -14,15 +14,38 @@
     var id = params.get("instanceId");
     if (id) {
       sessionStorage.setItem("ankura_instanceId", id);
+      // ensure meta_created/meta_updated exist for this instance
+      try {
+        var existingCreated = localStorage.getItem(id + "__meta_created");
+        var now = new Date().toISOString();
+        if (!existingCreated) {
+          localStorage.setItem(id + "__meta_created", JSON.stringify(now));
+        }
+        localStorage.setItem(id + "__meta_updated", JSON.stringify(now));
+      } catch (e) {}
       return id;
     }
     id = sessionStorage.getItem("ankura_instanceId");
-    if (id) return id;
+    if (id) {
+      // ensure meta timestamps exist
+      try {
+        var ex = localStorage.getItem(id + "__meta_created");
+        var now2 = new Date().toISOString();
+        if (!ex) localStorage.setItem(id + "__meta_created", JSON.stringify(now2));
+        localStorage.setItem(id + "__meta_updated", JSON.stringify(now2));
+      } catch (e) {}
+      return id;
+    }
     id =
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : "inst-" + Math.random().toString(36).slice(2, 9);
     sessionStorage.setItem("ankura_instanceId", id);
+    // record creation timestamp for this instance (ISO 8601)
+    try {
+      localStorage.setItem(id + "__meta_created", JSON.stringify(new Date().toISOString()));
+      localStorage.setItem(id + "__meta_updated", JSON.stringify(new Date().toISOString()));
+    } catch (e) {}
     var newUrl =
       window.location.pathname +
       "?instanceId=" +
@@ -45,6 +68,12 @@
     save: function (name, value) {
       try {
         localStorage.setItem(this._key(name), JSON.stringify(value));
+        try {
+          localStorage.setItem(this._key('meta_updated'), JSON.stringify(new Date().toISOString()));
+        } catch (e) {}
+        try {
+          window.dispatchEvent(new CustomEvent('ankura:meta-updated', { detail: { instance: INSTANCE_ID } }));
+        } catch (e) {}
       } catch (e) {}
     },
     load: function (name, fallback) {
@@ -133,6 +162,8 @@
   var $searchInput = document.getElementById("deck-search");
   var $tagBar = document.getElementById("tag-filter-bar");
   var $tagFilterToggle = document.getElementById("tag-filter-toggle");
+  var $metaCreated = document.getElementById("meta-created");
+  var $metaUpdated = document.getElementById("meta-updated");
 
   /** Drag state for stack reorder */
   var dragSrcIdx = null;
@@ -186,6 +217,7 @@
     State.save("yukti_stack", activeStack);
     State.save("yukti_vars", varValues);
     State.save("yukti_base", $basePrompt.value);
+    try { renderMeta(); } catch (e) {}
   }
 
   /* ── Search & Filter ────────────────────────────── */
@@ -633,6 +665,37 @@
     });
   }
 
+  // Render instance timestamps
+  function parseTimestamp(raw) {
+    if (!raw) return null;
+    try { raw = JSON.parse(raw); } catch (e) {}
+    try { return new Date(raw); } catch (e) { return null; }
+  }
+
+  function renderMeta() {
+    if (!$metaCreated && !$metaUpdated) return;
+    var createdRaw = null;
+    var updatedRaw = null;
+    try { createdRaw = localStorage.getItem(INSTANCE_ID + "__meta_created"); } catch (e) {}
+    try { updatedRaw = localStorage.getItem(INSTANCE_ID + "__meta_updated"); } catch (e) {}
+    var c = parseTimestamp(createdRaw);
+    var u = parseTimestamp(updatedRaw);
+    var isoC = null, isoU = null;
+    try { isoC = JSON.parse(createdRaw); } catch (e) { isoC = createdRaw; }
+    try { isoU = JSON.parse(updatedRaw); } catch (e) { isoU = updatedRaw; }
+    if ($metaCreated) {
+      $metaCreated.textContent = "Created: " + (c ? c.toLocaleString() : "—");
+      $metaCreated.title = isoC ? isoC : (c ? c.toISOString() : "");
+    }
+    if ($metaUpdated) {
+      $metaUpdated.textContent = "Updated: " + (u ? u.toLocaleString() : "—");
+      $metaUpdated.title = isoU ? isoU : (u ? u.toISOString() : "");
+    }
+  }
+
+  // Listen for meta-updated events dispatched by State.save
+  window.addEventListener('ankura:meta-updated', function () { try { renderMeta(); } catch (e) {} });
+
   // Search input
   if ($searchInput) {
     $searchInput.addEventListener("input", function () {
@@ -697,10 +760,12 @@
     renderDeck();
     renderStack();
     compile();
+    try { localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString())); } catch (e) {}
   });
 
   // Back
   $btnBack.addEventListener("click", function () {
+    try { localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString())); } catch (e) {}
     var dashUrl = window.location.pathname.replace(/\/[^/]+\/[^/]*$/, "/index.html");
     window.location.href = dashUrl;
   });
@@ -741,6 +806,7 @@
     renderDeck();
     renderStack();
     compile();
+    try { renderMeta(); } catch (e) {}
   }
 
   init();

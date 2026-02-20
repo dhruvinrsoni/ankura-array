@@ -28,12 +28,24 @@
     if (id) {
       // Launched from dashboard — persist to sessionStorage (tab-isolated)
       sessionStorage.setItem("ankura_instanceId", id);
+      try {
+        var now = new Date().toISOString();
+        var ex = localStorage.getItem(id + "__meta_created");
+        if (!ex) localStorage.setItem(id + "__meta_created", JSON.stringify(now));
+        localStorage.setItem(id + "__meta_updated", JSON.stringify(now));
+      } catch (e) {}
       return id;
     }
 
     // Check sessionStorage (e.g. page refresh within the same tab)
     id = sessionStorage.getItem("ankura_instanceId");
     if (id) {
+      try {
+        var now2 = new Date().toISOString();
+        var ex2 = localStorage.getItem(id + "__meta_created");
+        if (!ex2) localStorage.setItem(id + "__meta_created", JSON.stringify(now2));
+        localStorage.setItem(id + "__meta_updated", JSON.stringify(now2));
+      } catch (e) {}
       return id;
     }
 
@@ -43,6 +55,11 @@
         ? crypto.randomUUID()
         : fallbackUUID();
     sessionStorage.setItem("ankura_instanceId", id);
+    // record creation timestamp for this instance (ISO 8601)
+    try {
+      localStorage.setItem(id + "__meta_created", new Date().toISOString());
+      localStorage.setItem(id + "__meta_updated", new Date().toISOString());
+    } catch (e) {}
     var newUrl =
       window.location.pathname + "?instanceId=" + id + window.location.hash;
     window.history.replaceState(null, "", newUrl);
@@ -75,6 +92,11 @@
     save: function (name, value) {
       try {
         localStorage.setItem(this._key(name), value);
+        try {
+          // update instance-level modified timestamp
+          localStorage.setItem(this._key('meta_updated'), new Date().toISOString());
+          try { window.dispatchEvent(new CustomEvent('ankura:meta-updated', { detail: { instance: INSTANCE_ID } })); } catch (e) {}
+        } catch (e) {}
       } catch (e) {
         // localStorage full or unavailable — fail silently
         console.warn("[AnkuraState] save failed:", name, e);
@@ -148,6 +170,8 @@
   var $btnReset = document.getElementById("btn-reset");
   var $btnBack = document.getElementById("btn-back");
   var $btnDelete = document.getElementById("btn-delete");
+  var $metaCreated = document.getElementById("meta-created");
+  var $metaUpdated = document.getElementById("meta-updated");
   var $btnApplyGuidance = document.getElementById("btn-apply-guidance");
 
   var CONFIGS = window.LLM_CONFIGS || { PROVIDERS: {}, FRAMEWORKS: {} };
@@ -167,6 +191,8 @@
     updateApplyButtonState();
     renderPreview();
     bindEvents();
+    // render meta timestamps
+    try { renderMeta(); } catch (e) {}
   }
 
   // Theme handling: instance-scoped via State (INSTANCE_ID prefix)
@@ -200,6 +226,36 @@
       applyThemeValue(v);
     });
   }
+
+  // Timestamp helpers & rendering
+  function parseTimestamp(raw) {
+    if (!raw) return null;
+    try { return new Date(JSON.parse(raw)); } catch (e) {}
+    try { return new Date(raw); } catch (e) { return null; }
+  }
+
+  function renderMeta() {
+    if (!$metaCreated && !$metaUpdated) return;
+    var createdRaw = null;
+    var updatedRaw = null;
+    try { createdRaw = localStorage.getItem(INSTANCE_ID + "__meta_created"); } catch (e) {}
+    try { updatedRaw = localStorage.getItem(INSTANCE_ID + "__meta_updated"); } catch (e) {}
+    var c = parseTimestamp(createdRaw);
+    var u = parseTimestamp(updatedRaw);
+    var isoC = null, isoU = null;
+    try { isoC = JSON.parse(createdRaw); } catch (e) { isoC = createdRaw; }
+    try { isoU = JSON.parse(updatedRaw); } catch (e) { isoU = updatedRaw; }
+    if ($metaCreated) {
+      $metaCreated.textContent = "Created: " + (c ? c.toLocaleString() : "—");
+      $metaCreated.title = isoC ? isoC : (c ? c.toISOString() : "");
+    }
+    if ($metaUpdated) {
+      $metaUpdated.textContent = "Updated: " + (u ? u.toLocaleString() : "—");
+      $metaUpdated.title = isoU ? isoU : (u ? u.toISOString() : "");
+    }
+  }
+
+  window.addEventListener('ankura:meta-updated', function () { try { renderMeta(); } catch (e) {} });
 
   /**
    * Fill the provider <select> from LLM_CONFIGS.PROVIDERS.
@@ -862,6 +918,7 @@
       $system.value = "";
       // instance userPrompt state cleared by State.clearAll();
       renderPreview();
+      try { localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString())); } catch (e) {}
     });
 
     // ── Delete instance (per-user request) ──
@@ -885,6 +942,7 @@
     // ── Back / Return to Dashboard ──
     if ($btnBack) {
       $btnBack.addEventListener("click", function () {
+        try { localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString())); } catch (e) {}
         // Prefer focusing/closing opener when present
         try {
           if (window.opener && !window.opener.closed) {
