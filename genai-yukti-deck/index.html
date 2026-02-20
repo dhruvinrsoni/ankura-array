@@ -36,10 +36,18 @@
       <section class="yukti-panel yukti-panel--deck">
         <div class="panel-header">
           <h2 class="panel-label">The Deck</h2>
-          <span id="deck-count" class="badge">0 / 8</span>
+          <span id="deck-count" class="badge">0 / 9</span>
         </div>
-        <div id="card-grid" class="card-grid">
-          <!-- Cards rendered by app.js -->
+        <!-- Search -->
+        <div class="deck-search-bar">
+          <input id="deck-search" class="deck-search-input" type="text"
+                 placeholder="Search cards… (name, description, tags)" />
+        </div>
+        <!-- Tag Filter -->
+        <div id="tag-filter-bar" class="tag-filter-bar"></div>
+        <!-- Categorized Card Grid -->
+        <div id="card-grid" class="card-grid-container">
+          <!-- Categories rendered by app.js -->
         </div>
       </section>
 

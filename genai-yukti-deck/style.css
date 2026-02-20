@@ -56,10 +56,137 @@
 
 /* ── Card Grid ─────────────────────────────────────── */
 
+.card-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
+}
+
+/* ── Search Bar ────────────────────────────────────── */
+
+.deck-search-bar {
+  margin-bottom: 0.75rem;
+}
+
+.deck-search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.deck-search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.deck-search-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Tag Filter Bar ────────────────────────────────── */
+
+.tag-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tag-chip {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tag-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.tag-chip--active {
+  color: var(--bg-primary);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.tag-chip--active:hover {
+  background: var(--accent-hover);
+  color: var(--bg-primary);
+}
+
+/* ── Category Sections ─────────────────────────────── */
+
+.deck-category {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.deck-category__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.deck-category__name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+
+.deck-category__count {
+  font-size: 0.55rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.1rem 0.4rem;
+}
+
+.deck-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-style: italic;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
 }
 
 /* ── Individual Card (TCG / Cyberpunk Chip) ────────── */
@@ -159,6 +286,14 @@
   line-height: 1.25;
 }
 
+/* Card meta row: type + layer side by side */
+.yukti-card__meta {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .yukti-card__type {
   display: inline-block;
   font-size: 0.6rem;
@@ -168,6 +303,20 @@
   letter-spacing: 0.08em;
   color: var(--accent);
   background: var(--accent-subtle);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  width: fit-content;
+}
+
+.yukti-card__layer {
+  display: inline-block;
+  font-size: 0.55rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0.1rem 0.4rem;
   width: fit-content;
@@ -280,11 +429,29 @@
   min-width: 0;
 }
 
+.stack-item__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
 .stack-item__name {
   font-weight: 700;
   color: var(--text-primary);
   font-size: 0.75rem;
-  margin-bottom: 0.25rem;
+}
+
+.stack-item__layer-badge {
+  font-size: 0.55rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.08rem 0.35rem;
+  white-space: nowrap;
 }
 
 .stack-item__template {
@@ -501,6 +668,10 @@
   .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 0.75rem;
+  }
+
+  .tag-filter-bar {
+    gap: 0.25rem;
   }
 }
 
