@@ -129,6 +129,7 @@
   var $btnCopy = document.getElementById("btn-copy");
   var $btnReset = document.getElementById("btn-reset");
   var $btnBack = document.getElementById("btn-back");
+  var $btnDelete = document.getElementById("btn-delete");
   var $searchInput = document.getElementById("deck-search");
   var $tagBar = document.getElementById("tag-filter-bar");
   var $tagFilterToggle = document.getElementById("tag-filter-toggle");
@@ -703,6 +704,27 @@
     var dashUrl = window.location.pathname.replace(/\/[^/]+\/[^/]*$/, "/index.html");
     window.location.href = dashUrl;
   });
+
+  // Delete instance: clear instance-scoped storage and try to close tab
+  if ($btnDelete) {
+    $btnDelete.addEventListener("click", function () {
+      if (!confirm("Delete this instance and close the tab? This will clear all instance data.")) return;
+      try {
+        State.clear("yukti_stack");
+        State.clear("yukti_vars");
+        State.clear("yukti_base");
+        State.clear("theme");
+      } catch (e) {}
+      try { sessionStorage.removeItem("ankura_instanceId"); } catch (e) {}
+      try {
+        if (window.opener && !window.opener.closed) {
+          try { window.opener.focus(); } catch (e) {}
+          try { window.close(); return; } catch (e) {}
+        }
+      } catch (e) {}
+      try { window.location.href = "../index.html"; } catch (e) {}
+    });
+  }
 
   /* ── Init ───────────────────────────────────────── */
 

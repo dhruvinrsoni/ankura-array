@@ -147,6 +147,7 @@
   var $btnCopyMd = document.getElementById("btn-copy-markdown");
   var $btnReset = document.getElementById("btn-reset");
   var $btnBack = document.getElementById("btn-back");
+  var $btnDelete = document.getElementById("btn-delete");
   var $btnApplyGuidance = document.getElementById("btn-apply-guidance");
 
   var CONFIGS = window.LLM_CONFIGS || { PROVIDERS: {}, FRAMEWORKS: {} };
@@ -862,6 +863,24 @@
       // instance userPrompt state cleared by State.clearAll();
       renderPreview();
     });
+
+    // ── Delete instance (per-user request) ──
+    if ($btnDelete) {
+      $btnDelete.addEventListener("click", function () {
+        if (!confirm("Delete this instance and close the tab? This will clear all instance data.")) return;
+        try { State.clearAll(); } catch (e) {}
+        try { sessionStorage.removeItem('ankura_instanceId'); } catch (e) {}
+
+        // Try to close the window; if blocked, navigate back to dashboard
+        try {
+          if (window.opener && !window.opener.closed) {
+            try { window.opener.focus(); } catch (e) {}
+            try { window.close(); return; } catch (e) {}
+          }
+        } catch (e) {}
+        try { window.location.href = "../index.html"; } catch (e) {}
+      });
+    }
 
     // ── Back / Return to Dashboard ──
     if ($btnBack) {
