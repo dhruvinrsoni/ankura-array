@@ -9,6 +9,7 @@ window.ANKURA_REGISTRY = [
   {
     id: "vaak-smith",
     name: "Vaak-Smith",
+    shortForm: "VS",
     description:
       "Build structured, production-ready prompts using proven frameworks like Google Standard and Copilot G.C.S.E. Set model parameters, write system instructions, and export clean prompt pairs.",
     icon: "🧠",
@@ -33,6 +34,7 @@ window.ANKURA_REGISTRY = [
   {
     id: "genai-yukti-deck",
     name: "GenAI-Yukti-Deck",
+    shortForm: "GD",
     description:
       "A playable deck of psychological prompt hacks. Stack modifiers like 'IQ Overclock', 'The $100 Bet', or 'The False Memory' onto any base prompt to unlock better, sharper, or more creative AI responses.",
     icon: "🃏",
