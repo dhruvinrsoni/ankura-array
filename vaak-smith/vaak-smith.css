@@ -1,4 +1,4 @@
-/* Vaak-Smith app-specific rules (app overrides and components)
+/* Vaak-Smith app-specific rules (renamed to vaak-smith.css)
    These are lightweight overrides and components; visual tokens come
    from the root `../style.css` to keep the theme consistent with the
    Ankura dashboard. */
@@ -49,4 +49,3 @@
 .preview-status.high-tokens { color:#ffdca8 }
 
 .top-bar { display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid rgba(255,255,255,0.02); background:transparent }
-
