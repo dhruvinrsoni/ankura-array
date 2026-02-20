@@ -568,16 +568,14 @@
                 return days + 'd';
               }
 
+              var shortId = inst.instanceId && inst.instanceId.length > 8 ? (inst.instanceId.slice(0,8) + '…') : inst.instanceId;
               var infoHTML =
-                '<div class="instance-item__id">ID: ' + escapeHTML(inst.instanceId) + '</div>' +
-                '<div class="instance-item__apps">' +
-                inst.apps.map(function (appId) {
-                  return '<span class="instance-item__app-tag">' + escapeHTML(appId) + '</span>';
-                }).join('') +
-                '</div>' +
-                '<div class="instance-item__ts">' +
-                  'Updated: <span title="' + (isoU || '') + '\nCreated: ' + (isoC || '') + '">' + (dU ? timeAgo(dU) : (dC ? 'created' : '—')) + '</span>' +
-                '</div>';
+                  '<div class="instance-item__id" title="' + escapeHTML(inst.instanceId) + '">' + escapeHTML(shortId) + '</div>' +
+                  '<div class="instance-item__apps">' +
+                  inst.apps.map(function (appId) {
+                    return '<span class="instance-item__app-tag">' + escapeHTML(appId) + '</span>';
+                  }).join('') +
+                  '</div>';
 
             var actionsHTML =
               inst.apps.map(function (appId) {
@@ -590,8 +588,13 @@
               '">Delete</button>';
 
             el.innerHTML =
-              '<div class="instance-item__info">' + infoHTML + '</div>' +
-              '<div class="instance-item__actions">' + actionsHTML + '</div>';
+              '<div class="instance-item__left">' + infoHTML + '</div>' +
+              '<div class="instance-item__right">' +
+                '<div class="instance-item__ts">' +
+                  'Updated: <span title="' + (isoU || '') + '\nCreated: ' + (isoC || '') + '">' + (dU ? timeAgo(dU) : (dC ? 'created' : '—')) + '</span>' +
+                '</div>' +
+                '<div class="instance-item__actions">' + actionsHTML + '</div>' +
+              '</div>';
 
             // Event: Open
             el.querySelectorAll('[data-instance]').forEach(function (btn) {
