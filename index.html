@@ -47,9 +47,21 @@
         </div>
 
         <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-          <button id="btn-reset-all" class="btn btn--danger" style="width: 100%;">
-            🗑️ Reset & Clean Up Everything
-          </button>
+          <div class="section-label" style="margin-bottom: 0.75rem;">Per-App Cleanup</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+            <button id="btn-cleanup-vaak" class="btn btn--danger" style="font-size: 0.8rem;">
+              🗑️ Clear Vaak-Smith
+            </button>
+            <button id="btn-cleanup-yukti" class="btn btn--danger" style="font-size: 0.8rem;">
+              🃏 Clear GenAI-Yukti-Deck
+            </button>
+          </div>
+
+          <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-bottom: 0;">
+            <button id="btn-reset-all" class="btn btn--danger" style="width: 100%;">
+              🗑️ Reset & Clean Up Everything
+            </button>
+          </div>
           <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">
             Wipes all instance data and localStorage. Use with caution.
           </p>
@@ -253,11 +265,37 @@
         }
 
         /**
+         * Delete all data for a specific app across all instances.
+         */
+        function deleteAppData(appId) {
+          var appName = appId === "genai-yukti-deck" ? "GenAI-Yukti-Deck" : "Vaak-Smith";
+          if (!confirm("Delete all " + appName + " data across all instances?")) return;
+          try {
+            var keysToDelete = [];
+            for (var i = 0; i < localStorage.length; i++) {
+              var key = localStorage.key(i);
+              if (!key) continue;
+              // Check if key belongs to this app
+              var isYukti = key.includes("yukti");
+              var isThisApp = (appId === "genai-yukti-deck" && isYukti) ||
+                              (appId === "vaak-smith" && !isYukti);
+              if (isThisApp) {
+                keysToDelete.push(key);
+              }
+            }
+            keysToDelete.forEach(function (key) {
+              localStorage.removeItem(key);
+            });
+          } catch (e) {}
+          renderInstanceManager();
+        }
+
+        /**
          * Delete ALL localStorage (nuclear option).
          */
         function resetEverything() {
           if (!confirm("Permanently delete ALL instance data? This cannot be undone.")) return;
-          if (!confirm("Really? Type YES to confirm...")) return;
+          if (!confirm("Really?")) return;
           try {
             localStorage.clear();
           } catch (e) {}
@@ -340,11 +378,24 @@
         (function initInstanceManager() {
           var toggleBtn = document.getElementById("btn-toggle-instances");
           var resetBtn = document.getElementById("btn-reset-all");
+          var cleanupVaakBtn = document.getElementById("btn-cleanup-vaak");
+          var cleanupYuktiBtn = document.getElementById("btn-cleanup-yukti");
+
           if (toggleBtn) {
             toggleBtn.addEventListener('click', function () {
               var manager = document.getElementById("instance-manager");
               manager.hidden = !manager.hidden;
               toggleBtn.textContent = manager.hidden ? "✕ Show" : "✕ Hide";
+            });
+          }
+          if (cleanupVaakBtn) {
+            cleanupVaakBtn.addEventListener('click', function () {
+              deleteAppData("vaak-smith");
+            });
+          }
+          if (cleanupYuktiBtn) {
+            cleanupYuktiBtn.addEventListener('click', function () {
+              deleteAppData("genai-yukti-deck");
             });
           }
           if (resetBtn) {
