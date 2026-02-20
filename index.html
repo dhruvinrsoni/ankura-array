@@ -94,24 +94,9 @@
       (function () {
         "use strict";
 
-        // Instance identity for dashboard (so theme preference is instance-isolated)
-        function initInstanceId() {
-          var params = new URLSearchParams(window.location.search);
-          var id = params.get("instanceId");
-          if (id) {
-            sessionStorage.setItem("ankura_instanceId", id);
-            return id;
-          }
-          id = sessionStorage.getItem("ankura_instanceId");
-          if (id) return id;
-          id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'inst-' + Math.random().toString(36).slice(2,9);
-          sessionStorage.setItem("ankura_instanceId", id);
-          var newUrl = window.location.pathname + "?instanceId=" + id + window.location.hash;
-          try { window.history.replaceState(null, "", newUrl); } catch (e) {}
-          return id;
-        }
-
-        var DASH_INSTANCE_ID = initInstanceId();
+        // Note: Dashboard doesn't need instanceId—only individual apps do.
+        // (instanceId is for isolating state in Vast-Smith, GenAI-Yukti-Deck, etc.)
+        // The dashboard is just a launcher.
 
         function applyThemeMode(mode) {
           var value = mode || 'auto';
@@ -124,11 +109,11 @@
           document.body.classList.toggle('light-theme', !useDark);
         }
 
-        // Theme selector (per-instance)
+        // Theme selector (global preference)
         (function themeSetup(){
           var sel = document.getElementById('theme-select');
           if (!sel) return;
-          var key = DASH_INSTANCE_ID + '__theme';
+          var key = 'ankura_theme';
           var saved = null;
           try { saved = localStorage.getItem(key); } catch(e){}
           var cur = saved || 'auto';
