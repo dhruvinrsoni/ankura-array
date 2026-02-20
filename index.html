@@ -32,6 +32,29 @@
         No applications registered. Add entries to
         <code>app_registry.js</code> to get started.
       </div>
+
+      <!-- ── Instance Manager ────────────────────── -->
+      <div id="instance-manager" class="instance-manager" hidden>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+          <div class="section-label">Instance Storage & Cleanup</div>
+          <button id="btn-toggle-instances" class="btn btn--outline" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;">
+            ✕ Hide
+          </button>
+        </div>
+
+        <div id="instances-list" class="instances-list">
+          <!-- Instance items rendered by script -->
+        </div>
+
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+          <button id="btn-reset-all" class="btn btn--danger" style="width: 100%;">
+            🗑️ Reset & Clean Up Everything
+          </button>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">
+            Wipes all instance data and localStorage. Use with caution.
+          </p>
+        </div>
+      </div>
     </main>
 
     <!-- ── Footer ──────────────────────────────────── -->
@@ -169,6 +192,166 @@
           div.appendChild(document.createTextNode(str));
           return div.innerHTML;
         }
+
+        /* ── Instance Manager ──────────────────────── */
+
+        /**
+         * Enumerate all unique instanceIds from localStorage.
+         * Returns { instanceId, apps: [list of app ids with data for this instance] }[]
+         */
+        function getInstanceRegistry() {
+          var instances = {};  // instanceId → { apps: Set }
+          try {
+            for (var i = 0; i < localStorage.length; i++) {
+              var key = localStorage.key(i);
+              if (!key) continue;
+              // Look for pattern: {UUID}__* or {inst-XXXX}__*
+              var match = key.match(/^([a-f0-9-]+|inst-[a-z0-9]+)__(.+)$/);
+              if (!match) continue;
+              var instanceId = match[1];
+              var dataKey = match[2];
+              // Detect which app owns this data
+              var appId = null;
+              if (dataKey.includes("yukti")) appId = "genai-yukti-deck";
+              else appId = "vaak-smith";  // default to omdat-smith for generic keys
+              if (!instances[instanceId]) {
+                instances[instanceId] = { apps: new Set() };
+              }
+              instances[instanceId].apps.add(appId);
+            }
+          } catch (e) {}
+          // Convert Sets to Arrays and sort
+          var result = Object.keys(instances).map(function (id) {
+            return {
+              instanceId: id,
+              apps: Array.from(instances[id].apps).sort(),
+            };
+          }).sort(function (a, b) {
+            return a.instanceId.localeCompare(b.instanceId);
+          });
+          return result;
+        }
+
+        /**
+         * Delete all localStorage keys for a given instanceId.
+         */
+        function deleteInstance(instanceId) {
+          if (!confirm("Delete all data for instance " + instanceId + "?")) return;
+          try {
+            var keysToDelete = [];
+            for (var i = 0; i < localStorage.length; i++) {
+              var key = localStorage.key(i);
+              if (key && key.startsWith(instanceId + "__")) {
+                keysToDelete.push(key);
+              }
+            }
+            keysToDelete.forEach(function (key) {
+              localStorage.removeItem(key);
+            });
+          } catch (e) {}
+          renderInstanceManager();
+        }
+
+        /**
+         * Delete ALL localStorage (nuclear option).
+         */
+        function resetEverything() {
+          if (!confirm("Permanently delete ALL instance data? This cannot be undone.")) return;
+          if (!confirm("Really? Type YES to confirm...")) return;
+          try {
+            localStorage.clear();
+          } catch (e) {}
+          renderInstanceManager();
+        }
+
+        /**
+         * Open an instance of a specific app.
+         */
+        function openInstance(instanceId, appId) {
+          var app = registry.find(function (a) { return a.id === appId; });
+          if (!app) return;
+          var separator = app.path.indexOf("?") === -1 ? "?" : "&";
+          var url = app.path + separator + "instanceId=" + encodeURIComponent(instanceId);
+          window.open(url, "_blank");
+        }
+
+        /**
+         * Render the instance manager list.
+         */
+        function renderInstanceManager() {
+          var manager = document.getElementById("instance-manager");
+          var list = document.getElementById("instances-list");
+          if (!manager || !list) return;
+
+          var instances = getInstanceRegistry();
+          if (instances.length === 0) {
+            manager.hidden = true;
+            return;
+          }
+
+          manager.hidden = false;
+          list.innerHTML = "";
+
+          instances.forEach(function (inst) {
+            var el = document.createElement("div");
+            el.className = "instance-item";
+
+            var infoHTML =
+              '<div class="instance-item__id">ID: ' + escapeHTML(inst.instanceId) + '</div>' +
+              '<div class="instance-item__apps">' +
+              inst.apps.map(function (appId) {
+                return '<span class="instance-item__app-tag">' + escapeHTML(appId) + '</span>';
+              }).join('') +
+              '</div>';
+
+            var actionsHTML =
+              inst.apps.map(function (appId) {
+                return '<button class="btn btn--outline" data-instance="' +
+                  escapeHTML(inst.instanceId) +
+                  '" data-app="' + escapeHTML(appId) + '">Open</button>';
+              }).join('') +
+              '<button class="btn btn--danger" data-delete="' +
+              escapeHTML(inst.instanceId) +
+              '">Delete</button>';
+
+            el.innerHTML =
+              '<div class="instance-item__info">' + infoHTML + '</div>' +
+              '<div class="instance-item__actions">' + actionsHTML + '</div>';
+
+            // Event: Open
+            el.querySelectorAll('[data-instance]').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                openInstance(btn.getAttribute('data-instance'), btn.getAttribute('data-app'));
+              });
+            });
+
+            // Event: Delete
+            el.querySelectorAll('[data-delete]').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                deleteInstance(btn.getAttribute('data-delete'));
+              });
+            });
+
+            list.appendChild(el);
+          });
+        }
+
+        // Setup instance manager UI
+        (function initInstanceManager() {
+          var toggleBtn = document.getElementById("btn-toggle-instances");
+          var resetBtn = document.getElementById("btn-reset-all");
+          if (toggleBtn) {
+            toggleBtn.addEventListener('click', function () {
+              var manager = document.getElementById("instance-manager");
+              manager.hidden = !manager.hidden;
+              toggleBtn.textContent = manager.hidden ? "✕ Show" : "✕ Hide";
+            });
+          }
+          if (resetBtn) {
+            resetBtn.addEventListener('click', resetEverything);
+          }
+          renderInstanceManager();
+        })();
       })();
     </script>
   </body>
