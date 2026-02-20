@@ -74,7 +74,9 @@ python -m http.server 8000
 [Click to open the local server: http://localhost:8000](http://localhost:8000)
 ```
 
-Open `vaak-smith/index.html` to try the first app.
+Try the apps:
+- **Vaak-Smith** (`vaak-smith/index.html`) — precision prompt engineering cockpit
+- **GenAI-Yukti-Deck** (`genai-yukti-deck/index.html`) — tactical deck of prompt hacks
 
 ## 🔍 Privacy & Security
 
