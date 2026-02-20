@@ -100,13 +100,57 @@
 
 /* ── Tag Filter Bar ────────────────────────────────── */
 
+.tag-filter-section {
+  margin-bottom: 1rem;
+}
+
+.tag-filter-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tag-filter-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.tag-filter-toggle__arrow {
+  font-size: 0.55rem;
+  transition: transform 0.2s ease;
+}
+
 .tag-filter-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  margin-bottom: 1rem;
+  margin-top: 0.5rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  max-height: 200px;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  opacity: 1;
+}
+
+.tag-filter-bar--collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .tag-chip {
@@ -397,6 +441,21 @@
 }
 
 .stack-item:hover {
+  background: var(--bg-input-focus);
+}
+
+/* Drag-and-drop states */
+.stack-item[draggable="true"] {
+  cursor: grab;
+}
+
+.stack-item--dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.stack-item--drag-over {
+  border-top: 2px solid var(--accent);
   background: var(--bg-input-focus);
 }
 

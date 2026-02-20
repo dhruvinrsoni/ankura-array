@@ -43,8 +43,14 @@
           <input id="deck-search" class="deck-search-input" type="text"
                  placeholder="Search cards… (name, description, tags)" />
         </div>
-        <!-- Tag Filter -->
-        <div id="tag-filter-bar" class="tag-filter-bar"></div>
+        <!-- Tag Filter (collapsible) -->
+        <div class="tag-filter-section">
+          <button id="tag-filter-toggle" class="tag-filter-toggle" aria-expanded="false">
+            <span>Filter by Tag</span>
+            <span class="tag-filter-toggle__arrow">&#9660;</span>
+          </button>
+          <div id="tag-filter-bar" class="tag-filter-bar tag-filter-bar--collapsed"></div>
+        </div>
         <!-- Categorized Card Grid -->
         <div id="card-grid" class="card-grid-container">
           <!-- Categories rendered by app.js -->

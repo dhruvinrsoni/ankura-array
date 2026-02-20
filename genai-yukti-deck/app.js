@@ -131,6 +131,10 @@
   var $btnBack = document.getElementById("btn-back");
   var $searchInput = document.getElementById("deck-search");
   var $tagBar = document.getElementById("tag-filter-bar");
+  var $tagFilterToggle = document.getElementById("tag-filter-toggle");
+
+  /** Drag state for stack reorder */
+  var dragSrcIdx = null;
 
   /* ── Helpers ────────────────────────────────────── */
 
@@ -378,6 +382,8 @@
       }
       var el = document.createElement("div");
       el.className = "stack-item" + (isBooster ? " stack-item--booster" : "");
+      el.setAttribute("draggable", "true");
+      el.setAttribute("data-idx", idx);
 
       // Order buttons
       var orderHTML =
@@ -431,7 +437,38 @@
         "</div>" +
         '<button class="stack-item__remove" title="Remove card">✕</button>';
 
-      // Event: reorder
+      // Event: drag-and-drop reorder
+      el.addEventListener("dragstart", function () {
+        dragSrcIdx = idx;
+        setTimeout(function () { el.classList.add("stack-item--dragging"); }, 0);
+      });
+      el.addEventListener("dragend", function () {
+        el.classList.remove("stack-item--dragging");
+        document.querySelectorAll(".stack-item--drag-over").forEach(function (n) {
+          n.classList.remove("stack-item--drag-over");
+        });
+      });
+      el.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        el.classList.add("stack-item--drag-over");
+      });
+      el.addEventListener("dragleave", function () {
+        el.classList.remove("stack-item--drag-over");
+      });
+      el.addEventListener("drop", function (e) {
+        e.preventDefault();
+        el.classList.remove("stack-item--drag-over");
+        var targetIdx = parseInt(el.getAttribute("data-idx"), 10);
+        if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+        var moved = activeStack.splice(dragSrcIdx, 1)[0];
+        activeStack.splice(targetIdx, 0, moved);
+        dragSrcIdx = null;
+        renderStack();
+        compile();
+        persist();
+      });
+
+      // Event: reorder (buttons)
       el.querySelectorAll(".stack-item__order button").forEach(function (btn) {
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
@@ -585,6 +622,16 @@
     persist();
   });
 
+  // Tag filter toggle
+  if ($tagFilterToggle) {
+    $tagFilterToggle.addEventListener("click", function () {
+      var isOpen = $tagBar.classList.toggle("tag-filter-bar--collapsed");
+      $tagFilterToggle.setAttribute("aria-expanded", !isOpen);
+      var arrow = $tagFilterToggle.querySelector(".tag-filter-toggle__arrow");
+      if (arrow) arrow.style.transform = isOpen ? "" : "rotate(180deg)";
+    });
+  }
+
   // Search input
   if ($searchInput) {
     $searchInput.addEventListener("input", function () {
@@ -638,6 +685,13 @@
     State.clear("yukti_stack");
     State.clear("yukti_vars");
     State.clear("yukti_base");
+    // Collapse tag bar on reset
+    if ($tagBar) $tagBar.classList.add("tag-filter-bar--collapsed");
+    if ($tagFilterToggle) {
+      $tagFilterToggle.setAttribute("aria-expanded", "false");
+      var arrow = $tagFilterToggle.querySelector(".tag-filter-toggle__arrow");
+      if (arrow) arrow.style.transform = "";
+    }
     renderTagBar();
     renderDeck();
     renderStack();
