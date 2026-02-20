@@ -1,5 +1,5 @@
 /**
- * GenAI-Yukti-Deck — App Logic
+ * GenAI-Yukti-Deck — App Logic (renamed to genai-yukti-deck.js)
  * ─────────────────────────────
  * Pipeline-sorted stack engine with categorized deck,
  * fuzzy search, tag filtering, and variable injection.
@@ -401,274 +401,142 @@
     }
 
     $activeStack.innerHTML = "";
+    activeStack.forEach(function (cardId, idx) {
+      var card = cardById(cardId);
+      var row = document.createElement("div");
+      row.className = "stack-row";
+      row.setAttribute("draggable", "true");
+      row.setAttribute("data-idx", idx);
 
-    activeStack.forEach(function (id, idx) {
-      var card = cardById(id);
-      if (!card) return;
+      var name = document.createElement("div");
+      name.className = "stack-row__name";
+      name.textContent = card ? card.card : cardId;
 
-      var isBooster = (card.layer || 2) === 3;
-      var vars = extractVars(card.content);
-      // For wrapper cards, hide the auto-detected {{CONTEXT}} var —
-      // context is the entire compiled prompt, injected automatically.
-      if (card.type === "wrapper") {
-        vars = vars.filter(function (v) { return v !== "CONTEXT"; });
-      }
-      var el = document.createElement("div");
-      el.className = "stack-item" + (isBooster ? " stack-item--booster" : "");
-      el.setAttribute("draggable", "true");
-      el.setAttribute("data-idx", idx);
+      var controls = document.createElement("div");
+      controls.className = "stack-row__controls";
+      var up = document.createElement("button"); up.className = "btn btn--outline"; up.textContent = "↑";
+      var down = document.createElement("button"); down.className = "btn btn--outline"; down.textContent = "↓";
+      var remove = document.createElement("button"); remove.className = "btn btn--danger"; remove.textContent = "Remove";
 
-      // Order buttons
-      var orderHTML =
-        '<div class="stack-item__order">' +
-        '<button data-dir="up" title="Move up"' +
-        (idx === 0 ? " disabled" : "") +
-        ">▲</button>" +
-        '<button data-dir="down" title="Move down"' +
-        (idx === activeStack.length - 1 ? " disabled" : "") +
-        ">▼</button>" +
-        "</div>";
+      up.addEventListener("click", function () { moveStack(idx, idx - 1); });
+      down.addEventListener("click", function () { moveStack(idx, idx + 1); });
+      remove.addEventListener("click", function () { removeFromStack(idx); });
 
-      // Layer badge
-      var layerLabel = LAYER_LABELS[card.layer] || "L?";
+      controls.appendChild(up); controls.appendChild(down); controls.appendChild(remove);
 
-      // Variable inputs
-      var varsHTML = "";
-      if (vars.length > 0) {
-        varsHTML = '<div class="stack-item__vars">';
-        vars.forEach(function (v) {
-          var val =
-            (varValues[id] && varValues[id][v]) ||
-            (card.defaults && card.defaults[v]) ||
-            "";
-          varsHTML +=
-            '<div class="var-input-group">' +
-            '<span class="var-input-group__label">' + escapeHTML(v) + ":</span>" +
-            '<input class="var-input-group__input" data-card="' +
-            escapeHTML(id) +
-            '" data-var="' +
-            escapeHTML(v) +
-            '" value="' +
-            escapeHTML(val) +
-            '" placeholder="' +
-            escapeHTML(v) +
-            '" />' +
-            "</div>";
-        });
-        varsHTML += "</div>";
-      }
+      row.appendChild(name);
+      row.appendChild(controls);
 
-      el.innerHTML =
-        orderHTML +
-        '<div class="stack-item__body">' +
-        '<div class="stack-item__header">' +
-          '<span class="stack-item__name">' + escapeHTML(card.card) + "</span>" +
-          '<span class="stack-item__layer-badge">' + escapeHTML(layerLabel) + "</span>" +
-        "</div>" +
-        '<div class="stack-item__template">' + escapeHTML(card.content) + "</div>" +
-        varsHTML +
-        "</div>" +
-        '<button class="stack-item__remove" title="Remove card">✕</button>';
+      // drag handlers
+      row.addEventListener("dragstart", function (e) { dragSrcIdx = idx; e.dataTransfer && e.dataTransfer.setData('text/plain', ''); });
+      row.addEventListener("dragover", function (e) { e.preventDefault(); });
+      row.addEventListener("drop", function (e) { e.preventDefault(); if (dragSrcIdx !== null) moveStack(dragSrcIdx, idx); dragSrcIdx = null; });
 
-      // Event: drag-and-drop reorder
-      el.addEventListener("dragstart", function () {
-        dragSrcIdx = idx;
-        setTimeout(function () { el.classList.add("stack-item--dragging"); }, 0);
-      });
-      el.addEventListener("dragend", function () {
-        el.classList.remove("stack-item--dragging");
-        document.querySelectorAll(".stack-item--drag-over").forEach(function (n) {
-          n.classList.remove("stack-item--drag-over");
-        });
-      });
-      el.addEventListener("dragover", function (e) {
-        e.preventDefault();
-        el.classList.add("stack-item--drag-over");
-      });
-      el.addEventListener("dragleave", function () {
-        el.classList.remove("stack-item--drag-over");
-      });
-      el.addEventListener("drop", function (e) {
-        e.preventDefault();
-        el.classList.remove("stack-item--drag-over");
-        var targetIdx = parseInt(el.getAttribute("data-idx"), 10);
-        if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
-        var moved = activeStack.splice(dragSrcIdx, 1)[0];
-        activeStack.splice(targetIdx, 0, moved);
-        dragSrcIdx = null;
-        renderStack();
-        compile();
-        persist();
-      });
-
-      // Event: reorder (buttons)
-      el.querySelectorAll(".stack-item__order button").forEach(function (btn) {
-        btn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          var dir = btn.getAttribute("data-dir");
-          moveCard(idx, dir);
-        });
-      });
-
-      // Event: variable input
-      el.querySelectorAll(".var-input-group__input").forEach(function (inp) {
-        inp.addEventListener("input", function () {
-          var cid = inp.getAttribute("data-card");
-          var vname = inp.getAttribute("data-var");
-          if (!varValues[cid]) varValues[cid] = {};
-          varValues[cid][vname] = inp.value;
-          compile();
-          persist();
-        });
-      });
-
-      // Event: remove
-      el.querySelector(".stack-item__remove").addEventListener("click", function (e) {
-        e.stopPropagation();
-        toggleCard(id);
-      });
-
-      $activeStack.appendChild(el);
+      $activeStack.appendChild(row);
     });
   }
 
-  /* ── Stack Operations ───────────────────────────── */
+  /* ── Stack mutation helpers ─────────────────────── */
 
   function toggleCard(id) {
-    var idx = activeStack.indexOf(id);
-    if (idx !== -1) {
-      activeStack.splice(idx, 1);
-    } else {
+    var ix = activeStack.indexOf(id);
+    if (ix === -1) {
       activeStack.push(id);
+    } else {
+      activeStack.splice(ix, 1);
     }
+    persist();
     renderDeck();
     renderStack();
-    compile();
-    persist();
+    renderCompiled();
   }
 
-  function moveCard(idx, direction) {
-    var newIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= activeStack.length) return;
-    var temp = activeStack[idx];
-    activeStack[idx] = activeStack[newIdx];
-    activeStack[newIdx] = temp;
+  function moveStack(from, to) {
+    if (to < 0 || to >= activeStack.length) return;
+    var item = activeStack.splice(from, 1)[0];
+    activeStack.splice(to, 0, item);
+    persist();
     renderStack();
-    compile();
-    persist();
+    renderCompiled();
   }
 
-  /* ── Compile (Pipeline Protocol) ────────────────── */
+  function removeFromStack(idx) {
+    activeStack.splice(idx, 1);
+    persist();
+    renderStack();
+    renderCompiled();
+  }
 
-  /**
-   * Pipeline Protocol — execution order:
-   *   1. Sort active cards by `layer` (ascending).
-   *      Layer 1 (Persona/Injectors) → Layer 2 (Content Modifiers) →
-   *      Layer 3 (Wrappers) → Layer 4 (Formatters)
-   *   2. Within each layer, preserve the user's chosen order (manual reorder).
-   *   3. Build inner prompt: prefixes → base → suffixes → formatters.
-   *   4. Apply wrappers LAST — each receives the full inner prompt as {{CONTEXT}}.
-   *
-   * This guarantees correct execution regardless of click order.
-   */
-  function compile() {
-    var base = ($basePrompt.value || "").trim();
-    if (activeStack.length === 0 && !base) {
-      $compiled.innerHTML =
-        '<span class="compiled-output__empty">Play cards and write a base prompt to compile…</span>';
-      return;
-    }
+  /* ── Variable editor for cards in stack ─────────── */
 
-    // Resolve cards from stack, attaching their layer for sorting
-    var resolvedCards = [];
-    activeStack.forEach(function (id) {
-      var card = cardById(id);
+  function renderCompiled() {
+    var lines = [];
+    if ($basePrompt && $basePrompt.value) lines.push($basePrompt.value);
+    activeStack.forEach(function (cid) {
+      var card = cardById(cid);
       if (!card) return;
-      resolvedCards.push(card);
+      lines.push(resolveTemplate(card));
     });
-
-    // Pipeline sort: stable sort by layer, preserving user order within same layer
-    resolvedCards.sort(function (a, b) {
-      return (a.layer || 2) - (b.layer || 2);
-    });
-
-    var prefixes = [];
-    var suffixes = [];
-    var formatters = [];
-    var wrapperCards = [];
-
-    resolvedCards.forEach(function (card) {
-      var type = (card.type || "suffix").toLowerCase();
-      var layer = card.layer || 2;
-
-      if (type === "wrapper") {
-        wrapperCards.push(card);
-      } else if (layer === 4) {
-        // Layer 4 = formatters, appended after everything
-        formatters.push(resolveTemplate(card));
-      } else if (type === "prefix") {
-        prefixes.push(resolveTemplate(card));
-      } else {
-        suffixes.push(resolveTemplate(card));
-      }
-    });
-
-    // Step 1 — build inner prompt (prefix → base → suffix → formatters)
-    var innerParts = [];
-    if (prefixes.length) innerParts.push(prefixes.join("\n"));
-    if (base) innerParts.push(base);
-    if (suffixes.length) innerParts.push(suffixes.join("\n"));
-    if (formatters.length) innerParts.push(formatters.join("\n"));
-    var innerPrompt = innerParts.join("\n\n");
-
-    // Step 2 — apply each wrapper around the inner prompt (layer 3)
-    // Safety: if a wrapper card has no {{CONTEXT}} slot, it can't sandwich
-    // the inner prompt — treat it as a suffix instead so content is never lost.
-    var finalPrompt = innerPrompt;
-    wrapperCards.forEach(function (card) {
-      var vals = varValues[card.id] || {};
-      var text = card.content;
-      extractVars(card.content).forEach(function (v) {
-        if (v === "CONTEXT") return;
-        var replacement =
-          vals[v] || (card.defaults && card.defaults[v]) || "{{" + v + "}}";
-        text = text.replace(new RegExp("\\{\\{" + v + "\\}\\}", "g"), replacement);
-      });
-
-      if (card.content.indexOf("{{CONTEXT}}") !== -1) {
-        // True wrapper: sandwiches the compiled prompt as {{CONTEXT}}
-        finalPrompt = text.replace(/\{\{CONTEXT\}\}/g, finalPrompt);
-      } else {
-        // Fallback: no {{CONTEXT}} slot, just append so content isn't lost
-        finalPrompt = finalPrompt + "\n\n" + text;
-      }
-    });
-
-    $compiled.textContent = finalPrompt;
+    if ($compiled) $compiled.textContent = lines.join("\n\n");
   }
 
-  /* ── Events ─────────────────────────────────────── */
+  /* ── Actions: Copy / Reset / Back / Delete ─────── */
 
-  // Base prompt input
-  $basePrompt.addEventListener("input", function () {
-    compile();
-    persist();
-  });
-
-  // Tag filter toggle
-  if ($tagFilterToggle) {
-    $tagFilterToggle.addEventListener("click", function () {
-      var isOpen = $tagBar.classList.toggle("tag-filter-bar--collapsed");
-      $tagFilterToggle.setAttribute("aria-expanded", !isOpen);
-      var arrow = $tagFilterToggle.querySelector(".tag-filter-toggle__arrow");
-      if (arrow) arrow.style.transform = isOpen ? "" : "rotate(180deg)";
-    });
+  function copyOutput() {
+    try {
+      navigator.clipboard.writeText($compiled.textContent || "");
+    } catch (e) {
+      console.warn("copy failed", e);
+    }
   }
 
-  // Render instance timestamps
+  function resetAll() {
+    if (!confirm("Reset this instance? This will clear local changes.")) return;
+    activeStack = [];
+    var keys = Object.keys(varValues);
+    keys.forEach(function (k) { delete varValues[k]; });
+    if ($basePrompt) $basePrompt.value = "";
+    try {
+      State.save("yukti_stack", activeStack);
+      State.save("yukti_vars", varValues);
+      State.save("yukti_base", "");
+      // update meta updated
+      localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString()));
+      try { window.dispatchEvent(new CustomEvent('ankura:meta-updated', { detail: { instance: INSTANCE_ID } })); } catch (e) {}
+    } catch (e) {}
+    renderDeck(); renderStack(); renderCompiled(); renderMeta();
+  }
+
+  function backToDashboard() {
+    try {
+      // update meta updated
+      localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString()));
+      try { window.dispatchEvent(new CustomEvent('ankura:meta-updated', { detail: { instance: INSTANCE_ID } })); } catch (e) {}
+    } catch (e) {}
+    window.location.href = "../index.html";
+  }
+
+  function deleteInstance() {
+    if (!confirm("Delete data for this instance and close?")) return;
+    try {
+      var prefix = INSTANCE_ID + "__";
+      var toRemove = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(prefix) === 0) toRemove.push(k);
+      }
+      toRemove.forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) {}
+    try { sessionStorage.removeItem('ankura_instanceId'); } catch (e) {}
+    // best-effort close
+    try { window.close(); } catch (e) { window.location.href = '../index.html'; }
+  }
+
+  /* ── Meta rendering ────────────────────────────── */
+
   function parseTimestamp(raw) {
     if (!raw) return null;
-    try { raw = JSON.parse(raw); } catch (e) {}
+    try { return new Date(JSON.parse(raw)); } catch (e) {}
     try { return new Date(raw); } catch (e) { return null; }
   }
 
@@ -676,8 +544,8 @@
     if (!$metaCreated && !$metaUpdated) return;
     var createdRaw = null;
     var updatedRaw = null;
-    try { createdRaw = localStorage.getItem(INSTANCE_ID + "__meta_created"); } catch (e) {}
-    try { updatedRaw = localStorage.getItem(INSTANCE_ID + "__meta_updated"); } catch (e) {}
+    try { createdRaw = localStorage.getItem(INSTANCE_ID + '__meta_created'); } catch (e) {}
+    try { updatedRaw = localStorage.getItem(INSTANCE_ID + '__meta_updated'); } catch (e) {}
     var c = parseTimestamp(createdRaw);
     var u = parseTimestamp(updatedRaw);
     var isoC = null, isoU = null;
@@ -693,121 +561,34 @@
     }
   }
 
-  // Listen for meta-updated events dispatched by State.save
   window.addEventListener('ankura:meta-updated', function () { try { renderMeta(); } catch (e) {} });
 
-  // Search input
-  if ($searchInput) {
-    $searchInput.addEventListener("input", function () {
-      currentSearch = $searchInput.value.trim();
-      renderDeck();
-    });
-  }
+  /* ── UI wiring ─────────────────────────────────── */
 
-  // Copy
-  $btnCopy.addEventListener("click", function () {
-    var text = $compiled.textContent || "";
-    if (!text || $compiled.querySelector(".compiled-output__empty")) return;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () {
-        flashCopied();
-      });
-    } else {
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        document.execCommand("copy");
-        flashCopied();
-      } catch (e) {}
-      document.body.removeChild(ta);
+  function bindEvents() {
+    if ($btnCopy) $btnCopy.addEventListener('click', copyOutput);
+    if ($btnReset) $btnReset.addEventListener('click', resetAll);
+    if ($btnBack) $btnBack.addEventListener('click', backToDashboard);
+    if ($btnDelete) $btnDelete.addEventListener('click', deleteInstance);
+    if ($searchInput) {
+      $searchInput.addEventListener('input', function (e) { currentSearch = e.target.value || ''; renderDeck(); });
     }
-  });
-
-  function flashCopied() {
-    $btnCopy.classList.add("btn--copied");
-    $btnCopy.textContent = "✓ Copied";
-    setTimeout(function () {
-      $btnCopy.classList.remove("btn--copied");
-      $btnCopy.textContent = "📋 Copy";
-    }, 1500);
   }
-
-  // Reset
-  $btnReset.addEventListener("click", function () {
-    if (!confirm("Clear the entire stack and all inputs?")) return;
-    activeStack = [];
-    varValues = {};
-    $basePrompt.value = "";
-    currentSearch = "";
-    activeTagFilter = null;
-    if ($searchInput) $searchInput.value = "";
-    State.clear("yukti_stack");
-    State.clear("yukti_vars");
-    State.clear("yukti_base");
-    // Collapse tag bar on reset
-    if ($tagBar) $tagBar.classList.add("tag-filter-bar--collapsed");
-    if ($tagFilterToggle) {
-      $tagFilterToggle.setAttribute("aria-expanded", "false");
-      var arrow = $tagFilterToggle.querySelector(".tag-filter-toggle__arrow");
-      if (arrow) arrow.style.transform = "";
-    }
-    renderTagBar();
-    renderDeck();
-    renderStack();
-    compile();
-    try { localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString())); } catch (e) {}
-  });
-
-  // Back
-  $btnBack.addEventListener("click", function () {
-    try { localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString())); } catch (e) {}
-    var dashUrl = window.location.pathname.replace(/\/[^/]+\/[^/]*$/, "/index.html");
-    window.location.href = dashUrl;
-  });
-
-  // Delete instance: clear instance-scoped storage and try to close tab
-  if ($btnDelete) {
-    $btnDelete.addEventListener("click", function () {
-      if (!confirm("Delete this instance and close the tab? This will clear all instance data.")) return;
-      try {
-        State.clear("yukti_stack");
-        State.clear("yukti_vars");
-        State.clear("yukti_base");
-        State.clear("theme");
-      } catch (e) {}
-      try { sessionStorage.removeItem("ankura_instanceId"); } catch (e) {}
-      try {
-        if (window.opener && !window.opener.closed) {
-          try { window.opener.focus(); } catch (e) {}
-          try { window.close(); return; } catch (e) {}
-        }
-      } catch (e) {}
-      try { window.location.href = "../index.html"; } catch (e) {}
-    });
-  }
-
-  /* ── Init ───────────────────────────────────────── */
 
   function init() {
     initTheme();
-
-    // Restore base prompt from instance-scoped State
-    var savedBase = State.load("yukti_base", "");
-    if (savedBase) {
-      $basePrompt.value = savedBase;
-    }
-
     renderTagBar();
     renderDeck();
     renderStack();
-    compile();
+    renderCompiled();
+    bindEvents();
     try { renderMeta(); } catch (e) {}
   }
 
-  init();
+  // Expose for debugging (optional)
+  window.YUKTI_DEBUG = { State: State, INSTANCE_ID: INSTANCE_ID };
+
+  // start
+  try { init(); } catch (e) { console.warn('init failed', e); }
+
 })();

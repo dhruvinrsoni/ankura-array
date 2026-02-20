@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   GenAI-Yukti-Deck — App-Specific Styles
+   GenAI-Yukti-Deck — App-Specific Styles (renamed to genai-yukti-deck.css)
    Cyber-Noir · Tactical · TCG card metaphor
    ═══════════════════════════════════════════════════════ */
 
@@ -186,7 +186,7 @@
   color: var(--bg-primary);
 }
 
-/* ── Category Sections ─────────────────────────────── */
+/* ── Category Sections ───────────────────────────── */
 
 .deck-category {
   display: flex;
@@ -254,7 +254,6 @@
   overflow: hidden;
 }
 
-/* Decorative corner notch — cyberpunk chip feel */
 .yukti-card::before {
   content: "";
   position: absolute;
@@ -280,7 +279,6 @@
   transform: translateY(-2px);
 }
 
-/* Glow on hover */
 .yukti-card:hover::after {
   content: "";
   position: absolute;
@@ -293,8 +291,6 @@
   );
   pointer-events: none;
 }
-
-/* ── Active / Selected Card ────────────────────────── */
 
 .yukti-card--active {
   border-color: #2ea44f;
@@ -321,7 +317,6 @@
     0 0 32px rgba(46, 164, 79, 0.08);
 }
 
-/* Card innards */
 .yukti-card__name {
   font-size: 0.9rem;
   font-weight: 700;
@@ -330,7 +325,6 @@
   line-height: 1.25;
 }
 
-/* Card meta row: type + layer side by side */
 .yukti-card__meta {
   display: flex;
   gap: 0.35rem;
@@ -386,9 +380,8 @@
   border-top: 1px solid var(--border);
 }
 
-/* Active indicator dot */
 .yukti-card__indicator {
-  position: absolute;
+  position: relative;
   top: 8px;
   left: 8px;
   width: 8px;
@@ -396,346 +389,4 @@
   border-radius: 50%;
   background: transparent;
   transition: background 0.2s ease;
-}
-
-.yukti-card--active .yukti-card__indicator {
-  background: #2ea44f;
-  box-shadow: 0 0 6px rgba(46, 164, 79, 0.5);
-}
-
-/* ── Active Stack ──────────────────────────────────── */
-
-.active-stack {
-  min-height: 60px;
-  margin-bottom: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.active-stack__empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60px;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  font-style: italic;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.75rem;
-}
-
-/* Stack Item */
-.stack-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-left: 3px solid #2ea44f;
-  border-radius: var(--radius-sm);
-  padding: 0.6rem 0.75rem;
-  font-size: 0.78rem;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.stack-item:hover {
-  background: var(--bg-input-focus);
-}
-
-/* Drag-and-drop states */
-.stack-item[draggable="true"] {
-  cursor: grab;
-}
-
-.stack-item--dragging {
-  opacity: 0.4;
-  cursor: grabbing;
-}
-
-.stack-item--drag-over {
-  border-top: 2px solid var(--accent);
-  background: var(--bg-input-focus);
-}
-
-.stack-item__order {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.stack-item__order button {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  color: var(--text-muted);
-  font-size: 0.6rem;
-  line-height: 1;
-  padding: 2px 5px;
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.stack-item__order button:hover {
-  color: var(--accent);
-  background: var(--accent-subtle);
-}
-
-.stack-item__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.stack-item__header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.stack-item__name {
-  font-weight: 700;
-  color: var(--text-primary);
-  font-size: 0.75rem;
-}
-
-.stack-item__layer-badge {
-  font-size: 0.55rem;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.08rem 0.35rem;
-  white-space: nowrap;
-}
-
-.stack-item__template {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-/* Variable mini-inputs inside stack items */
-.stack-item__vars {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
-}
-
-.var-input-group {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.var-input-group__label {
-  font-size: 0.6rem;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--accent);
-  letter-spacing: 0.04em;
-}
-
-.var-input-group__input {
-  padding: 0.2rem 0.45rem;
-  font-size: 0.72rem;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  outline: none;
-  width: 120px;
-  transition: border-color 0.15s ease;
-}
-
-.var-input-group__input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-glow);
-}
-
-.stack-item__remove {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  cursor: pointer;
-  padding: 0 0.2rem;
-  transition: color 0.15s ease;
-  line-height: 1;
-}
-
-.stack-item__remove:hover {
-  color: var(--danger);
-}
-
-/* ── Workbench Sections ────────────────────────────── */
-
-.workbench-section {
-  margin-bottom: 1.25rem;
-}
-
-.output-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.4rem;
-}
-
-.output-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-/* ── Compiled Output ───────────────────────────────── */
-
-.compiled-output {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 1rem 1.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  line-height: 1.7;
-  color: var(--text-color);
-  white-space: pre-wrap;
-  word-break: break-word;
-  min-height: 160px;
-  overflow-y: auto;
-  max-height: 400px;
-}
-
-.compiled-output__empty {
-  color: var(--text-muted);
-  font-style: italic;
-  font-family: var(--font-stack);
-}
-
-/* ── Booster / Legendary Card ──────────────────────── */
-
-.yukti-card--booster {
-  border-color: rgba(212, 160, 60, 0.45);
-  background:
-    linear-gradient(160deg, rgba(212, 160, 60, 0.06) 0%, transparent 40%),
-    var(--bg-input);
-}
-
-.yukti-card--booster::before {
-  background: linear-gradient(
-    135deg,
-    transparent 50%,
-    var(--accent) 50%,
-    var(--accent) 51%,
-    transparent 51%
-  );
-}
-
-.yukti-card--booster:hover {
-  border-color: var(--accent);
-  box-shadow:
-    0 0 14px rgba(212, 160, 60, 0.15),
-    0 0 32px rgba(212, 160, 60, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.3);
-}
-
-.yukti-card--booster.yukti-card--active {
-  border-color: var(--accent-hover);
-  box-shadow:
-    0 0 12px rgba(212, 160, 60, 0.25),
-    0 0 36px rgba(212, 160, 60, 0.08);
-}
-
-.yukti-card--booster.yukti-card--active::before {
-  background: linear-gradient(
-    135deg,
-    transparent 50%,
-    var(--accent-hover) 50%,
-    var(--accent-hover) 51%,
-    transparent 51%
-  );
-}
-
-.yukti-card--booster .yukti-card__indicator {
-  /* gold dot instead of green */
-}
-
-.yukti-card--booster.yukti-card--active .yukti-card__indicator {
-  background: var(--accent);
-  box-shadow: 0 0 6px rgba(212, 160, 60, 0.6);
-}
-
-/* Category badge inside the card */
-.yukti-card__category {
-  display: inline-block;
-  font-size: 0.55rem;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--accent-hover);
-  background: rgba(212, 160, 60, 0.1);
-  border: 1px solid rgba(212, 160, 60, 0.25);
-  border-radius: 4px;
-  padding: 0.1rem 0.45rem;
-  width: fit-content;
-}
-
-/* Citation line at bottom of card */
-.yukti-card__citation {
-  font-size: 0.58rem;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  line-height: 1.35;
-  opacity: 0.7;
-}
-
-/* Booster stack item — gold left border */
-.stack-item--booster {
-  border-left-color: var(--accent);
-}
-
-.stack-item--booster:hover {
-  border-left-color: var(--accent-hover);
-}
-
-/* ── Responsive ────────────────────────────────────── */
-
-@media (max-width: 768px) {
-  .yukti-layout {
-    grid-template-columns: 1fr;
-    min-height: auto;
-  }
-
-  .yukti-panel--deck {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .yukti-panel {
-    padding: 1rem;
-  }
-
-  .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 0.75rem;
-  }
-
-  .tag-filter-bar {
-    gap: 0.25rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .card-grid {
-    grid-template-columns: 1fr;
-  }
 }
