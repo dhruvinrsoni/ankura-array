@@ -9,7 +9,7 @@
       content="Vaak-Smith — Engineer structured prompts using proven frameworks. Configure provider-specific parameters and export production-ready prompts."
     />
     <link rel="stylesheet" href="../style.css" />
-    <link rel="stylesheet" href="vaak-smith.css" />
+    <link rel="stylesheet" href="style.css" />
     <script src="../app_registry.js"></script>
   </head>
   <body>
@@ -83,6 +83,27 @@
     </div>
 
     <script src="llmConfigs.js"></script>
-    <script src="vaak-smith.js"></script>
+    <script src="app.js"></script>
+    <script>
+      (function(){
+        // Simple diagnostic: after 800ms, check whether app set its ready flag and whether CSS applied
+        setTimeout(function(){
+          try{
+            var ok = window.__ankura_app_ready && window.__ankura_app==='vaak-smith';
+            var cssOk = false;
+            try { cssOk = getComputedStyle(document.body).getPropertyValue('--accent') !== '';} catch(e){}
+            if (!ok || !cssOk) {
+              console.error('Vaak-Smith: JS/CSS may not have loaded. ready=', window.__ankura_app_ready, 'app=', window.__ankura_app, 'cssOk=', cssOk);
+              var b = document.createElement('div');
+              b.style.position='fixed'; b.style.left='8px'; b.style.right='8px'; b.style.top='8px'; b.style.zIndex=9999;
+              b.style.background='rgba(220,60,60,0.95)'; b.style.color='white'; b.style.padding='8px 12px'; b.style.borderRadius='6px';
+              b.style.fontFamily='sans-serif'; b.style.fontSize='13px';
+              b.textContent = 'Ankura: Vaak-Smith JS/CSS may not have loaded correctly — see console.';
+              document.body.appendChild(b);
+            }
+          }catch(e){}
+        },800);
+      })();
+    </script>
   </body>
 </html>

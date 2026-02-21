@@ -6,6 +6,11 @@
  */
 (function () {
   "use strict";
+  // Prevent double-initialization if script is loaded twice
+  if (window.__ankura_app_ready && window.__ankura_app === 'genai-yukti-deck') return;
+  window.__ankura_app = 'genai-yukti-deck';
+  window.__ankura_app_ready = false;
+  try { console.debug('Loaded genai-yukti-deck.js'); } catch (e) {}
 
   /* ── Instance Identity ─────────────────────────── */
 
@@ -590,5 +595,8 @@
 
   // start
   try { init(); } catch (e) { console.warn('init failed', e); }
+
+  // mark ready for diagnostics
+  try { window.__ankura_app_ready = true; } catch (e) {}
 
 })();

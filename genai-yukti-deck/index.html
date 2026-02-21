@@ -9,7 +9,7 @@
       content="GenAI-Yukti-Deck — A tactical deck of psychological exploits and prompt hacks."
     />
     <link rel="stylesheet" href="../style.css" />
-    <link rel="stylesheet" href="genai-yukti-deck.css" />
+    <link rel="stylesheet" href="style.css" />
     <script src="../app_registry.js"></script>
     <script src="yuktiRegistry.js"></script>
   </head>
@@ -100,6 +100,26 @@
     </div>
 
     <!-- ── App Logic ───────────────────────────────── -->
-    <script src="genai-yukti-deck.js"></script>
+    <script src="app.js"></script>
+    <script>
+      (function(){
+        setTimeout(function(){
+          try{
+            var ok = window.__ankura_app_ready && window.__ankura_app==='genai-yukti-deck';
+            var cssOk = false;
+            try { cssOk = getComputedStyle(document.body).getPropertyValue('--accent') !== '';} catch(e){}
+            if (!ok || !cssOk) {
+              console.error('GenAI-Yukti-Deck: JS/CSS may not have loaded. ready=', window.__ankura_app_ready, 'app=', window.__ankura_app, 'cssOk=', cssOk);
+              var b = document.createElement('div');
+              b.style.position='fixed'; b.style.left='8px'; b.style.right='8px'; b.style.top='8px'; b.style.zIndex=9999;
+              b.style.background='rgba(220,60,60,0.95)'; b.style.color='white'; b.style.padding='8px 12px'; b.style.borderRadius='6px';
+              b.style.fontFamily='sans-serif'; b.style.fontSize='13px';
+              b.textContent = 'Ankura: GenAI-Yukti-Deck JS/CSS may not have loaded correctly — see console.';
+              document.body.appendChild(b);
+            }
+          }catch(e){}
+        },800);
+      })();
+    </script>
   </body>
 </html>
