@@ -589,7 +589,20 @@
 
   // wire upload/drop
   if(uploadZone){
-    uploadZone.addEventListener('click', function(){ fileInput.click(); });
+    // Avoid double-opening the file picker when the upload area contains a <label for="file-input">.
+    // If the click target is the label or the input itself, allow the native action and skip the programmatic click.
+    uploadZone.addEventListener('click', function(e){
+      try{
+        var tg = e && e.target;
+        if(tg){
+          var tag = (tg.tagName||'').toUpperCase();
+          if(tag === 'LABEL' && tg.getAttribute && tg.getAttribute('for') === 'file-input') return;
+          if(tg.id === 'file-input') return;
+        }
+      }catch(err){}
+      // schedule the click to the next tick to avoid interfering with native label behavior
+      setTimeout(function(){ try{ fileInput && fileInput.click(); }catch(e){} }, 0);
+    });
     uploadZone.addEventListener('dragover', function(e){ e.preventDefault(); uploadZone.classList.add('upload-zone--dragover'); });
     uploadZone.addEventListener('dragleave', function(e){ uploadZone.classList.remove('upload-zone--dragover'); });
     uploadZone.addEventListener('drop', function(e){ e.preventDefault(); uploadZone.classList.remove('upload-zone--dragover'); handleFiles(e.dataTransfer.files); });
