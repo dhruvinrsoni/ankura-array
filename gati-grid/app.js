@@ -17,8 +17,70 @@
   var btnBack = document.getElementById('btn-back');
   var btnDelete = document.getElementById('btn-delete');
 
-  var STORAGE_KEY = 'gati_tickets';
-  var tickets = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  // Instance identity + namespaced storage (follow framework protocol)
+  function initInstanceId(){
+    var params = new URLSearchParams(window.location.search);
+    var id = params.get('instanceId');
+    if(id){
+      sessionStorage.setItem('ankura_instanceId', id);
+      try{
+        var existing = localStorage.getItem(id + '__meta_created');
+        var now = new Date().toISOString();
+        if(!existing) localStorage.setItem(id + '__meta_created', JSON.stringify(now));
+        localStorage.setItem(id + '__meta_updated', JSON.stringify(now));
+      }catch(e){}
+      return id;
+    }
+    id = sessionStorage.getItem('ankura_instanceId');
+    if(id){
+      try{
+        var ex2 = localStorage.getItem(id + '__meta_created');
+        var now2 = new Date().toISOString();
+        if(!ex2) localStorage.setItem(id + '__meta_created', JSON.stringify(now2));
+        localStorage.setItem(id + '__meta_updated', JSON.stringify(now2));
+      }catch(e){}
+      return id;
+    }
+    id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('inst-'+Math.random().toString(36).slice(2,9));
+    sessionStorage.setItem('ankura_instanceId', id);
+    try{ localStorage.setItem(id + '__meta_created', JSON.stringify(new Date().toISOString())); localStorage.setItem(id + '__meta_updated', JSON.stringify(new Date().toISOString())); }catch(e){}
+    try{ var newUrl = window.location.pathname + '?instanceId=' + id + window.location.hash; window.history.replaceState(null,'',newUrl); }catch(e){}
+    return id;
+  }
+
+  var INSTANCE_ID = initInstanceId();
+
+  var State = {
+    _key: function(name){ return INSTANCE_ID + '__' + name; },
+    save: function(name, value){ try{ localStorage.setItem(this._key(name), JSON.stringify(value)); try{ localStorage.setItem(INSTANCE_ID + '__meta_updated', JSON.stringify(new Date().toISOString())); }catch(e){} try{ window.dispatchEvent(new CustomEvent('ankura:meta-updated', { detail:{ instance: INSTANCE_ID } })); }catch(e){} }catch(e){} },
+    load: function(name, fallback){ try{ var raw = localStorage.getItem(this._key(name)); return raw !== null ? JSON.parse(raw) : fallback; }catch(e){ return fallback; } },
+    clear: function(name){ try{ localStorage.removeItem(this._key(name)); }catch(e){} }
+  };
+
+  var STORAGE_KEY = State._key('gati_tickets');
+  var tickets = State.load('gati_tickets', []);
+  // Migrate legacy global storage (if user previously saved without instance namespacing)
+  try{
+    var legacy = localStorage.getItem('gati_tickets');
+    if(legacy && (!tickets || tickets.length===0)){
+      try{ var parsed = JSON.parse(legacy); if(Array.isArray(parsed) && parsed.length>0){ tickets = parsed; State.save('gati_tickets', tickets); localStorage.removeItem('gati_tickets'); } }catch(e){}
+    }
+  }catch(e){}
+
+  // Render instance meta timestamps into top bar
+  function renderMeta(){
+    try{
+      var rawC = localStorage.getItem(INSTANCE_ID + '__meta_created');
+      var rawU = localStorage.getItem(INSTANCE_ID + '__meta_updated');
+      var elC = document.getElementById('meta-created');
+      var elU = document.getElementById('meta-updated');
+      if(elC){ if(rawC){ try{ var jc = JSON.parse(rawC); elC.textContent = 'Created: '+ (new Date(jc).toLocaleString()); elC.title = jc; }catch(e){ elC.textContent = 'Created: '+rawC; elC.title = rawC; } } else elC.textContent = 'Created: —'; }
+      if(elU){ if(rawU){ try{ var ju = JSON.parse(rawU); elU.textContent = 'Updated: '+ (new Date(ju).toLocaleString()); elU.title = ju; }catch(e){ elU.textContent = 'Updated: '+rawU; elU.title = rawU; } } else elU.textContent = 'Updated: —'; }
+    }catch(e){}
+  }
+
+  // update meta when framework notifies us
+  window.addEventListener('ankura:meta-updated', function(ev){ if(ev && ev.detail && ev.detail.instance===INSTANCE_ID) renderMeta(); });
   var sessionBlobs = {}; // { id: blobUrl }
   var LOG_KEY = 'gati_logs';
   var logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
@@ -305,13 +367,13 @@
   }
 
   // Delete All (tickets + logs)
-  function deleteAll(){ if(!confirm('Delete ALL tickets and logs?')) return; tickets=[]; logs=[]; try{ localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LOG_KEY); }catch(e){} try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){} renderGrid(); renderLogs(); }
+  function deleteAll(){ if(!confirm('Delete ALL tickets and logs?')) return; tickets=[]; logs=[]; try{ State.clear('gati_tickets'); localStorage.removeItem(LOG_KEY); }catch(e){} try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){} try{ localStorage.setItem(INSTANCE_ID + '__meta_updated', JSON.stringify(new Date().toISOString())); }catch(e){} renderGrid(); renderLogs(); }
 
   function saveTicket(parsed){
     // dedupe by _id
     var idx = tickets.findIndex(function(t){ return t._id === parsed._id; });
     if(idx>=0) tickets[idx] = parsed; else tickets.push(parsed);
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch(e){ log('Save failed: '+e.message,'err'); }
+    try{ State.save('gati_tickets', tickets); } catch(e){ log('Save failed: '+e.message,'err'); }
   }
 
   /** Grid rendering */
@@ -388,12 +450,12 @@
   function deleteTicket(id){
     if(!confirm('Delete ticket?')) return;
     tickets = tickets.filter(function(x){ return x._id !== id; });
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch(e){}
+    try{ State.save('gati_tickets', tickets); } catch(e){}
     try{ if(sessionBlobs[id]){ URL.revokeObjectURL(sessionBlobs[id]); delete sessionBlobs[id]; } } catch(e){}
     renderGrid();
   }
 
-  function resetAll(){ if(!confirm('Clear all tickets?')) return; tickets = []; try{ localStorage.removeItem(STORAGE_KEY);}catch(e){} renderGrid(); }
+  function resetAll(){ if(!confirm('Clear all tickets?')) return; tickets = []; try{ State.clear('gati_tickets'); }catch(e){} try{ localStorage.setItem(INSTANCE_ID + '__meta_updated', JSON.stringify(new Date().toISOString())); }catch(e){} renderGrid(); }
 
   // wire upload/drop
   if(uploadZone){
@@ -412,6 +474,7 @@
   if(btnDeleteAll){ btnDeleteAll.addEventListener('click', function(){ deleteAll(); }); }
 
   // init
+  try{ renderMeta(); } catch(e){}
   try{ renderGrid(); } catch(e){ console.warn('renderGrid failed', e); }
 
   // expose for debugging

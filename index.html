@@ -428,6 +428,7 @@
               var dk = dataKey.toLowerCase();
               if (dk.indexOf('yukti') !== -1) instances[instanceId].apps.add('genai-yukti-deck');
               if (dk.indexOf('vaak') !== -1) instances[instanceId].apps.add('vaak-smith');
+              if (dk.indexOf('gati') !== -1 || dk.indexOf('gati_tickets') !== -1) instances[instanceId].apps.add('gati-grid');
               if (dk.indexOf('framework_instance') !== -1 || dk.indexOf('framework_sections') !== -1 || dk.indexOf('userprompt') !== -1 || dk.indexOf('system') !== -1 || dk.indexOf('vaak_global') !== -1) {
                 instances[instanceId].apps.add('vaak-smith');
               }
@@ -445,6 +446,7 @@
               if (instances[iid].apps.size > 0) continue;
               var full = k.toLowerCase();
               if (full.indexOf('yukti') !== -1) instances[iid].apps.add('genai-yukti-deck');
+              else if (full.indexOf('gati') !== -1 || full.indexOf('gati_tickets') !== -1) instances[iid].apps.add('gati-grid');
               else instances[iid].apps.add('vaak-smith');
             }
           } catch (e) {}
