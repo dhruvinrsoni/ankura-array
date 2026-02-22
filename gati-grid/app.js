@@ -348,8 +348,18 @@
       if(visibleCols.indexOf('departure')!==-1){
         var td = document.createElement('td'); td.innerHTML = '<div class="cell-date__date">'+(t.departure||'—')+'</div>'+(t.departure?'<div class="cell-date__time">&nbsp;</div>':''); tr.appendChild(td);
       }
-      // route
-      if(visibleCols.indexOf('from')!==-1){ var td2 = document.createElement('td'); td2.innerHTML = '<span class="cell-route__code">'+(t.from||'—')+'</span><span class="cell-route__arrow"> → </span><span class="cell-route__code">'+(t.to||'—')+'</span><span class="cell-route__name">'+((t.train && t.train.split('/')[1])?(' '+t.train.split('/')[1].trim()):'')+'</span>'; tr.appendChild(td2); }
+      // route: show short codes on top and full station names below when available
+      if(visibleCols.indexOf('from')!==-1){
+        var td2 = document.createElement('td');
+        var shortLeft = t.fromCode || (t.from? (t.from.split('\n')[0]||t.from).split(/\s+/)[0] : '—');
+        var shortRight = t.toCode || (t.to? (t.to.split('\n')[0]||t.to).split(/\s+/)[0] : '—');
+        var fullLeft = t.fromName || t.from || '—';
+        var fullRight = t.toName || t.to || '—';
+        td2.innerHTML = '<div class="cell-route__short"><span class="cell-route__code">'+shortLeft+'</span><span class="cell-route__dash"> - </span><span class="cell-route__code">'+shortRight+'</span></div>'+
+                         '<div class="cell-route__full">'+fullLeft+' <span class="cell-route__arrow">→</span> '+fullRight+'</div>'+
+                         ((t.train && t.train.split('/')[1])?('<div class="cell-route__train">'+t.train.split('/')[1].trim()+'</div>'):'');
+        tr.appendChild(td2);
+      }
       // train
       if(visibleCols.indexOf('train')!==-1){ var td3 = document.createElement('td'); td3.innerHTML = '<span class="cell-train__no">'+(t.train||'—')+'</span>'; tr.appendChild(td3); }
       // class
