@@ -173,9 +173,55 @@
           }
           // fallback: if no toCode but two uppercase tokens appear near each other like 'ADI PUNE', use that
           if(!out.toCode){
-            var near = text.match(/\b([A-Z]{2,5})\b\s+\b([A-Z]{2,5})\b/);
+            var near = text.match(/\b([A-Z]{2,5})\b[\s\-\/]+\b([A-Z]{2,5})\b/);
             if(near){ out.fromCode = out.fromCode || near[1]; out.toCode = near[2]; }
           }
+
+          // Additional heuristic: scan nearby lines for two uppercase station codes (e.g., 'ADI PUNE SF') and prefer those
+          if(!out.fromCode || !out.toCode){
+            var blacklist = ['PNR','CLASS','TRAIN','QUOTA','DISTANCE','BOOKING','PASSENGER','DETAILS','ARRIVAL','DEPARTURE','GENERAL','HRS','KM','AC','SECOND','THIRD','FIRST','SLEEPER'];
+            for(var li=0; li<lines.length; li++){
+              var L = lines[li];
+              var m = L.match(/\b([A-Z]{2,5})\b[\s,\/]+\b([A-Z]{2,5})\b/);
+              if(m){
+                var a = m[1], b = m[2];
+                if(blacklist.indexOf(a.toUpperCase())===-1 && blacklist.indexOf(b.toUpperCase())===-1){
+                  out.fromCode = out.fromCode || a; out.toCode = out.toCode || b; break;
+                }
+              }
+            }
+          }
+
+          // If we still don't have station names but have codes, attempt to find full names by locating the code token followed by titlecase words
+          if((out.fromCode && !out.fromName) || (out.toCode && !out.toName)){
+            var nameRegex = /\b([A-Z]{2,5})\b\s+([A-Z][A-Za-z\s]{2,60})/g;
+            var nm;
+            while((nm = nameRegex.exec(text))!==null){
+              if(out.fromCode && nm[1]===out.fromCode && !out.fromName) out.fromName = nm[2].trim();
+              if(out.toCode && nm[1]===out.toCode && !out.toName) out.toName = nm[2].trim();
+              if(out.fromName && out.toName) break;
+            }
+          }
+        }catch(e){}
+
+        // Broader status extraction: find status tokens and associate them with nearest passenger number
+        try{
+          var statusRx = /(CNF(?:\/[A-Z0-9\-\/]*)|CONFIRMED|WL|RAC(?:\/[0-9]+)?|RLWL|PQWL|RSWL|CANCL|CAN|CANX)/ig;
+          var st;
+          while((st = statusRx.exec(text)) !== null){
+            var statusToken = st[1];
+            var idx = st.index;
+            // search backward up to 200 chars for a numbered passenger '1.' pattern
+            var back = text.slice(Math.max(0, idx-200), idx);
+            var numMatch = back.match(/(\d{1,2})\.\s*([A-Z][A-Za-z\s\.\'\-]{2,80})/i);
+            if(numMatch){
+              var seq = numMatch[1]; var name = numMatch[2].trim();
+              // don't duplicate
+              if(!out.passengers.some(function(p){ return p.seq===seq; })){ out.passengers.push({ seq: seq, name: name, age: '', status: statusToken.toUpperCase() }); }
+            }
+          }
+          // after collecting statuses, if overall status not set, derive from first passenger
+          if(out.passengers && out.passengers.length>0 && !out.status) out.status = out.passengers[0].status || '';
         }catch(e){}
 
         // Fallback: if no passengers found, try table-like rows
