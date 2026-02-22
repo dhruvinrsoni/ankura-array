@@ -16,6 +16,10 @@
   var btnReset = document.getElementById('btn-reset');
   var btnBack = document.getElementById('btn-back');
   var btnDelete = document.getElementById('btn-delete');
+  var themeSelect = document.getElementById('theme-select');
+  var pasteText = document.getElementById('paste-text');
+  var btnParseText = document.getElementById('btn-parse-text');
+  var btnClearText = document.getElementById('btn-clear-text');
 
   // Instance identity + namespaced storage (follow framework protocol)
   function initInstanceId(){
@@ -317,6 +321,25 @@
       return out;
   };
 
+    // Theme helper
+    function applyThemeMode(mode){
+      var value = mode || 'auto';
+      var useDark = false;
+      if(value === 'auto'){
+        try{ useDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }catch(e){ useDark = false; }
+      } else if(value === 'dark') useDark = true; else useDark = false;
+      document.body.classList.toggle('dark-theme', useDark);
+      document.body.classList.toggle('light-theme', !useDark);
+    }
+
+    function initTheme(){
+      if(!themeSelect) return;
+      var saved = State.load('theme','auto');
+      try{ themeSelect.value = saved; }catch(e){}
+      applyThemeMode(saved);
+      themeSelect.addEventListener('change', function(){ var v = themeSelect.value || 'auto'; try{ State.save('theme', v); }catch(e){} applyThemeMode(v); });
+    }
+
   /** Read a PDF file using pdf.js and extract plain text */
   function extractTextFromPdf(file, cb){
     if(!pdfjsAvailable){ cb(new Error('pdfjs not available')); return; }
@@ -466,6 +489,10 @@
   }
   if(fileInput){ fileInput.addEventListener('change', function(e){ handleFiles(e.target.files); fileInput.value=''; }); }
 
+  // Paste-text handlers
+  if(btnParseText && pasteText){ btnParseText.addEventListener('click', function(){ var txt = pasteText.value || ''; if(!txt.trim()){ alert('Paste some text first'); return; } try{ var tp = new TicketParser(); var parsed = tp.parseText(txt, { fileName: 'pasted-text', size: txt.length, uploadedAt: new Date().toISOString() }); parsed._id = parsed.pnr || ('tmp-'+Math.random().toString(36).slice(2,9)); saveTicket(parsed); try{ var u = URL.createObjectURL(new Blob([txt], { type: 'text/plain' })); sessionBlobs[parsed._id] = u; }catch(e){} renderGrid(); log('Parsed from pasted text: '+(parsed.pnr||parsed._id),'ok'); }catch(e){ log('Parse failed: '+e.message,'err'); } }); }
+  if(btnClearText && pasteText){ btnClearText.addEventListener('click', function(){ pasteText.value=''; }); }
+
   if(searchInput){ searchInput.addEventListener('input', function(){ renderGrid(); }); }
   if(btnReset){ btnReset.addEventListener('click', resetAll); }
   if(btnBack){ btnBack.addEventListener('click', function(){ window.location.href='../index.html'; }); }
@@ -474,6 +501,7 @@
   if(btnDeleteAll){ btnDeleteAll.addEventListener('click', function(){ deleteAll(); }); }
 
   // init
+  try{ initTheme(); } catch(e){}
   try{ renderMeta(); } catch(e){}
   try{ renderGrid(); } catch(e){ console.warn('renderGrid failed', e); }
 
