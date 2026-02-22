@@ -103,7 +103,34 @@
     </main>
 
     <!-- ── Scripts ─────────────────────────────────── -->
-    <script src="../assets/libs/pdfjs/pdf.min.js"></script>
-    <script src="app.js"></script>
+    <script>
+    (function(){
+      var CDN_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174';
+      var CDN_SCRIPT = CDN_BASE + '/pdf.min.js';
+      var CDN_WORKER = CDN_BASE + '/pdf.worker.min.js';
+      var LOCAL_SCRIPT = '../assets/libs/pdfjs/pdf.min.js';
+      var LOCAL_WORKER = '../assets/libs/pdfjs/pdf.worker.min.js';
+
+      function loadScript(src, onload, onerror, timeoutMs){
+        var s = document.createElement('script'); s.src = src; s.async = true; s.__loaded = false;
+        s.onload = function(){ s.__loaded = true; onload && onload(); };
+        s.onerror = function(){ onerror && onerror(); };
+        if(timeoutMs){ setTimeout(function(){ if(!s.__loaded){ s.onerror && s.onerror(); } }, timeoutMs); }
+        document.head.appendChild(s);
+      }
+
+      function startApp(){ var s = document.createElement('script'); s.src = 'app.js'; document.body.appendChild(s); }
+      function setWorker(src){ try{ if(window.pdfjsLib && pdfjsLib.GlobalWorkerOptions) pdfjsLib.GlobalWorkerOptions.workerSrc = src; }catch(e){} }
+      var banner = document.getElementById('pdfjs-banner');
+
+      if(navigator.onLine){
+        // Try CDN first with short timeout, fallback to local
+        loadScript(CDN_SCRIPT, function(){ setWorker(CDN_WORKER); if(banner) banner.hidden = true; startApp(); }, function(){ loadScript(LOCAL_SCRIPT, function(){ setWorker(LOCAL_WORKER); if(banner) banner.hidden = true; startApp(); }, function(){ if(banner) banner.hidden = false; startApp(); }); }, 5000);
+      } else {
+        // Offline -> prefer local copy
+        loadScript(LOCAL_SCRIPT, function(){ setWorker(LOCAL_WORKER); if(banner) banner.hidden = true; startApp(); }, function(){ if(banner) banner.hidden = false; startApp(); });
+      }
+    })();
+    </script>
   </body>
 </html>

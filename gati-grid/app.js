@@ -21,10 +21,9 @@
   var tickets = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   var sessionBlobs = {}; // { id: blobUrl }
 
-  // Ensure pdfjs is available
+  // Ensure pdfjs is available (loader sets workerSrc before app.js runs)
   var pdfjsAvailable = typeof window.pdfjsLib !== 'undefined';
   if (pdfjsAvailable) {
-    try { pdfjsLib.GlobalWorkerOptions.workerSrc = '../assets/libs/pdfjs/pdf.worker.min.js'; } catch(e){}
     document.getElementById('pdfjs-banner') && (document.getElementById('pdfjs-banner').hidden = true);
   } else {
     var b = document.getElementById('pdfjs-banner'); if (b) b.hidden = false;
