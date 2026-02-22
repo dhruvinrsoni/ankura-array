@@ -20,6 +20,9 @@
   var pasteText = document.getElementById('paste-text');
   var btnParseText = document.getElementById('btn-parse-text');
   var btnClearText = document.getElementById('btn-clear-text');
+  var btnTogglePaste = document.getElementById('btn-toggle-paste');
+  var pastePanel = document.getElementById('paste-panel');
+  var pasteBody = document.getElementById('paste-body');
 
   // Instance identity + namespaced storage (follow framework protocol)
   function initInstanceId(){
@@ -492,6 +495,24 @@
   // Paste-text handlers
   if(btnParseText && pasteText){ btnParseText.addEventListener('click', function(){ var txt = pasteText.value || ''; if(!txt.trim()){ alert('Paste some text first'); return; } try{ var tp = new TicketParser(); var parsed = tp.parseText(txt, { fileName: 'pasted-text', size: txt.length, uploadedAt: new Date().toISOString() }); parsed._id = parsed.pnr || ('tmp-'+Math.random().toString(36).slice(2,9)); saveTicket(parsed); try{ var u = URL.createObjectURL(new Blob([txt], { type: 'text/plain' })); sessionBlobs[parsed._id] = u; }catch(e){} renderGrid(); log('Parsed from pasted text: '+(parsed.pnr||parsed._id),'ok'); }catch(e){ log('Parse failed: '+e.message,'err'); } }); }
   if(btnClearText && pasteText){ btnClearText.addEventListener('click', function(){ pasteText.value=''; }); }
+  if(btnTogglePaste && pastePanel && pasteBody){
+    // initialize label according to collapsed state
+    try{ var isCollapsedInit = pastePanel.classList.contains('collapsed'); btnTogglePaste.textContent = isCollapsedInit ? 'Show' : 'Hide'; btnTogglePaste.setAttribute('aria-expanded', isCollapsedInit ? 'false' : 'true'); }catch(e){}
+    btnTogglePaste.addEventListener('click', function(){
+      var isCollapsed = pastePanel.classList.contains('collapsed');
+      if(isCollapsed){
+        pastePanel.classList.remove('collapsed');
+        pasteBody.hidden = false;
+        btnTogglePaste.textContent = 'Hide';
+        btnTogglePaste.setAttribute('aria-expanded','true');
+      } else {
+        pastePanel.classList.add('collapsed');
+        pasteBody.hidden = true;
+        btnTogglePaste.textContent = 'Show';
+        btnTogglePaste.setAttribute('aria-expanded','false');
+      }
+    });
+  }
 
   if(searchInput){ searchInput.addEventListener('input', function(){ renderGrid(); }); }
   if(btnReset){ btnReset.addEventListener('click', resetAll); }

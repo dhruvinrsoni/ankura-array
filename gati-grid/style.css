@@ -88,6 +88,15 @@
   color: var(--text-muted);
 }
 
+/* Paste panel (optional) */
+.paste-panel { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem; background: var(--bg-surface); }
+.paste-panel__header { padding: 0.35rem 0.5rem; }
+.paste-panel__body { padding: 0.5rem 0.5rem 0.75rem; }
+.paste-panel textarea { width: 100%; box-sizing: border-box; font-family: var(--font-mono); font-size: 0.86rem; min-height: 80px; resize: vertical; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); padding: 0.5rem; border-radius: 6px; }
+.paste-panel.collapsed { opacity: 0.95; }
+.paste-panel.collapsed .paste-panel__body { display: none; }
+
+
 /* ── Controls Bar ──────────────────────────────────── */
 
 .controls-bar {

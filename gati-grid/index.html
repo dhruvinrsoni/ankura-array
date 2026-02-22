@@ -61,13 +61,20 @@
         <input id="file-input" type="file" accept=".pdf" multiple hidden />
       </div>
 
-      <!-- Paste Text (manual) -->
-      <div class="paste-text-wrap" style="margin-top:12px;">
-        <label for="paste-text" style="display:block; font-weight:600; margin-bottom:6px;">Or paste extracted PDF text here:</label>
-        <textarea id="paste-text" rows="6" placeholder="Paste full PDF text (or a region around Train/PNR/Passenger Details)" style="width:100%; box-sizing:border-box; font-family: monospace; font-size:0.9rem;"></textarea>
-        <div style="margin-top:6px; display:flex; gap:8px;">
-          <button id="btn-parse-text" class="btn">Parse Text</button>
-          <button id="btn-clear-text" class="btn btn--outline">Clear</button>
+      <!-- Paste Text (optional, collapsed) -->
+      <div class="paste-panel collapsed" id="paste-panel" style="margin-top:12px;">
+        <div class="paste-panel__header" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <div style="font-weight:600;">Paste extracted PDF text (optional)</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button id="btn-toggle-paste" class="btn btn--outline" aria-expanded="false">Show</button>
+          </div>
+        </div>
+        <div class="paste-panel__body" id="paste-body" hidden>
+          <textarea id="paste-text" rows="6" placeholder="Paste full PDF text (or a region around Train/PNR/Passenger Details)"></textarea>
+          <div style="margin-top:6px; display:flex; gap:8px;">
+            <button id="btn-parse-text" class="btn">Parse Text</button>
+            <button id="btn-clear-text" class="btn btn--outline">Clear</button>
+          </div>
         </div>
       </div>
 
