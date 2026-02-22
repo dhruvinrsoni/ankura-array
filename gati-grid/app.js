@@ -20,6 +20,8 @@
   var STORAGE_KEY = 'gati_tickets';
   var tickets = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   var sessionBlobs = {}; // { id: blobUrl }
+  var LOG_KEY = 'gati_logs';
+  var logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
 
   // Ensure pdfjs is available (loader sets workerSrc before app.js runs)
   var pdfjsAvailable = typeof window.pdfjsLib !== 'undefined';
@@ -30,14 +32,29 @@
   }
 
   /** Utility: append parse log entries */
+  function saveLogs(){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(logs)); }catch(e){} }
+
+  function renderLogs(){ if(!parseLog) return; parseLog.innerHTML=''; if(!logs || !logs.length){ parseLog.hidden = true; return; } parseLog.hidden=false; logs.forEach(function(l){ var e=document.createElement('div'); e.className='parse-log__entry parse-log__entry--'+(l.level||'info'); e.textContent = '['+l.ts+'] '+l.msg; parseLog.appendChild(e); }); }
+
   function log(msg, level){
-    if(!parseLog) return;
-    parseLog.hidden = false;
-    var e = document.createElement('div'); e.className = 'parse-log__entry';
-    if(level) e.className += ' parse-log__entry--' + level;
-    e.textContent = msg;
-    parseLog.appendChild(e);
+    var ts = (new Date()).toISOString();
+    logs = logs || [];
+    logs.push({ ts: ts, level: level||'info', msg: msg });
+    // keep last 500
+    if(logs.length>500) logs = logs.slice(logs.length-500);
+    saveLogs();
+    renderLogs();
+    // also console-color
+    try{
+      if(level==='err') console.error('%c'+msg, 'color:#ffffff;background:#c62828;padding:3px');
+      else if(level==='warn') console.warn('%c'+msg, 'color:#000000;background:#ffd54f;padding:3px');
+      else if(level==='ok') console.info('%c'+msg, 'color:#ffffff;background:#2e7d32;padding:3px');
+      else console.log('%c'+msg, 'color:#ffffff;background:#1976d2;padding:3px');
+    }catch(e){}
   }
+
+  // init logs render
+  document.addEventListener('DOMContentLoaded', function(){ renderLogs(); });
 
   /** Simple TicketParser using regexes over extracted text */
   function TicketParser(){ }
@@ -57,8 +74,17 @@
         else if(pRaw && pRaw[0]) out.pnr = pRaw[0];
 
         // Train No / Name: look for explicit trainNo/name with pattern like 12297/PUNE DURONTO
-        var trainMatch = text.match(/(\b\d{4,5})\s*\/\s*([A-Z0-9\-\s]{3,60})/i);
-        if(trainMatch){ out.train = (trainMatch[1] + '/' + trainMatch[2].trim()).trim(); }
+        var trainMatch = text.match(/(\b\d{4,5})\s*\/\s*([A-Z0-9\-\s]{3,120})/i);
+        if(trainMatch){
+          out.train = (trainMatch[1] + '/' + trainMatch[2].trim()).trim();
+          // try to infer short station codes from the segment after the slash
+          try{
+            var after = trainMatch[2].trim();
+            var parts = after.split(/\s+/);
+            if(parts.length>0){ out.fromCode = parts[0].toUpperCase(); }
+            if(parts.length>1 && /^[A-Z]{2,5}$/.test(parts[1])){ out.toCode = parts[1].toUpperCase(); }
+          }catch(e){}
+        }
         else {
           var tln = findLabel(/Train\s*(No\.?|No\.?\/)?.*?:?\s*(\d+)(?:\s*[\/:]\s*([A-Za-z0-9\-\s]+))?/i) || findLabel(/Train\s*No\.?\/?Name\s*[:\-]?\s*(.+)/i);
           if(tln && tln.match){
@@ -103,12 +129,12 @@
         var passHeaderIdx = -1;
         for(var ii=0; ii<lines.length; ii++){ if(/Passenger\s*Details/i.test(lines[ii])){ passHeaderIdx = ii+1; break; } }
         if(passHeaderIdx>=0){
-          var passBlock = lines.slice(passHeaderIdx, passHeaderIdx+12).join(' ');
-          var re = /(\d{1,2})\.\s*([A-Z\.\'\-\s]+?)\s+(\d{1,3})\s+([MF])\s+([A-Z0-9\/_\-\s]+)/gi;
+          var passBlock = lines.slice(passHeaderIdx, passHeaderIdx+16).join(' ');
+          var re = /(\d{1,2})\.\s*([A-Z\.\'\-\s]+?)\s+(\d{1,3})\s+([MF])\s+([A-Z0-9\/_\-\s]+(?:\s+[A-Z0-9\/_\-\s]+)?)/gi;
           var mm;
           while((mm = re.exec(passBlock)) !== null){
             var seq = mm[1]; var name = mm[2].trim(); var age = mm[3]; var gender = mm[4]; var statusTok = (mm[5]||'').trim();
-            var status = (statusTok.match(/(CNF|CONFIRMED|WL|RAC|CANCL|CAN|CANX)/i)||[])[1] || statusTok.split(/\s+/)[0] || '';
+            var status = (statusTok.match(/(CNF(?:\/[A-Z0-9\-\/]*)|CONFIRMED|WL|RAC(?:\/[0-9]+)?|RLWL|PQWL|RSWL|CANCL|CAN|CANX)/i)||[])[1] || statusTok.split(/\s+/)[0] || '';
             out.passengers.push({ seq: seq, name: name, age: age, status: (status||'') });
           }
         }
@@ -120,7 +146,7 @@
             var pm = ln.match(/^\s*(\d{1,2})[\).\-\s]+(.+)/);
             if(pm){
               var rest = pm[2];
-              var statusMatch = rest.match(/(CNF|CONFIRMED|WL|RAC|CANCL|CAN|CANX|CNF\/[A-Z0-9\-\/]+)/i);
+              var statusMatch = rest.match(/(CNF(?:\/[A-Z0-9\-\/]*)|CONFIRMED|WL|RAC(?:\/[0-9]+)?|RLWL|PQWL|RSWL|CANCL|CAN|CANX)/i);
               if(statusMatch){
                 var status = statusMatch[1];
                 var name = rest.split(/\s+(?:\d{1,3}y|\d{1,3}\s*Y|\d{1,3})?\s*/i)[0];
@@ -132,6 +158,25 @@
             }
           }
         }
+
+        // If from/to codes found, try to locate full station names (shortCode + full name)
+        try{
+          if(out.fromCode){
+            var rc = new RegExp('\\b'+out.fromCode+'\\b\s+([A-Z][A-Za-z\s]{2,60})','g');
+            var mfn = rc.exec(text);
+            if(mfn && mfn[1]) out.fromName = mfn[1].trim();
+          }
+          if(out.toCode){
+            var rc2 = new RegExp('\\b'+out.toCode+'\\b\s+([A-Z][A-Za-z\s]{2,60})','g');
+            var mtn = rc2.exec(text);
+            if(mtn && mtn[1]) out.toName = mtn[1].trim();
+          }
+          // fallback: if no toCode but two uppercase tokens appear near each other like 'ADI PUNE', use that
+          if(!out.toCode){
+            var near = text.match(/\b([A-Z]{2,5})\b\s+\b([A-Z]{2,5})\b/);
+            if(near){ out.fromCode = out.fromCode || near[1]; out.toCode = near[2]; }
+          }
+        }catch(e){}
 
         // Fallback: if no passengers found, try table-like rows
         if(out.passengers.length===0){
@@ -193,7 +238,7 @@
   function handleFiles(list){
     var files = Array.prototype.slice.call(list);
     files.forEach(function(f){
-      log('Processing '+f.name);
+      log('Processing '+f.name, 'info');
       extractTextFromPdf(f, function(err, text){
         if(err){ log('Failed to parse '+f.name+': '+err.message,'err'); return; }
         var tp = new TicketParser();
@@ -212,6 +257,9 @@
       });
     });
   }
+
+  // Delete All (tickets + logs)
+  function deleteAll(){ if(!confirm('Delete ALL tickets and logs?')) return; tickets=[]; logs=[]; try{ localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LOG_KEY); }catch(e){} try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){} renderGrid(); renderLogs(); }
 
   function saveTicket(parsed){
     // dedupe by _id
@@ -304,6 +352,8 @@
   if(btnReset){ btnReset.addEventListener('click', resetAll); }
   if(btnBack){ btnBack.addEventListener('click', function(){ window.location.href='../index.html'; }); }
   if(btnDelete){ btnDelete.addEventListener('click', function(){ try{ localStorage.removeItem('ankura_instanceId'); }catch(e){} try{ window.close(); }catch(e){ window.location.href='../index.html'; } }); }
+  var btnDeleteAll = document.getElementById('btn-delete-all');
+  if(btnDeleteAll){ btnDeleteAll.addEventListener('click', function(){ deleteAll(); }); }
 
   // init
   try{ renderGrid(); } catch(e){ console.warn('renderGrid failed', e); }
