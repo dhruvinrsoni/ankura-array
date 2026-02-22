@@ -43,59 +43,109 @@
   function TicketParser(){ }
 
   TicketParser.prototype.parseText = function(text, meta){
-    var out = { passengers: [] };
-    try {
-      // PNR
-      var m = text.match(/\b\d{10}\b/);
-      if(m) out.pnr = m[0];
+      var out = { passengers: [] };
+      try {
+        var lines = text.split(/\r?\n/).map(function(s){ return s.replace(/\u00A0/g,' ').trim(); }).filter(Boolean);
 
-      // Train No/Name
-      var mt = text.match(/Train No\.?\/Name\s+([\d]+\s*\/\s*[A-Z\s\-]+)/i);
-      if(mt) out.train = mt[1].trim();
+        // Helper: find first matching label line and capture group
+        function findLabel(rx){ for(var i=0;i<lines.length;i++){ var m=lines[i].match(rx); if(m) return {line: lines[i], idx:i, match:m}; } return null; }
 
-      // Departure (sample pattern)
-      var md = text.match(/Departure\*\s+(\d{2}:\d{2}\s+\d{2}-[A-Za-z]{3}-\d{4})/);
-      if(md) out.departure = md[1];
+        // PNR: explicit label or any 10-digit sequence
+        var p = findLabel(/PNR\s*[:\-]?\s*(\d{10})/i) || {match: (text.match(/\b\d{10}\b/)||[]) };
+        if(p && p.match && p.match[1]) out.pnr = p.match[1]; else if(p && p[0]) out.pnr = p[0];
 
-      // Boarding At / To
-      var mb = text.match(/Boarding At\s*:\s*([A-Z\s\-]+)/i);
-      if(mb) out.from = mb[1].trim();
-      var mt2 = text.match(/To\s*:\s*([A-Z\s\-]+)/i);
-      if(mt2) out.to = mt2[1].trim();
-
-      // Class
-      var mc = text.match(/Class\s*:\s*([A-Z0-9]+)/i);
-      if(mc) out.class = mc[1].trim();
-
-      // Passenger table rows: naive approach — look for lines containing Seq and Status-like tokens
-      var lines = text.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
-      // find start of passenger block by header
-      var start = -1;
-      for(var i=0;i<lines.length;i++){
-        if(/Seq\b.*Name\b.*Status\b/i.test(lines[i])){ start = i+1; break; }
-      }
-      if(start>=0){
-        for(var j=start;j<lines.length;j++){
-          var ln = lines[j];
-          // stop when line looks like end of table
-          if(/Total|Fare|GST|Amount/i.test(ln)) break;
-          // expect: Seq Name Age Gender Status  (split by multiple spaces)
-          var parts = ln.split(/\s{2,}/);
-          if(parts.length>=4){
-            var seq = parts[0].replace(/[^0-9]/g,'');
-            var name = parts[1];
-            var rest = parts.slice(2).join(' ');
-            var age = (rest.match(/(\d{1,2})y/i)||[])[1] || '';
-            var status = (rest.match(/(CNF|WL|RAC|CAN|CANCL|CANX)/i)||[])[1] || rest.split(/\s+/).pop();
-            out.passengers.push({ seq: seq, name: name, age: age, status: (status||'') });
+        // Train No / Name: look for explicit trainNo/name with pattern like 12297/PUNE DURONTO
+        var trainMatch = text.match(/(\b\d{4,5})\s*\/\s*([A-Z0-9\-\s]{3,60})/i);
+        if(trainMatch){ out.train = (trainMatch[1] + '/' + trainMatch[2].trim()).trim(); }
+        else {
+          var tln = findLabel(/Train\s*(No\.?|No\.?\/)?.*?:?\s*(\d+)(?:\s*[\/:]\s*([A-Za-z0-9\-\s]+))?/i) || findLabel(/Train\s*No\.?\/?Name\s*[:\-]?\s*(.+)/i);
+          if(tln && tln.match){
+            if(tln.match[2]) out.train = (tln.match[2] + (tln.match[3]?('/'+tln.match[3].trim()):'')).trim();
+            else out.train = (tln.match[1]||tln.match[0]).trim();
           }
         }
-      }
 
-    } catch (e){ log('Parser error: '+e.message,'err'); }
-    // attach metadata
-    out._meta = meta || {};
-    return out;
+        // From / To / Boarding / Reservation UpTo
+        var from = findLabel(/(From|Boarding\s*At|Boarding\s*Point)\s*[:\-]?\s*([A-Za-z\s\-]+)$/i) || findLabel(/Boarding\s*Point\s*[:\-]?\s*(.+)/i);
+        var to = findLabel(/(To|Reservation\s*Upto|Reservation\s*Upto\s*:)\s*[:\-]?\s*([A-Za-z\s\-]+)$/i) || findLabel(/Reservation\s*Upto\s*[:\-]?\s*(.+)/i);
+        if(from && from.match) out.from = (from.match[2] || from.match[1] || from.line).trim();
+        if(to && to.match) out.to = (to.match[2] || to.match[1] || to.line).trim();
+
+        // Class
+        var cl = findLabel(/Class\s*[:\-]?\s*([^\n\r]+)/i) || findLabel(/Quota\/Class\s*[:\-]?\s*([^\n\r]+)/i);
+        if(cl && cl.match){
+          // extracted segment may contain stray numbers (PNR) due to PDF text ordering; pick the token that looks like class
+          var seg = cl.match[1].trim();
+          var classMatch = seg.match(/(FIRST AC|SECOND AC|THIRD AC|SLEEPER|SECOND AC \([^\)]+\)|THIRD AC \([^\)]+\)|\b1A\b|\b2A\b|\b3A\b|\bSL\b|\bCC\b)/i);
+          if(classMatch) out.class = classMatch[1].trim();
+          else {
+            // fallback: pick first token that's not a long number (>=6 digits)
+            var toks = seg.split(/\s+/).filter(Boolean);
+            for(var ti=0;ti<toks.length;ti++){ if(!/^\d{6,}$/.test(toks[ti])){ out.class = toks[ti]; break; } }
+          }
+        }
+
+        // Departure / Date of Journey / Time — try labels then fallback for common date formats
+        var dep = findLabel(/(Departure|Date\s*of\s*Journey)\s*[:\-]?\s*(.+)/i);
+        if(dep && dep.match) {
+          // prefer explicit time+date patterns
+          var dseg = dep.match[2].trim();
+          var dtm = dseg.match(/(\d{1,2}:\d{2})\s*(\d{1,2}[-\/]?[A-Za-z]{3,}[-\/]?\d{2,4})/);
+          if(dtm) out.departure = dtm[1] + ' ' + dtm[2]; else out.departure = dseg;
+        } else {
+          var d2 = text.match(/(\d{1,2}:\d{2})\s*(\d{1,2}[-\/]?[A-Za-z]{3,}[-\/]?\d{2,4})/);
+          if(d2) out.departure = d2[1] + ' ' + d2[2];
+        }
+
+        // Smart passenger parsing: look for lines containing status tokens and a leading index
+        for(var i=0;i<lines.length;i++){
+          var ln = lines[i];
+          var pm = ln.match(/^\s*(\d{1,2})[\).\-\s]+(.+)/);
+          if(pm){
+            var rest = pm[2];
+            var statusMatch = rest.match(/(CNF|CONFIRMED|WL|RAC|CANCL|CAN|CANX)\b/i);
+            if(statusMatch){
+              var status = statusMatch[1];
+              // name is portion before numeric age or before status
+              var name = rest.split(/\s+(?:\d{1,3}y|\d{1,3}\s*Y|\d{1,3})?\s*/i)[0];
+              name = name.replace(/\s{2,}/g,' ').replace(/[^A-Za-z\s\.\'\-]/g,'').trim();
+              var ageMatch = rest.match(/(\d{1,3})\s*y/i) || rest.match(/\b(\d{1,3})\b/);
+              var age = ageMatch?ageMatch[1]:'';
+              out.passengers.push({ seq: pm[1], name: name || rest, age: age, status: status.toUpperCase() });
+              continue;
+            }
+          }
+        }
+
+        // Fallback: if no passengers found, try table-like rows
+        if(out.passengers.length===0){
+          // find start of passenger block by header
+          var start = -1;
+          for(var k=0;k<lines.length;k++){
+            if(/Seq\b.*Name\b.*Status\b/i.test(lines[k])){ start = k+1; break; }
+          }
+          if(start>=0){
+            for(var j=start;j<lines.length;j++){
+              var ln2 = lines[j];
+              if(/Total|Fare|GST|Amount/i.test(ln2)) break;
+              var parts = ln2.split(/\s{2,}/);
+              if(parts.length>=3){
+                var seq = (parts[0]||'').replace(/[^0-9]/g,'');
+                var name = parts[1]||'';
+                var status = (parts.slice(-1)[0]||'').match(/(CNF|WL|RAC|CAN|CANCL|CANX)/i);
+                status = status?status[1].toUpperCase():'';
+                out.passengers.push({ seq: seq, name: name, age: '', status: status });
+              }
+            }
+          }
+        }
+
+        // derive overall status from first passenger if not explicitly set
+        if(out.passengers && out.passengers.length>0){ out.status = out.passengers[0].status || ''; }
+
+      } catch (e){ log('Parser error: '+e.message,'err'); }
+      out._meta = meta || {};
+      return out;
   };
 
   /** Read a PDF file using pdf.js and extract plain text */
