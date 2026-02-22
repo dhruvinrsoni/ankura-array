@@ -39,7 +39,7 @@ window.ANKURA_REGISTRY = [
     icon: "🚆",
     path: "gati-grid/index.html",
     tags: ["Utility", "Travel", "PDF", "Data"],
-    version: "0.1.0",
+    version: "1.0.0",
   },
   {
     id: "genai-yukti-deck",
