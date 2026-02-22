@@ -44,6 +44,67 @@
       try{ var parsed = JSON.parse(legacy); if(Array.isArray(parsed) && parsed.length>0){ tickets = parsed; State.save('gati_tickets', tickets); localStorage.removeItem('gati_tickets'); } }catch(e){}
     }
   }catch(e){}
+  // IndexedDB helpers for large PDF storage
+  var DB_NAME = 'GatiGridDB';
+  var DB_STORE = 'pdfs';
+  var db = null;
+
+  function initIndexedDB(){
+    return new Promise(function(resolve){
+      if(!window.indexedDB){ console.warn('IndexedDB not available'); resolve(false); return; }
+      var req = window.indexedDB.open(DB_NAME, 1);
+      req.onerror = function(){ console.warn('IndexedDB open failed'); resolve(false); };
+      req.onsuccess = function(){ db = req.result; console.log('IndexedDB ready'); resolve(true); };
+      req.onupgradeneeded = function(ev){
+        var idb = ev.target.result;
+        if(!idb.objectStoreNames.contains(DB_STORE)){
+          idb.createObjectStore(DB_STORE, { keyPath: 'id' });
+        }
+      };
+    });
+  }
+
+  function storePdfInIndexedDB(id, arrayBuffer){
+    return new Promise(function(resolve){
+      if(!db){ resolve(false); return; }
+      try{
+        var tx = db.transaction([DB_STORE], 'readwrite');
+        var store = tx.objectStore(DB_STORE);
+        store.put({ id: id, data: arrayBuffer });
+        tx.oncomplete = function(){ resolve(true); };
+        tx.onerror = function(){ console.warn('Failed to store PDF in IndexedDB:', tx.error); resolve(false); };
+      }catch(e){ console.warn('IndexedDB store error:', e); resolve(false); }
+    });
+  }
+
+  function getPdfFromIndexedDB(id){
+    return new Promise(function(resolve){
+      if(!db){ resolve(null); return; }
+      try{
+        var tx = db.transaction([DB_STORE], 'readonly');
+        var store = tx.objectStore(DB_STORE);
+        var req = store.get(id);
+        req.onsuccess = function(){ resolve(req.result ? req.result.data : null); };
+        req.onerror = function(){ resolve(null); };
+      }catch(e){ resolve(null); }
+    });
+  }
+
+  function deletePdfFromIndexedDB(id){
+    return new Promise(function(resolve){
+      if(!db){ resolve(true); return; }
+      try{
+        var tx = db.transaction([DB_STORE], 'readwrite');
+        var store = tx.objectStore(DB_STORE);
+        store.delete(id);
+        tx.oncomplete = function(){ resolve(true); };
+        tx.onerror = function(){ resolve(true); };
+      }catch(e){ resolve(true); }
+    });
+  }
+
+  // Start IndexedDB init (for persistent PDF storage)
+  initIndexedDB();
   var sessionBlobs = {}; // { id: blobUrl }
   var LOG_KEY = 'gati_logs';
   var logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
@@ -315,22 +376,44 @@
         var tp = new TicketParser();
         var parsed = tp.parseText(text, { fileName: f.name, size: f.size, uploadedAt: new Date().toISOString() });
         parsed._id = parsed.pnr || ('tmp-'+Math.random().toString(36).slice(2,9));
-        // keep short base64 in localStorage only if small (<100KB); else skip
-        if(f.size < 100*1024){
-          var r = new FileReader(); r.onload = function(){ try{ parsed._pdfBase64 = r.result.split(',')[1]; saveTicket(parsed); }catch(e){ saveTicket(parsed); } }; r.readAsDataURL(f);
-        } else {
+        // Store PDF in IndexedDB (all files big or small) + create session blob
+        var reader = new FileReader();
+        reader.onload = function(){
+          var arrayBuffer = reader.result;
+          // Store in IndexedDB for persistence
+          storePdfInIndexedDB(parsed._id, arrayBuffer).then(function(ok){
+            if(ok) log('Stored PDF: '+parsed._id, 'ok');
+            else log('Could not store PDF to IndexedDB, will be session-only', 'warn');
+            // Always create session blob for immediate access
+            try{ var blob = new Blob([arrayBuffer], { type: 'application/pdf' }); sessionBlobs[parsed._id] = URL.createObjectURL(blob); }catch(e){}
+            renderGrid();
+          });
+          // Also store small base64 in localStorage as fallback
+          if(f.size < 50*1024){
+            try{ parsed._pdfBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(arrayBuffer))); }catch(e){}
+          }
           saveTicket(parsed);
-        }
-        // create session blob for viewing
-        try{ var url = URL.createObjectURL(f); sessionBlobs[parsed._id] = url; } catch(e){}
-        renderGrid();
-        log('Parsed: '+(parsed.pnr||parsed._id),'ok');
+        };
+        reader.onerror = function(){ log('Failed to read file: '+f.name, 'err'); saveTicket(parsed); renderGrid(); };
+        reader.readAsArrayBuffer(f);
       });
     });
   }
 
   // Delete All (tickets + logs)
-  function deleteAll(){ if(!confirm('Delete ALL tickets and logs?')) return; tickets=[]; logs=[]; try{ State.clear('gati_tickets'); localStorage.removeItem(LOG_KEY); }catch(e){} try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){} renderGrid(); renderLogs(); }
+  function deleteAll(){
+    if(!confirm('Delete ALL tickets and logs?')) return;
+    try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){}
+    // Clear all PDFs from IndexedDB
+    if(db && tickets.length>0){
+      try{
+        tickets.forEach(function(t){ deletePdfFromIndexedDB(t._id); });
+      }catch(e){}
+    }
+    tickets=[]; logs=[];
+    try{ State.clear('gati_tickets'); localStorage.removeItem(LOG_KEY); }catch(e){}
+    renderGrid(); renderLogs();
+  }
 
   function saveTicket(parsed){
     // dedupe by _id
@@ -403,22 +486,81 @@
   }
 
   function viewPdf(id){
-    var url = sessionBlobs[id];
-    if(url){ window.open(url, '_blank'); return; }
-    var t = tickets.find(function(x){ return x._id===id; });
-    if(t && t._pdfBase64){ window.open('data:application/pdf;base64,'+t._pdfBase64, '_blank'); return; }
-    alert('PDF not available in this session. Re-upload the original file to view.');
+    // Try session blob first (fastest)
+    if(sessionBlobs[id]){ window.open(sessionBlobs[id], '_blank'); return; }
+    // Try IndexedDB (persistent storage)
+    getPdfFromIndexedDB(id).then(function(arrayBuffer){
+      if(arrayBuffer){
+        try{
+          var blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+          var url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          return;
+        }catch(e){ console.warn('Failed to open PDF from IndexedDB:', e); }
+      }
+      // Fall back to base64 in localStorage
+      var t = tickets.find(function(x){ return x._id===id; });
+      if(t && t._pdfBase64){
+        try{ window.open('data:application/pdf;base64,'+t._pdfBase64, '_blank'); return; }catch(e){ log('Failed to open PDF: '+e.message,'err'); }
+      }
+      alert('PDF not available. Try re-uploading the file.');
+    });
+  }
+
+  function restoreSessionBlobs(){
+    // Restore session blob URLs from IndexedDB (most reliable)
+    try{
+      var promises = [];
+      tickets.forEach(function(t){
+        if(!sessionBlobs[t._id]){
+          promises.push(
+            getPdfFromIndexedDB(t._id).then(function(arrayBuffer){
+              if(arrayBuffer){
+                try{
+                  var blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+                  sessionBlobs[t._id] = URL.createObjectURL(blob);
+                  log('Restored PDF from storage: '+t._id, 'ok');
+                }catch(e){ console.warn('Error restoring PDF '+t._id, e); }
+              } else if(t._pdfBase64){
+                // Fallback: recreate from base64
+                try{
+                  var binary = atob(t._pdfBase64);
+                  var bytes = new Uint8Array(binary.length);
+                  for(var i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                  var blob = new Blob([bytes], { type: 'application/pdf' });
+                  sessionBlobs[t._id] = URL.createObjectURL(blob);
+                  log('Restored PDF from base64: '+t._id, 'ok');
+                }catch(e2){ console.warn('Error restoring from base64 '+t._id, e2); }
+              }
+            })
+          );
+        }
+      });
+      if(promises.length>0){
+        Promise.all(promises).then(function(){ log('Session PDFs restored', 'ok'); });
+      }
+    }catch(e){ console.warn('restoreSessionBlobs error:', e); }
   }
 
   function deleteTicket(id){
     if(!confirm('Delete ticket?')) return;
+    try{ if(sessionBlobs[id]){ URL.revokeObjectURL(sessionBlobs[id]); delete sessionBlobs[id]; } }catch(e){}
+    deletePdfFromIndexedDB(id);
     tickets = tickets.filter(function(x){ return x._id !== id; });
     try{ State.save('gati_tickets', tickets); } catch(e){}
-    try{ if(sessionBlobs[id]){ URL.revokeObjectURL(sessionBlobs[id]); delete sessionBlobs[id]; } } catch(e){}
     renderGrid();
   }
 
-  function resetAll(){ if(!confirm('Clear all tickets?')) return; tickets = []; try{ State.clear('gati_tickets'); }catch(e){} renderGrid(); }
+  function resetAll(){ 
+    if(!confirm('Clear all tickets?')) return; 
+    try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){}
+    // Clear all PDFs from IndexedDB
+    if(db && tickets.length>0){
+      try{
+        tickets.forEach(function(t){ deletePdfFromIndexedDB(t._id); });
+      }catch(e){}
+    }
+  }
 
   // wire upload/drop
   if(uploadZone){
@@ -458,6 +600,7 @@
 
   // init — theme/meta handled by AnkuraCore.init
   try{ renderGrid(); } catch(e){ console.warn('renderGrid failed', e); }
+  try{ restoreSessionBlobs(); } catch(e){ console.warn('Failed to restore PDFs', e); }
 
   // expose for debugging
   window.GATI_DEBUG = { tickets: tickets, sessionBlobs: sessionBlobs };
