@@ -137,7 +137,12 @@
         document.head.appendChild(s);
       }
 
-      function startApp(){ var s = document.createElement('script'); s.src = 'app.js'; document.body.appendChild(s); }
+      function startApp(){
+        var core = document.createElement('script'); core.src = '../ankura-core.js';
+        core.onload = function(){ var s = document.createElement('script'); s.src = 'app.js'; document.body.appendChild(s); };
+        core.onerror = function(){ var s = document.createElement('script'); s.src = 'app.js'; document.body.appendChild(s); };
+        document.head.appendChild(core);
+      }
       function setWorker(src){ try{ if(window.pdfjsLib && pdfjsLib.GlobalWorkerOptions) pdfjsLib.GlobalWorkerOptions.workerSrc = src; }catch(e){} }
       var banner = document.getElementById('pdfjs-banner');
 

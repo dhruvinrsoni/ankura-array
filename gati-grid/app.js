@@ -24,47 +24,18 @@
   var pastePanel = document.getElementById('paste-panel');
   var pasteBody = document.getElementById('paste-body');
 
-  // Instance identity + namespaced storage (follow framework protocol)
-  function initInstanceId(){
-    var params = new URLSearchParams(window.location.search);
-    var id = params.get('instanceId');
-    if(id){
-      sessionStorage.setItem('ankura_instanceId', id);
-      try{
-        var existing = localStorage.getItem(id + '__meta_created');
-        var now = new Date().toISOString();
-        if(!existing) localStorage.setItem(id + '__meta_created', JSON.stringify(now));
-        localStorage.setItem(id + '__meta_updated', JSON.stringify(now));
-      }catch(e){}
-      return id;
+  // Framework init — AnkuraCore provides instanceId, State, meta, theme, back/delete/reset buttons
+  var _fw = window.AnkuraCore.init({
+    backUrl: '../index.html',
+    onReset: function(){ resetAll(); },
+    onDelete: function(){
+      tickets = []; logs = [];
+      try{ State.clearAll(); }catch(e){}
+      try{ localStorage.removeItem(LOG_KEY); }catch(e){}
     }
-    id = sessionStorage.getItem('ankura_instanceId');
-    if(id){
-      try{
-        var ex2 = localStorage.getItem(id + '__meta_created');
-        var now2 = new Date().toISOString();
-        if(!ex2) localStorage.setItem(id + '__meta_created', JSON.stringify(now2));
-        localStorage.setItem(id + '__meta_updated', JSON.stringify(now2));
-      }catch(e){}
-      return id;
-    }
-    id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('inst-'+Math.random().toString(36).slice(2,9));
-    sessionStorage.setItem('ankura_instanceId', id);
-    try{ localStorage.setItem(id + '__meta_created', JSON.stringify(new Date().toISOString())); localStorage.setItem(id + '__meta_updated', JSON.stringify(new Date().toISOString())); }catch(e){}
-    try{ var newUrl = window.location.pathname + '?instanceId=' + id + window.location.hash; window.history.replaceState(null,'',newUrl); }catch(e){}
-    return id;
-  }
-
-  var INSTANCE_ID = initInstanceId();
-
-  var State = {
-    _key: function(name){ return INSTANCE_ID + '__' + name; },
-    save: function(name, value){ try{ localStorage.setItem(this._key(name), JSON.stringify(value)); try{ localStorage.setItem(INSTANCE_ID + '__meta_updated', JSON.stringify(new Date().toISOString())); }catch(e){} try{ window.dispatchEvent(new CustomEvent('ankura:meta-updated', { detail:{ instance: INSTANCE_ID } })); }catch(e){} }catch(e){} },
-    load: function(name, fallback){ try{ var raw = localStorage.getItem(this._key(name)); return raw !== null ? JSON.parse(raw) : fallback; }catch(e){ return fallback; } },
-    clear: function(name){ try{ localStorage.removeItem(this._key(name)); }catch(e){} }
-  };
-
-  var STORAGE_KEY = State._key('gati_tickets');
+  });
+  var INSTANCE_ID = _fw.instanceId;
+  var State = _fw.State;
   var tickets = State.load('gati_tickets', []);
   // Migrate legacy global storage (if user previously saved without instance namespacing)
   try{
@@ -73,21 +44,6 @@
       try{ var parsed = JSON.parse(legacy); if(Array.isArray(parsed) && parsed.length>0){ tickets = parsed; State.save('gati_tickets', tickets); localStorage.removeItem('gati_tickets'); } }catch(e){}
     }
   }catch(e){}
-
-  // Render instance meta timestamps into top bar
-  function renderMeta(){
-    try{
-      var rawC = localStorage.getItem(INSTANCE_ID + '__meta_created');
-      var rawU = localStorage.getItem(INSTANCE_ID + '__meta_updated');
-      var elC = document.getElementById('meta-created');
-      var elU = document.getElementById('meta-updated');
-      if(elC){ if(rawC){ try{ var jc = JSON.parse(rawC); elC.textContent = 'Created: '+ (new Date(jc).toLocaleString()); elC.title = jc; }catch(e){ elC.textContent = 'Created: '+rawC; elC.title = rawC; } } else elC.textContent = 'Created: —'; }
-      if(elU){ if(rawU){ try{ var ju = JSON.parse(rawU); elU.textContent = 'Updated: '+ (new Date(ju).toLocaleString()); elU.title = ju; }catch(e){ elU.textContent = 'Updated: '+rawU; elU.title = rawU; } } else elU.textContent = 'Updated: —'; }
-    }catch(e){}
-  }
-
-  // update meta when framework notifies us
-  window.addEventListener('ankura:meta-updated', function(ev){ if(ev && ev.detail && ev.detail.instance===INSTANCE_ID) renderMeta(); });
   var sessionBlobs = {}; // { id: blobUrl }
   var LOG_KEY = 'gati_logs';
   var logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
@@ -324,25 +280,6 @@
       return out;
   };
 
-    // Theme helper
-    function applyThemeMode(mode){
-      var value = mode || 'auto';
-      var useDark = false;
-      if(value === 'auto'){
-        try{ useDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }catch(e){ useDark = false; }
-      } else if(value === 'dark') useDark = true; else useDark = false;
-      document.body.classList.toggle('dark-theme', useDark);
-      document.body.classList.toggle('light-theme', !useDark);
-    }
-
-    function initTheme(){
-      if(!themeSelect) return;
-      var saved = State.load('theme','auto');
-      try{ themeSelect.value = saved; }catch(e){}
-      applyThemeMode(saved);
-      themeSelect.addEventListener('change', function(){ var v = themeSelect.value || 'auto'; try{ State.save('theme', v); }catch(e){} applyThemeMode(v); });
-    }
-
   /** Read a PDF file using pdf.js and extract plain text */
   function extractTextFromPdf(file, cb){
     if(!pdfjsAvailable){ cb(new Error('pdfjs not available')); return; }
@@ -393,7 +330,7 @@
   }
 
   // Delete All (tickets + logs)
-  function deleteAll(){ if(!confirm('Delete ALL tickets and logs?')) return; tickets=[]; logs=[]; try{ State.clear('gati_tickets'); localStorage.removeItem(LOG_KEY); }catch(e){} try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){} try{ localStorage.setItem(INSTANCE_ID + '__meta_updated', JSON.stringify(new Date().toISOString())); }catch(e){} renderGrid(); renderLogs(); }
+  function deleteAll(){ if(!confirm('Delete ALL tickets and logs?')) return; tickets=[]; logs=[]; try{ State.clear('gati_tickets'); localStorage.removeItem(LOG_KEY); }catch(e){} try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){} renderGrid(); renderLogs(); }
 
   function saveTicket(parsed){
     // dedupe by _id
@@ -481,7 +418,7 @@
     renderGrid();
   }
 
-  function resetAll(){ if(!confirm('Clear all tickets?')) return; tickets = []; try{ State.clear('gati_tickets'); }catch(e){} try{ localStorage.setItem(INSTANCE_ID + '__meta_updated', JSON.stringify(new Date().toISOString())); }catch(e){} renderGrid(); }
+  function resetAll(){ if(!confirm('Clear all tickets?')) return; tickets = []; try{ State.clear('gati_tickets'); }catch(e){} renderGrid(); }
 
   // wire upload/drop
   if(uploadZone){
@@ -515,15 +452,11 @@
   }
 
   if(searchInput){ searchInput.addEventListener('input', function(){ renderGrid(); }); }
-  if(btnReset){ btnReset.addEventListener('click', resetAll); }
-  if(btnBack){ btnBack.addEventListener('click', function(){ window.location.href='../index.html'; }); }
-  if(btnDelete){ btnDelete.addEventListener('click', function(){ try{ localStorage.removeItem('ankura_instanceId'); }catch(e){} try{ window.close(); }catch(e){ window.location.href='../index.html'; } }); }
+  // btn-back, btn-delete, btn-reset wired by AnkuraCore.init
   var btnDeleteAll = document.getElementById('btn-delete-all');
   if(btnDeleteAll){ btnDeleteAll.addEventListener('click', function(){ deleteAll(); }); }
 
-  // init
-  try{ initTheme(); } catch(e){}
-  try{ renderMeta(); } catch(e){}
+  // init — theme/meta handled by AnkuraCore.init
   try{ renderGrid(); } catch(e){ console.warn('renderGrid failed', e); }
 
   // expose for debugging
