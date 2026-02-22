@@ -51,8 +51,10 @@
         function findLabel(rx){ for(var i=0;i<lines.length;i++){ var m=lines[i].match(rx); if(m) return {line: lines[i], idx:i, match:m}; } return null; }
 
         // PNR: explicit label or any 10-digit sequence
-        var p = findLabel(/PNR\s*[:\-]?\s*(\d{10})/i) || {match: (text.match(/\b\d{10}\b/)||[]) };
-        if(p && p.match && p.match[1]) out.pnr = p.match[1]; else if(p && p[0]) out.pnr = p[0];
+        var pLabel = findLabel(/PNR\s*[:\-]?\s*(\d{10})/i);
+        var pRaw = text.match(/\b\d{10}\b/);
+        if(pLabel && pLabel.match && pLabel.match[1]) out.pnr = pLabel.match[1];
+        else if(pRaw && pRaw[0]) out.pnr = pRaw[0];
 
         // Train No / Name: look for explicit trainNo/name with pattern like 12297/PUNE DURONTO
         var trainMatch = text.match(/(\b\d{4,5})\s*\/\s*([A-Z0-9\-\s]{3,60})/i);
@@ -97,22 +99,36 @@
           if(d2) out.departure = d2[1] + ' ' + d2[2];
         }
 
-        // Smart passenger parsing: look for lines containing status tokens and a leading index
-        for(var i=0;i<lines.length;i++){
-          var ln = lines[i];
-          var pm = ln.match(/^\s*(\d{1,2})[\).\-\s]+(.+)/);
-          if(pm){
-            var rest = pm[2];
-            var statusMatch = rest.match(/(CNF|CONFIRMED|WL|RAC|CANCL|CAN|CANX)\b/i);
-            if(statusMatch){
-              var status = statusMatch[1];
-              // name is portion before numeric age or before status
-              var name = rest.split(/\s+(?:\d{1,3}y|\d{1,3}\s*Y|\d{1,3})?\s*/i)[0];
-              name = name.replace(/\s{2,}/g,' ').replace(/[^A-Za-z\s\.\'\-]/g,'').trim();
-              var ageMatch = rest.match(/(\d{1,3})\s*y/i) || rest.match(/\b(\d{1,3})\b/);
-              var age = ageMatch?ageMatch[1]:'';
-              out.passengers.push({ seq: pm[1], name: name || rest, age: age, status: status.toUpperCase() });
-              continue;
+        // First attempt: parse the block after the "Passenger Details" header if present
+        var passHeaderIdx = -1;
+        for(var ii=0; ii<lines.length; ii++){ if(/Passenger\s*Details/i.test(lines[ii])){ passHeaderIdx = ii+1; break; } }
+        if(passHeaderIdx>=0){
+          var passBlock = lines.slice(passHeaderIdx, passHeaderIdx+12).join(' ');
+          var re = /(\d{1,2})\.\s*([A-Z\.\'\-\s]+?)\s+(\d{1,3})\s+([MF])\s+([A-Z0-9\/_\-\s]+)/gi;
+          var mm;
+          while((mm = re.exec(passBlock)) !== null){
+            var seq = mm[1]; var name = mm[2].trim(); var age = mm[3]; var gender = mm[4]; var statusTok = (mm[5]||'').trim();
+            var status = (statusTok.match(/(CNF|CONFIRMED|WL|RAC|CANCL|CAN|CANX)/i)||[])[1] || statusTok.split(/\s+/)[0] || '';
+            out.passengers.push({ seq: seq, name: name, age: age, status: (status||'') });
+          }
+        }
+
+        // Fallback: scan numbered lines anywhere and extract status-like tokens
+        if(out.passengers.length===0){
+          for(var i=0;i<lines.length;i++){
+            var ln = lines[i];
+            var pm = ln.match(/^\s*(\d{1,2})[\).\-\s]+(.+)/);
+            if(pm){
+              var rest = pm[2];
+              var statusMatch = rest.match(/(CNF|CONFIRMED|WL|RAC|CANCL|CAN|CANX|CNF\/[A-Z0-9\-\/]+)/i);
+              if(statusMatch){
+                var status = statusMatch[1];
+                var name = rest.split(/\s+(?:\d{1,3}y|\d{1,3}\s*Y|\d{1,3})?\s*/i)[0];
+                name = name.replace(/\s{2,}/g,' ').replace(/[^A-Za-z\s\.\'\-]/g,'').trim();
+                var ageMatch = rest.match(/(\d{1,3})\s*y/i) || rest.match(/\b(\d{1,3})\b/);
+                var age = ageMatch?ageMatch[1]:'';
+                out.passengers.push({ seq: pm[1], name: name || rest, age: age, status: status.toUpperCase() });
+              }
             }
           }
         }
