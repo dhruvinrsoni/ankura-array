@@ -32,6 +32,16 @@ window.ANKURA_REGISTRY = [
     version: "1.0.0",
   },
   {
+    id: "gati-grid",
+    name: "Gati-Grid",
+    shortForm: "GG",
+    description: "Offline IRCTC ticket parser and travel dashboard.",
+    icon: "🚆",
+    path: "gati-grid/index.html",
+    tags: ["Utility", "Travel", "PDF", "Data"],
+    version: "0.1.0",
+  },
+  {
     id: "genai-yukti-deck",
     name: "GenAI-Yukti-Deck",
     shortForm: "GD",

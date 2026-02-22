@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gati-Grid</title>
+    <meta
+      name="description"
+      content="Gati-Grid — Offline IRCTC ticket parser and travel dashboard. Upload PDF e-tickets and organize journeys in a sortable, searchable data grid."
+    />
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="../app_registry.js"></script>
+  </head>
+  <body>
+    <!-- ── Top Bar ─────────────────────────────────── -->
+    <header class="top-bar">
+      <h1 class="top-bar__title">
+        <span class="accent">🚆</span> Gati-Grid
+        <span style="font-size: 0.75em; opacity: 0.7; margin-left: 4px;">(GG)</span>
+      </h1>
+      <div class="top-bar__left">
+        <div class="top-bar__meta" title="Instance timestamps">
+          <span id="meta-created" class="meta-item">Created: —</span>
+          <span id="meta-updated" class="meta-item">Updated: —</span>
+        </div>
+      </div>
+      <div class="top-bar__actions">
+        <button id="btn-back" class="btn btn--outline" title="Back to dashboard">← Back</button>
+        <button id="btn-reset" class="btn btn--danger" title="Clear all tickets and reset">↺ Reset All</button>
+        <button id="btn-delete" class="btn btn--danger-outline" title="Delete this instance and close tab">🗑 Delete</button>
+        <select id="theme-select" class="select" title="Theme" style="width:auto; min-width:80px;">
+          <option value="auto">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- ── PDF.js Missing Banner (hidden by JS if lib loads) ── -->
+    <div id="pdfjs-banner" class="pdfjs-banner" hidden>
+      <strong>⚠ PDF.js not found.</strong>
+      Download <code>pdf.min.js</code> and <code>pdf.worker.min.js</code> into
+      <code>assets/libs/pdfjs/</code>.
+      <a href="../assets/libs/pdfjs/README.md" style="color:#ffd580;">See instructions →</a>
+    </div>
+
+    <!-- ── Main Content ────────────────────────────── -->
+    <main class="gg-main">
+      <!-- Upload Zone -->
+      <div id="upload-zone" class="upload-zone">
+        <div class="upload-zone__inner">
+          <span class="upload-zone__icon">📄</span>
+          <span class="upload-zone__text">
+            Drop IRCTC PDF tickets here or
+            <label for="file-input" class="upload-zone__link">browse files</label>
+          </span>
+          <span class="upload-zone__hint">Accepts .pdf — multiple files OK</span>
+        </div>
+        <input id="file-input" type="file" accept=".pdf" multiple hidden />
+      </div>
+
+      <!-- Controls Bar -->
+      <div class="controls-bar">
+        <input
+          id="search-input"
+          type="text"
+          class="search-input gg-search"
+          placeholder="Search PNR, name, station, train…"
+          autocomplete="off"
+        />
+        <div class="controls-bar__right">
+          <div class="column-toggle-wrap">
+            <button id="btn-col-toggle" class="btn btn--outline" title="Show/hide columns">⚙ Columns</button>
+            <div id="column-panel" class="column-panel" hidden>
+              <!-- checkboxes injected by JS -->
+            </div>
+          </div>
+          <span id="ticket-count" class="ticket-count">0 tickets</span>
+        </div>
+      </div>
+
+      <!-- Data Grid -->
+      <div class="grid-wrap">
+        <table id="data-grid" class="data-grid">
+          <thead>
+            <tr id="grid-head-row">
+              <!-- headers injected by JS -->
+            </tr>
+          </thead>
+          <tbody id="grid-body">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+        <div id="grid-empty" class="grid-empty">
+          <span class="grid-empty__icon">🚆</span>
+          <span class="grid-empty__text">No tickets yet — upload an IRCTC PDF to get started.</span>
+        </div>
+      </div>
+
+      <!-- Parse Log -->
+      <div id="parse-log" class="parse-log" hidden></div>
+    </main>
+
+    <!-- ── Scripts ─────────────────────────────────── -->
+    <script src="../assets/libs/pdfjs/pdf.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
