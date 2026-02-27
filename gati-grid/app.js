@@ -263,7 +263,7 @@
 
           // Additional heuristic: scan nearby lines for two uppercase station codes (e.g., 'ADI PUNE SF') and prefer those
           if(!out.fromCode || !out.toCode){
-            var blacklist = ['PNR','CLASS','TRAIN','QUOTA','DISTANCE','BOOKING','PASSENGER','DETAILS','ARRIVAL','DEPARTURE','GENERAL','HRS','KM','AC','SECOND','THIRD','FIRST','SLEEPER','SF','SL','CC','FC','ER','WR','SR','NR','NW','NE','ECR','COACHING','COACH','CAR','SEAT','CHARTING','CONCESSION','RESERVATION','ENRICH','CONFIRMATION','CANCELLATION','CONFIRMED','DURONTO','EXPRESS','RAJDHANI','SHATABDI'];
+            var blacklist = ['PNR','CLASS','TRAIN','QUOTA','DISTANCE','BOOKING','PASSENGER','DETAILS','ARRIVAL','DEPARTURE','GENERAL','HRS','KM','AC','SECOND','THIRD','FIRST','SLEEPER','SF','SL','CC','FC','ER','WR','SR','NR','NW','NE','ECR','COACHING','COACH','CAR','SEAT','CHARTING','CONCESSION','RESERVATION','ENRICH','CONFIRMATION','CANCELLATION','CONFIRMED','DURONTO','EXPRESS','RAJDHANI','SHATABDI','JN','JUNC','JCT'];
             for(var li=0; li<lines.length; li++){
               var L = lines[li];
               // skip lines that look like train info (contain train number or class keywords)
@@ -463,10 +463,21 @@
       // route: show short codes on top and full station names below when available
       if(visibleCols.indexOf('from')!==-1){
         var td2 = document.createElement('td');
-        var shortLeft = t.fromCode || (t.from? (t.from.split('\n')[0]||t.from).split(/\s+/)[0] : '—');
-        var shortRight = t.toCode || (t.to? (t.to.split('\n')[0]||t.to).split(/\s+/)[0] : '—');
-        var fullLeft = t.fromName || t.from || '—';
-        var fullRight = t.toName || t.to || '—';
+        // Tokens that are suffixes/abbreviations, not valid standalone station codes
+        var SUFFIX_TOKENS = ['JN','JUNC','JCT','SF'];
+        function firstMeaningfulToken(str) {
+          if (!str) return null;
+          var tks = str.split(/\s+/).filter(Boolean);
+          for (var ti2 = 0; ti2 < tks.length; ti2++) {
+            if (SUFFIX_TOKENS.indexOf(tks[ti2].toUpperCase()) === -1 && /^[A-Z]{2,}$/.test(tks[ti2])) return tks[ti2];
+          }
+          return null;
+        }
+        var shortLeft = (t.fromCode && SUFFIX_TOKENS.indexOf(t.fromCode.toUpperCase()) === -1 ? t.fromCode : null) || firstMeaningfulToken(t.from) || '—';
+        var shortRight = (t.toCode && SUFFIX_TOKENS.indexOf(t.toCode.toUpperCase()) === -1 ? t.toCode : null) || firstMeaningfulToken(t.to) || '—';
+        // Full name: prefer explicit names; when captured from-label only got "JN", reconstruct from code
+        var fullLeft = (t.fromName && t.fromName.length > 2 ? t.fromName : null) || (t.from && t.from.length > 2 ? t.from : null) || (shortLeft !== '—' ? shortLeft + ' JN' : '—');
+        var fullRight = (t.toName && t.toName.length > 2 ? t.toName : null) || (t.to && t.to.length > 2 ? t.to : null) || (shortRight !== '—' ? shortRight + ' JN' : '—');
         td2.innerHTML = '<div class="cell-route__short"><span class="cell-route__code">'+shortLeft+'</span><span class="cell-route__dash"> - </span><span class="cell-route__code">'+shortRight+'</span></div>'+
                          '<div class="cell-route__full">'+fullLeft+' <span class="cell-route__arrow">→</span> '+fullRight+'</div>'+
                          ((t.train && t.train.split('/')[1])?('<div class="cell-route__train">'+t.train.split('/')[1].trim()+'</div>'):'');
