@@ -67,4 +67,28 @@ window.ANKURA_REGISTRY = [
     ],
     version: "1.0.0",
   },
+  {
+    id: "tula-bench",
+    name: "Tula-Bench",
+    shortForm: "TB",
+    description:
+      "Evaluate and benchmark AI coding assistants (Claude Code, GitHub Copilot, etc.) across weighted criteria — accuracy, contextual understanding, bug fixing, refactoring, and agentic capabilities. Get ranked scores, visual comparisons, and exportable Markdown reports.",
+    icon: "⚖️",
+    path: "tula-bench/index.html",
+    tags: [
+      "AI evaluation",
+      "LLM benchmarking",
+      "coding assistant",
+      "Claude Code",
+      "GitHub Copilot",
+      "developer tools",
+      "AI comparison",
+      "benchmark",
+      "tool scoring",
+      "AI accuracy",
+      "agentic AI",
+      "code assistant review",
+    ],
+    version: "1.0.0",
+  },
 ];

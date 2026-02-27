@@ -67,6 +67,9 @@
             <button id="btn-cleanup-yukti" class="btn btn--danger" style="font-size: 0.8rem;">
               🃏 Clear GenAI-Yukti-Deck
             </button>
+            <button id="btn-cleanup-tula" class="btn btn--danger" style="font-size: 0.8rem;">
+              ⚖️ Clear Tula-Bench
+            </button>
           </div>
 
           <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-bottom: 0;">
@@ -429,6 +432,10 @@
               if (dk.indexOf('yukti') !== -1) instances[instanceId].apps.add('genai-yukti-deck');
               if (dk.indexOf('vaak') !== -1) instances[instanceId].apps.add('vaak-smith');
               if (dk.indexOf('gati') !== -1 || dk.indexOf('gati_tickets') !== -1) instances[instanceId].apps.add('gati-grid');
+              if (dk.indexOf('tb_tools') !== -1 || dk.indexOf('tb_events') !== -1 ||
+                  dk.indexOf('tb_last_tool') !== -1) {
+                instances[instanceId].apps.add('tula-bench');
+              }
               if (dk.indexOf('framework_instance') !== -1 || dk.indexOf('framework_sections') !== -1 || dk.indexOf('userprompt') !== -1 || dk.indexOf('system') !== -1 || dk.indexOf('vaak_global') !== -1) {
                 instances[instanceId].apps.add('vaak-smith');
               }
@@ -481,7 +488,9 @@
          * Delete all data for a specific app across all instances.
          */
         function deleteAppData(appId) {
-          var appName = appId === "genai-yukti-deck" ? "GenAI-Yukti-Deck" : "Vaak-Smith";
+          var appName = appId === "genai-yukti-deck" ? "GenAI-Yukti-Deck"
+                      : appId === "tula-bench"       ? "Tula-Bench"
+                      : "Vaak-Smith";
           if (!confirm("Delete all " + appName + " data across all instances?")) return;
           try {
             var keysToDelete = [];
@@ -490,8 +499,10 @@
               if (!key) continue;
               // Check if key belongs to this app
               var isYukti = key.includes("yukti");
+              var isTula  = key.includes("__tb_");
               var isThisApp = (appId === "genai-yukti-deck" && isYukti) ||
-                              (appId === "vaak-smith" && !isYukti);
+                              (appId === "tula-bench"        && isTula)  ||
+                              (appId === "vaak-smith"         && !isYukti && !isTula);
               if (isThisApp) {
                 keysToDelete.push(key);
               }
@@ -638,6 +649,12 @@
           if (cleanupYuktiBtn) {
             cleanupYuktiBtn.addEventListener('click', function () {
               deleteAppData("genai-yukti-deck");
+            });
+          }
+          var cleanupTulaBtn = document.getElementById("btn-cleanup-tula");
+          if (cleanupTulaBtn) {
+            cleanupTulaBtn.addEventListener('click', function () {
+              deleteAppData("tula-bench");
             });
           }
           if (resetBtn) {
