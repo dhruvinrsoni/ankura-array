@@ -189,6 +189,11 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 .tb-note-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+/* Float label background matches the tb-section card (not --bg-input) */
+.tb-note-input ~ .float-field__label { background: var(--bg-card); }
+.tb-note-input:focus ~ .float-field__label { background: var(--bg-card); }
+/* Align unfloated label with tb-note-input padding */
+.float-field .tb-note-input ~ .float-field__label { top: 0.6rem; left: 0.85rem; }
 
 /* ── LOG IT button ───────────────────────────────────────────── */
 .tb-log-btn {

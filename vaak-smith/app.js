@@ -451,20 +451,12 @@
       }
 
       var wrap = document.createElement('div');
-      wrap.className = 'editor-section';
-
-      var header = document.createElement('div');
-      header.className = 'editor-section__header';
-      var label = document.createElement('label');
-      label.className = 'field-label';
-      label.textContent = 'User Instructions (Sandbox)';
-      header.appendChild(label);
-      wrap.appendChild(header);
+      wrap.className = 'editor-section float-field';
 
       var ta = document.createElement('textarea');
-      ta.className = 'textarea textarea--user';
+      ta.className = 'textarea textarea--user float-field__textarea';
       ta.rows = 12;
-      ta.placeholder = 'Freeform user instructions — full sandbox. The composed prompt will appear in the preview.';
+      ta.placeholder = ' ';
       ta.setAttribute('aria-label', 'User Instructions Sandbox');
       var saved = State.load('userPrompt');
       if (saved) ta.value = saved;
@@ -478,6 +470,12 @@
       // focus the sandbox for quick entry
       setTimeout(function () { try { ta.focus(); } catch (e) {} }, 20);
       wrap.appendChild(ta);
+
+      var floatLabel = document.createElement('label');
+      floatLabel.className = 'float-field__label';
+      floatLabel.textContent = 'Freeform user instructions — full sandbox. The composed prompt will appear in the preview.';
+      wrap.appendChild(floatLabel);
+
       container.appendChild(wrap);
       return;
     }
@@ -499,22 +497,15 @@
 
     sectionsDef.forEach(function (section) {
       var wrap = document.createElement('div');
-      wrap.className = 'editor-section';
-
-      var header = document.createElement('div');
-      header.className = 'editor-section__header';
-      var label = document.createElement('label');
-      label.className = 'field-label';
-      label.textContent = section.label + (section.target === 'system' ? ' (system)' : ' (user)');
-      header.appendChild(label);
-      wrap.appendChild(header);
+      wrap.className = 'editor-section float-field';
 
       var ta = document.createElement('textarea');
-      ta.className = 'textarea';
+      ta.className = 'textarea float-field__textarea';
       ta.rows = section.target === 'system' ? 4 : 3;
-      ta.placeholder = section.placeholder || '';
+      ta.placeholder = ' ';
       ta.dataset.sectionLabel = section.label;
       ta.dataset.sectionTarget = section.target;
+      ta.setAttribute('aria-label', section.label + (section.target === 'system' ? ' (system)' : ' (user)'));
 
       // Load initial value from instance-scoped storage for all section fields.
       if (instanceStored && instanceStored[section.label]) ta.value = instanceStored[section.label];
@@ -532,8 +523,13 @@
       }, 400);
 
       ta.addEventListener('input', deb);
-
       wrap.appendChild(ta);
+
+      var floatLabel = document.createElement('label');
+      floatLabel.className = 'float-field__label';
+      floatLabel.textContent = section.placeholder || (section.label + (section.target === 'system' ? ' (system)' : ' (user)'));
+      wrap.appendChild(floatLabel);
+
       container.appendChild(wrap);
     });
 

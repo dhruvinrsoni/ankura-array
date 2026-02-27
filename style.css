@@ -479,3 +479,61 @@ body {
 }
 
 @media (max-width:480px) { .top-bar__title { font-size:1rem } .preview-actions { flex-direction:column } }
+
+/* ── Floating Label Field ──────────────────────────────────────
+   Helper text appears as ghost text inside the empty field, then
+   floats to the top border once the field has content or focus.
+   Structure: .float-field > [textarea|input] + label.float-field__label
+   NOTE: <label> must come AFTER the input/textarea in DOM order
+         so the CSS sibling combinator (~) can target it.
+   ─────────────────────────────────────────────────────────────── */
+.float-field { position: relative; }
+
+.float-field__label {
+  position: absolute;
+  left: 1rem;
+  top: 0.75rem;          /* matches .textarea padding-top — looks inline */
+  font-size: 0.875rem;
+  font-style: italic;
+  color: var(--text-muted);
+  pointer-events: none;
+  padding: 0 0.3rem;
+  background: transparent;
+  line-height: 1.5;
+  z-index: 1;
+  max-width: calc(100% - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: top 0.2s ease, transform 0.2s ease, font-size 0.2s ease,
+              color 0.2s ease, font-style 0.2s ease, background 0.2s ease,
+              letter-spacing 0.2s ease, line-height 0.2s ease;
+}
+
+/* Single-line inputs: center label vertically when unfloated */
+.float-field--input .float-field__label {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ── Floated state: label rides the top border ── */
+.float-field__textarea:focus ~ .float-field__label,
+.float-field__textarea:not(:placeholder-shown) ~ .float-field__label,
+.float-field__input:focus ~ .float-field__label,
+.float-field__input:not(:placeholder-shown) ~ .float-field__label {
+  top: 0;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+/* Active focus: accent highlight on the floated label */
+.float-field__textarea:focus ~ .float-field__label,
+.float-field__input:focus ~ .float-field__label {
+  color: var(--accent);
+}

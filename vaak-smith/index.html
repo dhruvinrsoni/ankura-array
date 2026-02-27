@@ -54,11 +54,13 @@
 
 
         <div class="editor-section">
-          <div class="editor-section__header">
-            <label class="field-label" for="system-instructions">System Instructions</label>
+          <div class="editor-section__header" style="justify-content:flex-end;">
             <button id="btn-apply-guidance" class="btn btn--toggle btn--outline" title="Toggle provider guidance in System Instructions" aria-pressed="false">Toggle Guidance</button>
           </div>
-          <textarea id="system-instructions" class="textarea textarea--system" placeholder="Define the AI's role, persona, and behavioral guidelines..."></textarea>
+          <div class="float-field">
+            <textarea id="system-instructions" class="textarea textarea--system float-field__textarea" placeholder=" "></textarea>
+            <label class="float-field__label" for="system-instructions">Define the AI's role, persona, and behavioral guidelines...</label>
+          </div>
         </div>
 
         <!-- User prompt removed; composed from per-framework fields -->
