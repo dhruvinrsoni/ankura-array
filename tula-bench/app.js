@@ -461,19 +461,6 @@
     }, { once: true });
   }
 
-  function bindLogTab() {
-    var clearBtn = document.getElementById('btn-clear-all');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', function () {
-        if (!confirm('Delete all ' + events.length + ' events? This cannot be undone.')) return;
-        events = [];
-        persist();
-        renderLog();
-        renderRecent();
-      });
-    }
-  }
-
   /* ══════════════════════════════════════════════════════════════
      §7  INSIGHTS TAB
      ══════════════════════════════════════════════════════════════ */
@@ -966,7 +953,6 @@
     // Initial render
     renderCaptureTab();
     bindCaptureTab();
-    bindLogTab();
     bindExportTab();
 
     // Show capture tab (hero)
