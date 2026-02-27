@@ -63,6 +63,73 @@
     return d.innerHTML;
   }
 
+  /** Minimal markdown → HTML renderer (handles the output of generateMarkdown()) */
+  function mdToHtml(md) {
+    function esc(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function fmt(text) {
+      var s = esc(text);
+      s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+      return s;
+    }
+    var lines = md.split('\n');
+    var out = [];
+    var inList = false;
+    var tableBuf = [];
+
+    function flushList() {
+      if (inList) { out.push('</ul>'); inList = false; }
+    }
+    function flushTable() {
+      if (!tableBuf.length) return;
+      var rows = tableBuf; tableBuf = [];
+      var headerCells = rows[0].split('|').slice(1, -1).map(function (c) { return c.trim(); });
+      var thead = '<thead><tr>' + headerCells.map(function (c) { return '<th>' + fmt(c) + '</th>'; }).join('') + '</tr></thead>';
+      var dataRows = rows.slice(2); // skip the separator row (| :--- | :---: |)
+      var tbody = '<tbody>' + dataRows.map(function (row) {
+        var cells = row.split('|').slice(1, -1).map(function (c) { return c.trim(); });
+        return '<tr>' + cells.map(function (c) { return '<td>' + fmt(c) + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody>';
+      out.push('<table class="tb-md-table">' + thead + tbody + '</table>');
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var hm = line.match(/^(#{1,4})\s+(.+)$/);
+      if (hm) {
+        flushList(); flushTable();
+        var lvl = hm[1].length;
+        out.push('<h' + lvl + ' class="tb-md-h' + lvl + '">' + fmt(hm[2]) + '</h' + lvl + '>');
+        continue;
+      }
+      if (/^---+$/.test(line)) {
+        flushList(); flushTable();
+        out.push('<hr class="tb-md-hr">');
+        continue;
+      }
+      if (/^\|/.test(line)) {
+        flushList();
+        tableBuf.push(line);
+        if (i + 1 >= lines.length || !/^\|/.test(lines[i + 1])) flushTable();
+        continue;
+      }
+      if (/^- /.test(line)) {
+        flushTable();
+        if (!inList) { out.push('<ul class="tb-md-list">'); inList = true; }
+        out.push('<li>' + fmt(line.slice(2)) + '</li>');
+        continue;
+      }
+      if (line.trim() === '') { flushList(); flushTable(); continue; }
+      flushList(); flushTable();
+      out.push('<p class="tb-md-p">' + fmt(line) + '</p>');
+    }
+    flushList(); flushTable();
+    return out.join('');
+  }
+
   function genId() {
     return 'evt-' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
   }
@@ -812,9 +879,12 @@
     return lines.join('\n');
   }
 
+  var _currentMarkdown = '';
+
   function renderExport() {
-    var el = document.getElementById('export-output');
-    if (el) el.textContent = generateMarkdown();
+    _currentMarkdown = generateMarkdown();
+    var el = document.getElementById('export-preview');
+    if (el) el.innerHTML = mdToHtml(_currentMarkdown);
   }
 
   function bindExportTab() {
@@ -824,15 +894,14 @@
     var copyBtn = document.getElementById('btn-copy');
     if (copyBtn) {
       copyBtn.addEventListener('click', function () {
-        var text = document.getElementById('export-output').textContent;
         function showCopied() {
           copyBtn.textContent = '✓ Copied!';
           setTimeout(function () { copyBtn.textContent = '📋 Copy'; }, 2000);
         }
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(showCopied).catch(function () { fallbackCopy(text, showCopied); });
+          navigator.clipboard.writeText(_currentMarkdown).then(showCopied).catch(function () { fallbackCopy(_currentMarkdown, showCopied); });
         } else {
-          fallbackCopy(text, showCopied);
+          fallbackCopy(_currentMarkdown, showCopied);
         }
       });
     }
