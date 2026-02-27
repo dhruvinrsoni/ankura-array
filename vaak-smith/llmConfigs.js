@@ -134,6 +134,47 @@ window.LLM_CONFIGS = {
         "# 1. GOAL (The Directive)\n**Role:** [Insert Role]\n**Task:** [Insert Task]\n\n# 2. CONTEXT (The Background)\n[Provide high-level context, philosophy, and constraints]\n\n# 3. SOURCE (The Input Data)\n[Provide the source code, text, or documentation here]\n\n# 4. EXPECTATIONS (The Output Format)\n[Define the exact output format, file structure, or style requirements. Be specific.]",
     },
 
+    "vivek-kram": {
+      name: "Vivek-Kram",
+      description: "Think it through clearly before you ask",
+      sections: [
+        {
+          label: "What I'm Trying to Figure Out",
+          placeholder:
+            "Describe the question or problem — in your own words, even if it feels messy. What are you actually trying to solve or understand?",
+          target: "user",
+        },
+        {
+          label: "Why This Matters",
+          placeholder:
+            "What's at stake? Who is affected? What happens if you get this wrong or don't solve it?",
+          target: "user",
+        },
+        {
+          label: "What I Already Know",
+          placeholder:
+            "Facts, constraints, or context you're working with. What have you already tried or ruled out? What do you know for certain?",
+          target: "user",
+        },
+        {
+          label: "Where I'm Getting Stuck",
+          placeholder:
+            "The specific part that's unclear, hard, or confusing. What's the actual bottleneck? If you knew the answer to just one thing, what would unblock you?",
+          target: "user",
+        },
+        {
+          label: "What a Good Answer Looks Like",
+          placeholder:
+            "Format, length, tone, depth. Code or explanation? A list or a narrative? What would make the response immediately useful to you?",
+          target: "user",
+        },
+      ],
+      systemTemplate:
+        "You are a thoughtful, precise assistant. When given a question, reason carefully before responding. Consider the context, constraints, and what the user has already tried. Think step by step.",
+      userTemplate:
+        "I need help with:\n{{What I'm Trying to Figure Out}}\n\nWhy this matters / context:\n{{Why This Matters}}\n\nWhat I know so far:\n{{What I Already Know}}\n\nWhere I'm stuck:\n{{Where I'm Getting Stuck}}\n\nA useful response would:\n{{What a Good Answer Looks Like}}\n\nPlease think through this step by step before answering.",
+    },
+
     "ARCHITECT": {
       name: "The Architect (Role/Context/Action)",
       description: "Architect's Command — Role/Task/Context/Action Checklist/Output",
