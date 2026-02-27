@@ -115,7 +115,16 @@ window.AnkuraCore = (function () {
     var btnReset  = document.getElementById('btn-reset');
     var themeSelect = document.getElementById('theme-select');
 
-    if (btnBack) btnBack.addEventListener('click', function () { window.location.href = backUrl; });
+    if (btnBack) btnBack.addEventListener('click', function () {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        // Opened in a new tab (ctrl+click / shift+click) — close it
+        window.close();
+        // Fallback: if browser blocks close(), navigate after a short delay
+        setTimeout(function () { window.location.href = backUrl; }, 200);
+      }
+    });
 
     if (btnDelete) btnDelete.addEventListener('click', function () {
       if (opts.onDelete) opts.onDelete();
