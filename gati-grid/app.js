@@ -150,10 +150,10 @@
       try {
         var lines = text.split(/\r?\n/).map(function(s){ return s.replace(/\u00A0/g,' ').trim(); }).filter(Boolean);
 
-        // Debug: log first 50 lines so we can see what pdf.js extracted
-        log('[Parse] ' + lines.length + ' lines. First 50:', 'info');
-        for(var dbg=0; dbg<Math.min(50,lines.length); dbg++){
-          log('  L' + (dbg+1) + ': ' + lines[dbg].slice(0,160), 'info');
+        // Debug: log ALL lines so we can see exactly what pdf.js extracted
+        log('[Parse] ' + lines.length + ' lines:', 'info');
+        for(var dbg=0; dbg<lines.length; dbg++){
+          log('  L' + (dbg+1) + ': ' + lines[dbg].slice(0,200), 'info');
         }
 
         // ── Helpers ──────────────────────────────────────────
@@ -165,17 +165,22 @@
           return null;
         }
 
-        // Validate that a value looks like an IRCTC station name (mostly UPPERCASE)
-        function isStationLike(val){
-          if(!val || val.length < 2 || val.length > 60) return false;
+        // Clean and validate a station name value. Returns cleaned string or null.
+        function refineStation(val){
+          if(!val) return null;
+          val = val.trim();
+          // Trim from first mixed-case word: station names are ALL-CAPS.
+          // "PUNE JN (PUNE) Reservation Upto..." → stops at "Re" → "PUNE JN (PUNE)"
+          val = val.replace(/\s+[A-Z][a-z]\S*.*$/, '').trim();
+          // Remove trailing punctuation/separators
+          val = val.replace(/[\s\-\/]+$/, '').trim();
+          if(!val || val.length < 2) return null;
+          if(/^(JN|JUNC|JCT|SF|EXP|TO|FROM|AT|ON|IN|BY|OF)$/i.test(val)) return null;
           var upper = (val.match(/[A-Z]/g) || []).length;
           var lower = (val.match(/[a-z]/g) || []).length;
-          // Station names are predominantly uppercase; reject if more lowercase than uppercase
-          if(lower > upper) return false;
-          if(upper < 2) return false;
-          // Reject common English words that aren't station names
-          if(/\b(change|please|check|correct|case|discrepancy|ticket|details|valid|note|before|boarding|print|carry|during|journey)\b/i.test(val)) return false;
-          return true;
+          if(lower > upper || upper < 2) return null;
+          if(/\b(change|please|check|correct|discrepancy|valid|note|print|carry|during)\b/i.test(val)) return null;
+          return val;
         }
 
         // Known class values regex
@@ -224,7 +229,11 @@
         log('[Parse] Train: ' + (out.trainNo||'—') + ' / ' + (out.trainName||'—'), 'info');
 
         // ── FROM / TO ────────────────────────────────────────
-        // Strategy: find labels, extract station-like values (uppercase), reject disclaimers.
+        // FIELD_BOUNDARY: keywords that end a station value when encountered mid-line.
+        // Crucially includes Reservation and Boarding so "Boarding Pt PUNE JN Reservation Upto ADI JN"
+        // extracts correctly from a single merged line.
+        var STATION_BOUNDARY = /\b(?:Class|Quota|Date|Departure|Arrival|Train|PNR|Distance|Passenger|Fare|Amount|Charting|Transaction|Scheduled|Coach|Berth|S\.?\s*No|Reservation|Boarding|Upto|Up\s*to)\b/i;
+
         function extractStation(labelPatterns, limitFraction){
           var limit = Math.ceil(lines.length * (limitFraction || 0.6));
           for(var lp=0; lp<labelPatterns.length; lp++){
@@ -237,36 +246,96 @@
               if(!rest && li+1 < lines.length) rest = lines[li+1].trim();
               if(!rest || rest.length < 2) continue;
               // Stop at field-boundary keywords
-              var boundary = rest.match(/\b(?:Class|Quota|Date|Departure|Arrival|Train|PNR|Distance|Passenger|Fare|Amount|Charting|Transaction|Scheduled|Coach|Berth|S\.?\s*No)\b/i);
+              var boundary = rest.match(STATION_BOUNDARY);
               if(boundary) rest = rest.slice(0, boundary.index).trim();
-              // Stop at "To" or "From" as standalone words
+              // Stop at standalone "To" or "From" between spaces
               var toFrom = rest.match(/\s+(?:To|From)\s+/i);
               if(toFrom) rest = rest.slice(0, toFrom.index).trim();
-              // Validate: must look like a station (mostly uppercase, no English sentences)
-              if(!isStationLike(rest)) continue;
-              if(rest.length >= 2) return rest;
+              // Refine and validate
+              var refined = refineStation(rest);
+              if(refined) return refined;
             }
           }
           return null;
         }
 
-        out.from = extractStation([
-          /Boarding\s*(?:Pt\.?|Point|At)\s*/i,
+        out.from = null; out.to = null;
+
+        // Tier 0 — IRCTC ERS: "Booked from To" header → station values on next line
+        // L2: "Booked from To"  →  L3: "PUNE JN (PUNE)  PUNE JN (PUNE)  AHMEDABAD JN (ADI)"
+        // Three columns: [Booked-From] [From] [To] — first two are often identical.
+        for(var t0i=0; t0i<Math.min(lines.length-1, 12); t0i++){
+          if(!/Booked/i.test(lines[t0i]) || !/\bfrom\b/i.test(lines[t0i]) || !/\bTo\b/i.test(lines[t0i])) continue;
+          var t0val = lines[t0i+1];
+          var t0rx = /([A-Z][A-Z\s]{2,25}?)\s*\(([A-Z]{2,5})\)/g;
+          var t0m, t0stations = [];
+          while((t0m = t0rx.exec(t0val)) !== null){
+            var t0full = t0m[1].trim() + ' (' + t0m[2] + ')';
+            var t0ref = refineStation(t0full);
+            if(t0ref && !t0stations.some(function(s){ return s===t0ref; })) t0stations.push(t0ref);
+          }
+          if(t0stations.length >= 2){
+            // If all 3 cols unique: [BookedFrom, From, To] → use index 1,2
+            // If first two same (deduped): [From, To] → use index 0,1
+            out.from = t0stations.length >= 3 ? t0stations[1] : t0stations[0];
+            out.to = t0stations[t0stations.length - 1];
+            log('[Parse] From (ERS-header): ' + out.from, 'info');
+            log('[Parse] To (ERS-header): ' + out.to, 'info');
+          }
+          break;
+        }
+
+        // Tier 1 — combined "From STATION To STATION" on one line (merged-column PDFs)
+        if(!out.from || !out.to){
+        for(var cfi=0; cfi<lines.length; cfi++){
+          if(!/\bFrom\b/i.test(lines[cfi])) continue;
+          var combo = lines[cfi].match(/\bFrom[\s:\-]+([A-Z][A-Z\s\-\/\(\)]{2,35}?)\s+To[\s:\-]+([A-Z][A-Z\s\-\/\(\)]{2,35}?)(?:\s|$)/i);
+          if(combo){
+            var cf = refineStation(combo[1]); var ct = refineStation(combo[2]);
+            if(cf && ct){ out.from = cf; out.to = ct; break; }
+          }
+        }
+        }
+
+        // Tier 2 — individual labeled extraction (search full text, no line limit)
+        if(!out.from) out.from = extractStation([
+          /Boarding\s*(?:Stn\.?|Station|Pt\.?|Point|At)\s*/i,
           /\bFrom\s*[:\-]\s*/i,
           /\bFrom\s+/i
-        ], 0.5);
+        ], 1.0);
 
-        out.to = extractStation([
-          /Reservation\s*(?:Up\s*to|Upto)\s*/i,
+        if(!out.to) out.to = extractStation([
+          /Reservation\s*(?:Up\s*to|Upto|Station|Stn)\s*/i,
           /\bTo\s*[:\-]\s*/i,
           /\bTo\s+/i
-        ], 0.5);
+        ], 1.0);
 
-        // Clean station names
-        if(out.from) out.from = out.from.replace(/\s*[-]\s*$/, '').trim();
-        if(out.to) out.to = out.to.replace(/\s*[-]\s*$/, '').trim();
-        if(out.from && /^(JN|JUNC|JCT|SF|EXP|TO|FROM)$/i.test(out.from)) out.from = undefined;
-        if(out.to && /^(JN|JUNC|JCT|SF|EXP|TO|FROM)$/i.test(out.to)) out.to = undefined;
+        // Tier 3 — label-free: scan for "STATION NAME (CODE)" pattern directly.
+        // Require 3+ letter station codes (rejects "(IT)", "(GN)" etc. from disclaimers).
+        // Station name must be 4+ chars to avoid short abbreviations like "GGM".
+        if(!out.from || !out.to){
+          var stCodes = [];
+          // [A-Z]{3,5} = 3-5 uppercase letter code (ADI, PUNE, NDLS, BSB etc.)
+          var stCodeRx = /\b([A-Z][A-Z\s]{3,28}?)\s*\(([A-Z]{3,5})\)/g;
+          var stm2;
+          var searchArea = lines.slice(0, Math.ceil(lines.length * 0.75)).join('\n');
+          while((stm2 = stCodeRx.exec(searchArea)) !== null){
+            var stCode = stm2[2];
+            var stName = stm2[1].replace(/\s+[A-Z][a-z]\S*.*$/, '').trim();
+            // Skip known non-station abbreviations from IRCTC disclaimers
+            if(/^(UTS|GGM|ATM|SMS|IVR|OTP|GST|TDR|EFT|UPI|PNR|ETA|ETD|PCI|DSS|ISO|IPC|RBI|SBI|BOI|BOB|BOC|ICF|DLW|CLW|BCL|MCF|RCF|BEML|ABB|CEL|NELCO|BHEL|CONCOR|RITES|CRIS)$/i.test(stCode)) continue;
+            if(stName.length < 4) continue;
+            var rawName = stName + ' (' + stCode + ')';
+            var refined2 = refineStation(rawName);
+            if(refined2 && !stCodes.some(function(s){ return s === refined2; })){
+              stCodes.push(refined2);
+              log('[Parse] code-scan found: ' + refined2, 'info');
+            }
+          }
+          if(!out.from && stCodes.length >= 1){ out.from = stCodes[0]; log('[Parse] From (code scan): ' + out.from, 'info'); }
+          if(!out.to && stCodes.length >= 2){ out.to = stCodes[1]; log('[Parse] To (code scan): ' + out.to, 'info'); }
+        }
+
         log('[Parse] From: "' + (out.from||'—') + '"', 'info');
         log('[Parse] To: "' + (out.to||'—') + '"', 'info');
 
@@ -561,13 +630,19 @@
   var hiddenByDefault = ['quota'];
   var visibleCols = defaultColumns.map(function(c){ return c.key; }).filter(function(k){ return hiddenByDefault.indexOf(k) === -1; });
 
-  // Suffix tokens not meaningful as station codes
-  var SUFFIX_TOKENS = ['JN','JUNC','JCT','SF'];
-  function firstMeaningfulToken(str) {
+  // Extract the best short code for a station string.
+  // Prefers parenthetical codes like "(ADI)" or "(PUNE)", falls back to first meaningful word.
+  var SUFFIX_TOKENS = ['JN','JUNC','JCT','SF','RD','RDSTN','EXP'];
+  function stationCode(str) {
     if (!str) return null;
+    // Prefer explicit station code in parentheses: "AHMEDABAD JN (ADI)" → "ADI"
+    var paren = str.match(/\(([A-Z]{2,5})\)/);
+    if (paren) return paren[1];
+    // Fall back to first non-suffix uppercase token
     var tks = str.split(/\s+/).filter(Boolean);
     for (var ti2 = 0; ti2 < tks.length; ti2++) {
-      if (SUFFIX_TOKENS.indexOf(tks[ti2].toUpperCase()) === -1 && /^[A-Z]{2,}$/i.test(tks[ti2])) return tks[ti2].toUpperCase();
+      var tok = tks[ti2].replace(/[^A-Z]/gi, '').toUpperCase();
+      if (tok.length >= 2 && SUFFIX_TOKENS.indexOf(tok) === -1) return tok;
     }
     return null;
   }
@@ -602,10 +677,10 @@
       // From → To
       if(visibleCols.indexOf('route')!==-1){
         var td2 = document.createElement('td');
-        var shortL = firstMeaningfulToken(t.from) || '—';
-        var shortR = firstMeaningfulToken(t.to) || '—';
-        var fullL = (t.from && t.from.length > 2) ? t.from : shortL;
-        var fullR = (t.to && t.to.length > 2) ? t.to : shortR;
+        var shortL = stationCode(t.from) || '—';
+        var shortR = stationCode(t.to) || '—';
+        var fullL = t.from || shortL;
+        var fullR = t.to || shortR;
         td2.innerHTML = '<div class="cell-route__short"><span class="cell-route__code">'+escH(shortL)+'</span><span class="cell-route__dash"> → </span><span class="cell-route__code">'+escH(shortR)+'</span></div>'+
                          '<div class="cell-route__full">'+escH(fullL)+' <span class="cell-route__arrow">→</span> '+escH(fullR)+'</div>';
         tr.appendChild(td2);
