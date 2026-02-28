@@ -60,16 +60,8 @@
 
         <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
           <div class="section-label" style="margin-bottom: 0.75rem;">Per-App Cleanup</div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
-            <button id="btn-cleanup-vaak" class="btn btn--danger" style="font-size: 0.8rem;">
-              🗑️ Clear Vaak-Smith
-            </button>
-            <button id="btn-cleanup-yukti" class="btn btn--danger" style="font-size: 0.8rem;">
-              🃏 Clear GenAI-Yukti-Deck
-            </button>
-            <button id="btn-cleanup-tula" class="btn btn--danger" style="font-size: 0.8rem;">
-              ⚖️ Clear Tula-Bench
-            </button>
+          <div id="per-app-cleanup-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+            <!-- populated dynamically from ANKURA_REGISTRY, only for apps with data -->
           </div>
 
           <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-bottom: 0;">
@@ -485,31 +477,35 @@
         }
 
         /**
+         * Returns true if a localStorage key belongs to a given appId.
+         * Mirrors the heuristics in getInstanceRegistry() — must stay in sync.
+         */
+        function keyBelongsToApp(key, appId) {
+          var dk = key.toLowerCase();
+          if (appId === 'genai-yukti-deck') return dk.indexOf('yukti') !== -1;
+          if (appId === 'gati-grid')        return dk.indexOf('gati') !== -1;
+          if (appId === 'tula-bench')       return dk.indexOf('__tb_') !== -1 || dk.indexOf('tb_tools') !== -1 || dk.indexOf('tb_events') !== -1 || dk.indexOf('tb_last_tool') !== -1;
+          // vaak-smith: catch-all — anything not claimed by the above apps
+          return dk.indexOf('yukti') === -1 && dk.indexOf('gati') === -1 &&
+                 dk.indexOf('__tb_') === -1 && dk.indexOf('tb_tools') === -1 &&
+                 dk.indexOf('tb_events') === -1 && dk.indexOf('tb_last_tool') === -1;
+        }
+
+        /**
          * Delete all data for a specific app across all instances.
          */
         function deleteAppData(appId) {
-          var appName = appId === "genai-yukti-deck" ? "GenAI-Yukti-Deck"
-                      : appId === "tula-bench"       ? "Tula-Bench"
-                      : "Vaak-Smith";
+          var app = registry.find(function (a) { return a.id === appId; });
+          var appName = app ? app.name : appId;
           if (!confirm("Delete all " + appName + " data across all instances?")) return;
           try {
             var keysToDelete = [];
             for (var i = 0; i < localStorage.length; i++) {
               var key = localStorage.key(i);
-              if (!key) continue;
-              // Check if key belongs to this app
-              var isYukti = key.includes("yukti");
-              var isTula  = key.includes("__tb_");
-              var isThisApp = (appId === "genai-yukti-deck" && isYukti) ||
-                              (appId === "tula-bench"        && isTula)  ||
-                              (appId === "vaak-smith"         && !isYukti && !isTula);
-              if (isThisApp) {
-                keysToDelete.push(key);
-              }
+              if (!key || key.indexOf('__') === -1) continue;
+              if (keyBelongsToApp(key, appId)) keysToDelete.push(key);
             }
-            keysToDelete.forEach(function (key) {
-              localStorage.removeItem(key);
-            });
+            keysToDelete.forEach(function (key) { localStorage.removeItem(key); });
           } catch (e) {}
           renderInstanceManager();
         }
@@ -631,8 +627,6 @@
         (function initInstanceManager() {
           var toggleBtn = document.getElementById("btn-toggle-instances");
           var resetBtn = document.getElementById("btn-reset-all");
-          var cleanupVaakBtn = document.getElementById("btn-cleanup-vaak");
-          var cleanupYuktiBtn = document.getElementById("btn-cleanup-yukti");
 
           if (toggleBtn) {
             toggleBtn.addEventListener('click', function () {
@@ -641,27 +635,81 @@
               toggleBtn.textContent = manager.hidden ? "✕ Show" : "✕ Hide";
             });
           }
-          if (cleanupVaakBtn) {
-            cleanupVaakBtn.addEventListener('click', function () {
-              deleteAppData("vaak-smith");
+
+          // Generate Per-App Cleanup buttons dynamically from registry.
+          // Only show a button if that app actually has data in localStorage.
+          var cleanupGrid = document.getElementById('per-app-cleanup-grid');
+          if (cleanupGrid) {
+            cleanupGrid.innerHTML = '';
+            registry.forEach(function (app) {
+              // Check if any key in localStorage belongs to this app
+              var hasData = false;
+              try {
+                for (var i = 0; i < localStorage.length; i++) {
+                  var k = localStorage.key(i);
+                  if (k && k.indexOf('__') !== -1 && keyBelongsToApp(k, app.id)) { hasData = true; break; }
+                }
+              } catch (e) {}
+              if (!hasData) return;
+              var btn = document.createElement('button');
+              btn.className = 'btn btn--danger';
+              btn.style.fontSize = '0.8rem';
+              btn.textContent = (app.icon || '') + ' Clear ' + app.name;
+              btn.addEventListener('click', (function (id) {
+                return function () { deleteAppData(id); refreshCleanupGrid(); };
+              })(app.id));
+              cleanupGrid.appendChild(btn);
             });
           }
-          if (cleanupYuktiBtn) {
-            cleanupYuktiBtn.addEventListener('click', function () {
-              deleteAppData("genai-yukti-deck");
+
+          function refreshCleanupGrid() {
+            if (!cleanupGrid) return;
+            cleanupGrid.innerHTML = '';
+            registry.forEach(function (app) {
+              var hasData = false;
+              try {
+                for (var i = 0; i < localStorage.length; i++) {
+                  var k = localStorage.key(i);
+                  if (k && k.indexOf('__') !== -1 && keyBelongsToApp(k, app.id)) { hasData = true; break; }
+                }
+              } catch (e) {}
+              if (!hasData) return;
+              var btn = document.createElement('button');
+              btn.className = 'btn btn--danger';
+              btn.style.fontSize = '0.8rem';
+              btn.textContent = (app.icon || '') + ' Clear ' + app.name;
+              btn.addEventListener('click', (function (id) {
+                return function () { deleteAppData(id); refreshCleanupGrid(); };
+              })(app.id));
+              cleanupGrid.appendChild(btn);
             });
           }
-          var cleanupTulaBtn = document.getElementById("btn-cleanup-tula");
-          if (cleanupTulaBtn) {
-            cleanupTulaBtn.addEventListener('click', function () {
-              deleteAppData("tula-bench");
-            });
-          }
+
           if (resetBtn) {
             resetBtn.addEventListener('click', resetEverything);
           }
           renderInstanceManager();
         })();
+      })();
+    </script>
+
+    <!-- ── Version badge ──────────────────────────────── -->
+    <footer style="text-align:center; padding: 1.5rem 1rem 1rem; border-top: 1px solid var(--border); margin-top: 2rem;">
+      <span id="version-badge" style="font-size:0.7rem; color:var(--text-muted); font-family:monospace; letter-spacing:0.03em;">
+        <!-- populated by version fetch below -->
+      </span>
+    </footer>
+    <script>
+      (function () {
+        var badge = document.getElementById('version-badge');
+        if (!badge) return;
+        fetch('./version.json')
+          .then(function (r) { return r.json(); })
+          .then(function (v) {
+            badge.textContent = v.sha + ' · ' + (v.date || '').slice(0, 10);
+            badge.title = 'Deployed commit: ' + v.sha + '\n' + v.date;
+          })
+          .catch(function () { /* not available on file:// */ });
       })();
     </script>
   </body>

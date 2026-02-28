@@ -1,0 +1,31 @@
+name: Update version.json
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'version.json'   # prevents loop when bot commits version.json
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write version.json
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "{\"sha\":\"$SHA\",\"date\":\"$DATE\"}" > version.json
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          git diff --cached --quiet || git commit -m "chore: update version.json [skip ci]"
+          git push
