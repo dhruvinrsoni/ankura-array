@@ -647,7 +647,7 @@
     { key: 'transactionId', label: 'Txn ID', sortable:false },
     { key: 'actions', label: '', sortable:false }
   ];
-  var hiddenByDefault = ['quota', 'arrival', 'distance', 'fare', 'bookingDate', 'transactionId'];
+  var hiddenByDefault = ['quota', 'fare', 'bookingDate', 'transactionId'];
   var visibleCols = defaultColumns.map(function(c){ return c.key; }).filter(function(k){ return hiddenByDefault.indexOf(k) === -1; });
 
   // Maps each column key to a function that returns the searchable text for a ticket.
@@ -784,6 +784,14 @@
           var pHtml = t.passengers.map(function(p){
             var parts = [escH(p.name||'?')];
             if(p.age) parts.push(escH(p.age) + (p.gender ? p.gender : ''));
+            var pStatus = (p.status||'').toUpperCase();
+            if(pStatus){
+              var pCls = /^(CNF|CONFIRMED)$/.test(pStatus) ? 'pstatus--cnf' :
+                         /^RAC$/.test(pStatus)             ? 'pstatus--rac' :
+                         /WL/.test(pStatus)                ? 'pstatus--wl'  :
+                         /^CAN/.test(pStatus)              ? 'pstatus--can' : 'pstatus--unknown';
+              parts.push('<span class="pstatus-badge '+pCls+'">'+escH(pStatus)+'</span>');
+            }
             if(p.seat) parts.push('<span class="cell-passengers__seat">'+escH(p.seat)+'</span>');
             return '<div class="cell-passengers__entry"><span class="cell-passengers__name">'+parts[0]+'</span>'+(parts.length>1 ? ' <span class="cell-passengers__detail">'+parts.slice(1).join(' · ')+'</span>' : '')+'</div>';
           }).join('');

@@ -500,6 +500,24 @@
 .cell-passengers__detail { color: var(--text-muted); font-size: 0.68rem; }
 .cell-passengers__seat { font-family: var(--font-mono); font-weight: 600; color: var(--accent); }
 
+/* ── Per-passenger inline status badge ─────────────── */
+.pstatus-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.28rem;
+  border-radius: 3px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.pstatus--cnf     { background: rgba(46,164,79,0.12);   color: #2ea44f; border: 1px solid rgba(46,164,79,0.25); }
+.pstatus--rac     { background: rgba(212,160,60,0.12);  color: #d4a03c; border: 1px solid rgba(212,160,60,0.25); }
+.pstatus--wl      { background: rgba(224,89,89,0.12);   color: #e05959; border: 1px solid rgba(224,89,89,0.25); }
+.pstatus--can     { background: rgba(107,101,96,0.12);  color: #6b6560; border: 1px solid rgba(107,101,96,0.25); text-decoration: line-through; }
+.pstatus--unknown { background: rgba(107,101,96,0.08);  color: var(--text-muted); border: 1px solid var(--border); }
+
 /* ── PDF Preview Modal ────────────────────────────── */
 
 .gg-modal {
