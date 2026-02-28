@@ -656,6 +656,7 @@
   /** Grid rendering */
   var defaultColumns = [
     { key: 'departure', label: 'Date / Time', sortable:true },
+    { key: 'departureTime', label: 'Dep. Time', sortable:false },
     { key: 'route', label: 'From → To', sortable:false },
     { key: 'trainNo', label: 'Train No.', sortable:true },
     { key: 'trainName', label: 'Train Name', sortable:false },
@@ -671,14 +672,15 @@
     { key: 'transactionId', label: 'Txn ID', sortable:false },
     { key: 'actions', label: '', sortable:false }
   ];
-  var hiddenByDefault = ['quota', 'fare', 'bookingDate', 'transactionId'];
+  var hiddenByDefault = ['departureTime', 'quota', 'fare', 'bookingDate', 'transactionId'];
   var visibleCols = defaultColumns.map(function(c){ return c.key; }).filter(function(k){ return hiddenByDefault.indexOf(k) === -1; });
 
   // Maps each column key to a function that returns the searchable text for a ticket.
   // Only columns in visibleCols are searched — add new keys here when adding new columns.
   var COL_SEARCH = {
-    departure:  function(t){ return [t.dateOfJourney, t.departureDate, t.departure, t.departureTime].filter(Boolean).join(' '); },
-    route:      function(t){ return [t.from, t.to].filter(Boolean).join(' '); },
+    departure:     function(t){ return [t.dateOfJourney, t.departureDate, t.departure, t.departureTime].filter(Boolean).join(' '); },
+    departureTime: function(t){ return t.departureTime || ''; },
+    route:         function(t){ return [t.from, t.to].filter(Boolean).join(' '); },
     trainNo:    function(t){ return t.trainNo || ''; },
     trainName:  function(t){ return t.trainName || ''; },
     class:      function(t){ return t.class || ''; },
@@ -759,6 +761,13 @@
         var timeStr = t.departureTime || '';
         td.innerHTML = '<div class="cell-date__date">'+escH(dateStr)+'</div>'+(timeStr ? '<div class="cell-date__time">'+escH(timeStr)+'</div>' : '');
         tr.appendChild(td);
+      }
+
+      // Departure Time (standalone)
+      if(visibleCols.indexOf('departureTime')!==-1){
+        var tdDepTime = document.createElement('td');
+        tdDepTime.textContent = t.departureTime || '—';
+        tr.appendChild(tdDepTime);
       }
 
       // From → To
