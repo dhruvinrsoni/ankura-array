@@ -167,6 +167,24 @@
           return null;
         }
 
+        // Find the line matching labelRx, then return the valueRx match from same line
+        // or next 1-2 lines (handles table layouts where label and value are separate PDF cells).
+        function findLabelAndValue(labelRx, valueRx){
+          for(var i=0;i<lines.length;i++){
+            if(!labelRx.test(lines[i])) continue;
+            var lm = lines[i].match(labelRx);
+            var rest = lm ? lines[i].slice(lm.index + lm[0].length).replace(/^[\s:\-*]+/,'') : '';
+            var vm = rest ? rest.match(valueRx) : null;
+            if(vm) return vm;
+            for(var j=1;j<=2;j++){
+              if(i+j>=lines.length) break;
+              var vm2 = lines[i+j].match(valueRx);
+              if(vm2) return vm2;
+            }
+          }
+          return null;
+        }
+
         // Clean and validate a station name value. Returns cleaned string or null.
         function refineStation(val){
           if(!val) return null;
@@ -415,27 +433,33 @@
         out.departure = out.dateOfJourney || '';
 
         // ── Arrival ──────────────────────────────────────────
-        for(var ai=0; ai<lines.length; ai++){
-          var arrM = lines[ai].match(/(?:Scheduled\s*)?Arrival\s*[:\-]?\s*(\d{1,2}:\d{2})/i);
-          if(arrM){ out.arrival = arrM[1]; break; }
-        }
+        var arrM = findLabelAndValue(/(?:Scheduled\s*)?Arr(?:ival)?\b/i, /(\d{1,2}:\d{2})/);
+        if(arrM) out.arrival = arrM[1];
+        log('[Parse] Arrival: ' + (out.arrival||'—'), 'info');
 
         // ── Distance ─────────────────────────────────────────
-        var distResult = findLabel(/Distance\s*[:\-]?\s*(\d[\d,]*)\s*(?:KM|Kms)?/i);
-        if(distResult) out.distance = distResult.match[1].replace(/,/g,'') + ' KM';
+        var distM = findLabelAndValue(/\bDistance\b/i, /(\d[\d,]+)\s*(?:KM?|Kms?)\b/i);
+        if(!distM) distM = findLabelAndValue(/\bDistance\b/i, /(\d{2,})/);
+        if(distM) out.distance = distM[1].replace(/,/g,'') + ' KM';
+        log('[Parse] Distance: ' + (out.distance||'—'), 'info');
 
         // ── Fare ─────────────────────────────────────────────
-        var fareResult = findLabel(/\bTotal\s*(?:Ticket\s*)?Fare\s*\*?\s*[:\-]\s*(?:Rs\.?\s*)?([\d,]+(?:\.\d{1,2})?)/i);
-        if(!fareResult) fareResult = findLabel(/\bTicket\s*Fare\s*\*?\s*[:\-]\s*(?:Rs\.?\s*)?([\d,]+(?:\.\d{1,2})?)/i);
-        if(fareResult) out.fare = 'Rs.' + fareResult.match[1].replace(/,/g,'');
+        var fareM = findLabelAndValue(/\bTotal\s*(?:Ticket\s*)?Fare\b/i, /Rs\.?\s*([\d,]+(?:\.\d{1,2})?)/i);
+        if(!fareM) fareM = findLabelAndValue(/\bTotal\s*(?:Ticket\s*)?Fare\b/i, /([\d,]{3,}(?:\.\d{1,2})?)/);
+        if(!fareM) fareM = findLabelAndValue(/\bTicket\s*Fare\b/i, /Rs\.?\s*([\d,]+(?:\.\d{1,2})?)/i);
+        if(!fareM) fareM = findLabelAndValue(/\bTicket\s*Fare\b/i, /([\d,]{3,}(?:\.\d{1,2})?)/);
+        if(fareM) out.fare = 'Rs.' + fareM[1].replace(/,/g,'');
+        log('[Parse] Fare: ' + (out.fare||'—'), 'info');
 
         // ── Booking Date ──────────────────────────────────────
-        var bookResult = findLabel(/(?:Date\s*of\s*Booking|Booking\s*Date|Booked\s*On)\s*[:\-]?\s*(\d{1,2}[-\/](?:[A-Za-z]{3,9}|\d{1,2})[-\/]\d{2,4})/i);
-        if(bookResult) out.bookingDate = bookResult.match[1];
+        var bookM = findLabelAndValue(/(?:Date\s*of\s*Booking|Booking\s*Date|Booked\s*On)\b/i, /(\d{1,2}[-\/](?:[A-Za-z]{3,9}|\d{1,2})[-\/]\d{2,4})/i);
+        if(bookM) out.bookingDate = bookM[1];
+        log('[Parse] Booking Date: ' + (out.bookingDate||'—'), 'info');
 
         // ── Transaction ID ────────────────────────────────────
-        var txnResult = findLabel(/Transaction\s*(?:ID|No\.?)\s*[:\-]?\s*(\d{10,14})/i);
-        if(txnResult) out.transactionId = txnResult.match[1];
+        var txnM = findLabelAndValue(/Transaction\s*(?:ID|No\.?)\b/i, /(\d{10,14})/);
+        if(txnM) out.transactionId = txnM[1];
+        log('[Parse] Transaction ID: ' + (out.transactionId||'—'), 'info');
 
         // ── Passengers ───────────────────────────────────────
         var PASS_STOP = /\b(?:Total|Fare|GST|Amount|Legends|This\s*ticket|clerkage|insurance|Consumer|Helpline|unauthorized|purchase|IRCTC|refund|cancellation|liability|responsibility|Important|Please\s*note|Copyright|Indian\s*Railway|contact|website|National|e-ticket|Note\s*:|charges?\s*of\s*Rs|In\s*case\s*of)/i;
@@ -523,7 +547,7 @@
         if(out.passengers.length > 0) out.status = out.passengers[0].status || '';
 
         // Final summary log
-        log('[Parse] RESULT: PNR=' + (out.pnr||'—') + ' Train=' + (out.trainNo||'—') + '/' + (out.trainName||'—') + ' From=' + (out.from||'—') + ' To=' + (out.to||'—') + ' Class=' + (out.class||'—') + ' Quota=' + (out.quota||'—') + ' Pax=' + out.passengers.length + (out.passengers.length ? ' [' + out.passengers.map(function(p){return p.name + '(st:' + p.status + ' seat:' + p.seat + ')';}).join(', ') + ']' : ''), 'ok');
+        log('[Parse] RESULT: PNR=' + (out.pnr||'—') + ' Train=' + (out.trainNo||'—') + '/' + (out.trainName||'—') + ' From=' + (out.from||'—') + ' To=' + (out.to||'—') + ' Class=' + (out.class||'—') + ' Quota=' + (out.quota||'—') + ' Arrival=' + (out.arrival||'—') + ' Dist=' + (out.distance||'—') + ' Fare=' + (out.fare||'—') + ' Booked=' + (out.bookingDate||'—') + ' Txn=' + (out.transactionId||'—') + ' Pax=' + out.passengers.length + (out.passengers.length ? ' [' + out.passengers.map(function(p){return p.name + '(st:' + p.status + ' seat:' + p.seat + ')';}).join(', ') + ']' : ''), 'ok');
 
       } catch (e){ log('Parser error: '+e.message,'err'); }
       out._meta = meta || {};
