@@ -492,6 +492,8 @@
 .cell-train__name { display: block; }
 
 .cell-quota { font-size: 0.78rem; white-space: nowrap; }
+.cell-distance { font-family: var(--font-mono); font-size: 0.78rem; white-space: nowrap; text-align: right; }
+.cell-fare { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
 
 .cell-passengers__entry { display: flex; gap: 0.3rem; align-items: baseline; line-height: 1.5; }
 .cell-passengers__name { font-weight: 600; font-size: 0.78rem; }

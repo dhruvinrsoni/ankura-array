@@ -424,6 +424,19 @@
         var distResult = findLabel(/Distance\s*[:\-]?\s*(\d[\d,]*)\s*(?:KM|Kms)?/i);
         if(distResult) out.distance = distResult.match[1].replace(/,/g,'') + ' KM';
 
+        // ── Fare ─────────────────────────────────────────────
+        var fareResult = findLabel(/\bTotal\s*(?:Ticket\s*)?Fare\s*\*?\s*[:\-]\s*(?:Rs\.?\s*)?([\d,]+(?:\.\d{1,2})?)/i);
+        if(!fareResult) fareResult = findLabel(/\bTicket\s*Fare\s*\*?\s*[:\-]\s*(?:Rs\.?\s*)?([\d,]+(?:\.\d{1,2})?)/i);
+        if(fareResult) out.fare = 'Rs.' + fareResult.match[1].replace(/,/g,'');
+
+        // ── Booking Date ──────────────────────────────────────
+        var bookResult = findLabel(/(?:Date\s*of\s*Booking|Booking\s*Date|Booked\s*On)\s*[:\-]?\s*(\d{1,2}[-\/](?:[A-Za-z]{3,9}|\d{1,2})[-\/]\d{2,4})/i);
+        if(bookResult) out.bookingDate = bookResult.match[1];
+
+        // ── Transaction ID ────────────────────────────────────
+        var txnResult = findLabel(/Transaction\s*(?:ID|No\.?)\s*[:\-]?\s*(\d{10,14})/i);
+        if(txnResult) out.transactionId = txnResult.match[1];
+
         // ── Passengers ───────────────────────────────────────
         var PASS_STOP = /\b(?:Total|Fare|GST|Amount|Legends|This\s*ticket|clerkage|insurance|Consumer|Helpline|unauthorized|purchase|IRCTC|refund|cancellation|liability|responsibility|Important|Please\s*note|Copyright|Indian\s*Railway|contact|website|National|e-ticket|Note\s*:|charges?\s*of\s*Rs|In\s*case\s*of)/i;
         var STATUS_TOKENS = /^(CNF|CONFIRMED|RAC|WL|RLWL|PQWL|RSWL|CAN|CANCL|CANX)/i;
@@ -627,9 +640,14 @@
     { key: 'passengers', label: 'Passengers', sortable:false },
     { key: 'pnr', label: 'PNR', sortable:true },
     { key: 'status', label: 'Status', sortable:false },
+    { key: 'arrival', label: 'Arrival', sortable:false },
+    { key: 'distance', label: 'Distance', sortable:true },
+    { key: 'fare', label: 'Fare', sortable:true },
+    { key: 'bookingDate', label: 'Booked On', sortable:false },
+    { key: 'transactionId', label: 'Txn ID', sortable:false },
     { key: 'actions', label: '', sortable:false }
   ];
-  var hiddenByDefault = ['quota'];
+  var hiddenByDefault = ['quota', 'arrival', 'distance', 'fare', 'bookingDate', 'transactionId'];
   var visibleCols = defaultColumns.map(function(c){ return c.key; }).filter(function(k){ return hiddenByDefault.indexOf(k) === -1; });
 
   // Maps each column key to a function that returns the searchable text for a ticket.
@@ -643,7 +661,12 @@
     quota:      function(t){ return t.quota || ''; },
     passengers: function(t){ return (t.passengers||[]).map(function(p){ return [p.name, p.seat, p.age].filter(Boolean).join(' '); }).join(' '); },
     pnr:        function(t){ return t.pnr || ''; },
-    status:     function(t){ return (t.passengers||[]).map(function(p){ return p.status||''; }).join(' ') || t.status || ''; }
+    status:        function(t){ return (t.passengers||[]).map(function(p){ return p.status||''; }).join(' ') || t.status || ''; },
+    arrival:       function(t){ return t.arrival || ''; },
+    distance:      function(t){ return t.distance || ''; },
+    fare:          function(t){ return t.fare || ''; },
+    bookingDate:   function(t){ return t.bookingDate || ''; },
+    transactionId: function(t){ return t.transactionId || ''; }
   };
 
   function buildColumnPanel() {
@@ -789,6 +812,41 @@
         else if(/CAN/i.test(displayStatus)) cls='status--can';
         td6.innerHTML = '<span class="status-badge '+cls+'">'+escH(displayStatus)+'</span>';
         tr.appendChild(td6);
+      }
+
+      // Arrival
+      if(visibleCols.indexOf('arrival')!==-1){
+        var tdArr = document.createElement('td');
+        tdArr.textContent = t.arrival || '—';
+        tr.appendChild(tdArr);
+      }
+
+      // Distance
+      if(visibleCols.indexOf('distance')!==-1){
+        var tdDist = document.createElement('td'); tdDist.className='cell-distance';
+        tdDist.textContent = t.distance || '—';
+        tr.appendChild(tdDist);
+      }
+
+      // Fare
+      if(visibleCols.indexOf('fare')!==-1){
+        var tdFare = document.createElement('td'); tdFare.className='cell-fare';
+        tdFare.textContent = t.fare || '—';
+        tr.appendChild(tdFare);
+      }
+
+      // Booked On
+      if(visibleCols.indexOf('bookingDate')!==-1){
+        var tdBk = document.createElement('td');
+        tdBk.textContent = t.bookingDate || '—';
+        tr.appendChild(tdBk);
+      }
+
+      // Transaction ID
+      if(visibleCols.indexOf('transactionId')!==-1){
+        var tdTxn = document.createElement('td'); tdTxn.className='cell-pnr';
+        tdTxn.textContent = t.transactionId || '—';
+        tr.appendChild(tdTxn);
       }
 
       // Actions (View PDF, QR/Preview, Delete)
