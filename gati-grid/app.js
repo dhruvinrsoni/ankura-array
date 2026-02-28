@@ -632,6 +632,20 @@
   var hiddenByDefault = ['quota'];
   var visibleCols = defaultColumns.map(function(c){ return c.key; }).filter(function(k){ return hiddenByDefault.indexOf(k) === -1; });
 
+  // Maps each column key to a function that returns the searchable text for a ticket.
+  // Only columns in visibleCols are searched — add new keys here when adding new columns.
+  var COL_SEARCH = {
+    departure:  function(t){ return [t.dateOfJourney, t.departureDate, t.departure, t.departureTime].filter(Boolean).join(' '); },
+    route:      function(t){ return [t.from, t.to].filter(Boolean).join(' '); },
+    trainNo:    function(t){ return t.trainNo || ''; },
+    trainName:  function(t){ return t.trainName || ''; },
+    class:      function(t){ return t.class || ''; },
+    quota:      function(t){ return t.quota || ''; },
+    passengers: function(t){ return (t.passengers||[]).map(function(p){ return [p.name, p.seat, p.age].filter(Boolean).join(' '); }).join(' '); },
+    pnr:        function(t){ return t.pnr || ''; },
+    status:     function(t){ return (t.passengers||[]).map(function(p){ return p.status||''; }).join(' ') || t.status || ''; }
+  };
+
   function buildColumnPanel() {
     if (!columnPanel) return;
     columnPanel.innerHTML = '';
@@ -684,7 +698,7 @@
     gridBody.innerHTML = '';
     var filtered = tickets.slice();
     var q = (searchInput && searchInput.value) ? searchInput.value.trim().toLowerCase() : '';
-    if(q){ filtered = filtered.filter(function(t){ return (t.pnr||'').toLowerCase().indexOf(q)!==-1 || (t.trainNo||'').indexOf(q)!==-1 || (t.trainName||'').toLowerCase().indexOf(q)!==-1 || (t.passengers||[]).some(function(p){ return (p.name||'').toLowerCase().indexOf(q)!==-1; }) || (t.from||'').toLowerCase().indexOf(q)!==-1 || (t.to||'').toLowerCase().indexOf(q)!==-1; }); }
+    if(q){ filtered = filtered.filter(function(t){ return visibleCols.some(function(key){ var fn = COL_SEARCH[key]; return fn ? fn(t).toLowerCase().indexOf(q) !== -1 : false; }); }); }
 
     if(filtered.length===0){ gridEmpty.style.display='block'; } else { gridEmpty.style.display='none'; }
 
