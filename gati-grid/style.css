@@ -474,8 +474,100 @@
     font-size: 0.82rem;
   }
 
-  .cell-route__name,
-  .cell-train__name {
+  .cell-route__full,
+  .cell-train-name {
     display: none;
   }
+}
+
+/* ── New Cell Styles ──────────────────────────────── */
+
+.cell-route__short { font-weight: 700; white-space: nowrap; }
+.cell-route__dash { color: var(--text-muted); margin: 0 0.15rem; }
+.cell-route__full { font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.15rem; white-space: nowrap; }
+.cell-route__arrow { color: var(--text-muted); }
+
+.cell-train-no { font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
+.cell-train-name { font-size: 0.78rem; color: var(--text-secondary); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-train__name { display: block; }
+
+.cell-quota { font-size: 0.78rem; white-space: nowrap; }
+
+.cell-passengers__entry { display: flex; gap: 0.3rem; align-items: baseline; line-height: 1.5; }
+.cell-passengers__name { font-weight: 600; font-size: 0.78rem; }
+.cell-passengers__detail { color: var(--text-muted); font-size: 0.68rem; }
+.cell-passengers__seat { font-family: var(--font-mono); font-weight: 600; color: var(--accent); }
+
+/* ── PDF Preview Modal ────────────────────────────── */
+
+.gg-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gg-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+}
+
+.gg-modal__content {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gg-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.gg-modal__title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.gg-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0.3rem;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.gg-modal__close:hover {
+  color: var(--danger);
+}
+
+.gg-modal__body {
+  overflow: auto;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gg-modal__body canvas {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
 }

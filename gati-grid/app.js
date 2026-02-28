@@ -150,194 +150,296 @@
       try {
         var lines = text.split(/\r?\n/).map(function(s){ return s.replace(/\u00A0/g,' ').trim(); }).filter(Boolean);
 
-        // Helper: find first matching label line and capture group
-        function findLabel(rx){ for(var i=0;i<lines.length;i++){ var m=lines[i].match(rx); if(m) return {line: lines[i], idx:i, match:m}; } return null; }
-
-        // PNR: explicit label or any 10-digit sequence
-        var pLabel = findLabel(/PNR\s*[:\-]?\s*(\d{10})/i);
-        var pRaw = text.match(/\b\d{10}\b/);
-        if(pLabel && pLabel.match && pLabel.match[1]) out.pnr = pLabel.match[1];
-        else if(pRaw && pRaw[0]) out.pnr = pRaw[0];
-
-        // Train No / Name: look for explicit trainNo/name with pattern like 12297/PUNE DURONTO
-        var trainMatch = text.match(/(\b\d{4,5})\s*\/\s*([A-Z0-9\-\s]{3,120})/i);
-        if(trainMatch){
-          out.train = (trainMatch[1] + '/' + trainMatch[2].trim()).trim();
-          // Do NOT infer from/to codes from train name — rely on explicit labels instead
-        }
-        else {
-          var tln = findLabel(/Train\s*(No\.?|No\.?\/)?.*?:?\s*(\d+)(?:\s*[\/:]\s*([A-Za-z0-9\-\s]+))?/i) || findLabel(/Train\s*No\.?\/?Name\s*[:\-]?\s*(.+)/i);
-          if(tln && tln.match){
-            if(tln.match[2]) out.train = (tln.match[2] + (tln.match[3]?('/'+tln.match[3].trim()):'')).trim();
-            else out.train = (tln.match[1]||tln.match[0]).trim();
-          }
+        // Debug: log first 50 lines so we can see what pdf.js extracted
+        log('[Parse] ' + lines.length + ' lines. First 50:', 'info');
+        for(var dbg=0; dbg<Math.min(50,lines.length); dbg++){
+          log('  L' + (dbg+1) + ': ' + lines[dbg].slice(0,160), 'info');
         }
 
-        // From / To / Boarding / Reservation UpTo
-        var from = findLabel(/(From|Boarding\s*At|Boarding\s*Point)\s*[:\-]?\s*([A-Za-z\s\-]+)/i) || findLabel(/Boarding\s*Point\s*[:\-]?\s*(.+)/i);
-        var to = findLabel(/(To|Reservation\s*Upto|Reservation\s*Upto\s*:)\s*[:\-]?\s*([A-Za-z\s\-]+)/i) || findLabel(/Reservation\s*Upto\s*[:\-]?\s*(.+)/i);
-        if(from && from.match) out.from = (from.match[2] || from.match[1] || from.line).trim();
-        if(to && to.match) out.to = (to.match[2] || to.match[1] || to.line).trim();
-
-        // Class
-        var cl = findLabel(/Class\s*[:\-]?\s*([^\n\r]+)/i) || findLabel(/Quota\/Class\s*[:\-]?\s*([^\n\r]+)/i);
-        if(cl && cl.match){
-          // extracted segment may contain stray numbers (PNR) due to PDF text ordering; pick the token that looks like class
-          var seg = cl.match[1].trim();
-          var classMatch = seg.match(/(FIRST AC|SECOND AC|THIRD AC|SLEEPER|SECOND AC \([^\)]+\)|THIRD AC \([^\)]+\)|\b1A\b|\b2A\b|\b3A\b|\bSL\b|\bCC\b)/i);
-          if(classMatch) out.class = classMatch[1].trim();
-          else {
-            // fallback: pick first token that's not a long number (>=6 digits)
-            var toks = seg.split(/\s+/).filter(Boolean);
-            for(var ti=0;ti<toks.length;ti++){ if(!/^\d{6,}$/.test(toks[ti])){ out.class = toks[ti]; break; } }
-          }
-        }
-
-        // Departure / Date of Journey / Time — try labels then fallback for common date formats
-        var dep = findLabel(/(Departure|Date\s*of\s*Journey)\s*[:\-]?\s*(.+)/i);
-        if(dep && dep.match) {
-          // prefer explicit time+date patterns
-          var dseg = dep.match[2].trim();
-          var dtm = dseg.match(/(\d{1,2}:\d{2})\s*(\d{1,2}[-\/]?[A-Za-z]{3,}[-\/]?\d{2,4})/);
-          if(dtm) out.departure = dtm[1] + ' ' + dtm[2]; else out.departure = dseg;
-        } else {
-          var d2 = text.match(/(\d{1,2}:\d{2})\s*(\d{1,2}[-\/]?[A-Za-z]{3,}[-\/]?\d{2,4})/);
-          if(d2) out.departure = d2[1] + ' ' + d2[2];
-        }
-
-        // First attempt: parse the block after the "Passenger Details" header if present
-        var passHeaderIdx = -1;
-        for(var ii=0; ii<lines.length; ii++){ if(/Passenger\s*Details/i.test(lines[ii])){ passHeaderIdx = ii+1; break; } }
-        if(passHeaderIdx>=0){
-          var passBlock = lines.slice(passHeaderIdx, passHeaderIdx+16).join(' ');
-          var re = /(\d{1,2})\.\s*([A-Z\.\'\-\s]+?)\s+(\d{1,3})\s+([MF])\s+([A-Z0-9\/_\-\s]+(?:\s+[A-Z0-9\/_\-\s]+)?)/gi;
-          var mm;
-          while((mm = re.exec(passBlock)) !== null){
-            var seq = mm[1]; var name = mm[2].trim(); var age = mm[3]; var gender = mm[4]; var statusTok = (mm[5]||'').trim();
-            var status = (statusTok.match(/(CNF(?:\/[A-Z0-9\-\/]*)|CONFIRMED|WL|RAC(?:\/[0-9]+)?|RLWL|PQWL|RSWL|CANCL|CAN|CANX)/i)||[])[1] || statusTok.split(/\s+/)[0] || '';
-            var seat = '';
-            try{ var stParts = statusTok.split('/').map(function(s){return s.trim();}).filter(Boolean); if(stParts.length>1){ seat = stParts.slice(1).join('/'); } }catch(e){}
-            out.passengers.push({ seq: seq, name: name, age: age, status: (status||''), seat: seat });
-          }
-        }
-
-        // Fallback: scan numbered lines anywhere and extract status-like tokens
-        if(out.passengers.length===0){
+        // ── Helpers ──────────────────────────────────────────
+        function findLabel(rx){
           for(var i=0;i<lines.length;i++){
-            var ln = lines[i];
-            var pm = ln.match(/^\s*(\d{1,2})[\).\-\s]+(.+)/);
-            if(pm){
-              var rest = pm[2];
-              var statusMatch = rest.match(/(CNF(?:\/[A-Z0-9\-\/]*)|CONFIRMED|WL|RAC(?:\/[0-9]+)?|RLWL|PQWL|RSWL|CANCL|CAN|CANX)/i);
-              if(statusMatch){
-                var status = statusMatch[1];
-                var seat = '';
-                try{ var sp = status.match(/^[^\/]+\/(.+)/); if(sp && sp[1]) seat = sp[1]; else { var after = rest.slice(statusMatch.index + status.length || 0).trim(); var mSeat = after.match(/\/(\w[A-Za-z0-9\-\/]*)/); if(mSeat && mSeat[1]) seat = mSeat[1]; } }catch(e){}
-                var name = rest.split(/\s+(?:\d{1,3}y|\d{1,3}\s*Y|\d{1,3})?\s*/i)[0];
-                name = name.replace(/\s{2,}/g,' ').replace(/[^A-Za-z\s\.\'\-]/g,'').trim();
-                var ageMatch = rest.match(/(\d{1,3})\s*y/i) || rest.match(/\b(\d{1,3})\b/);
-                var age = ageMatch?ageMatch[1]:'';
-                out.passengers.push({ seq: pm[1], name: name || rest, age: age, status: status.toUpperCase(), seat: seat });
+            var m=lines[i].match(rx);
+            if(m) return {line: lines[i], idx:i, match:m};
+          }
+          return null;
+        }
+
+        // Validate that a value looks like an IRCTC station name (mostly UPPERCASE)
+        function isStationLike(val){
+          if(!val || val.length < 2 || val.length > 60) return false;
+          var upper = (val.match(/[A-Z]/g) || []).length;
+          var lower = (val.match(/[a-z]/g) || []).length;
+          // Station names are predominantly uppercase; reject if more lowercase than uppercase
+          if(lower > upper) return false;
+          if(upper < 2) return false;
+          // Reject common English words that aren't station names
+          if(/\b(change|please|check|correct|case|discrepancy|ticket|details|valid|note|before|boarding|print|carry|during|journey)\b/i.test(val)) return false;
+          return true;
+        }
+
+        // Known class values regex
+        var CLASS_RX = /\b(FIRST\s*AC|SECOND\s*AC|THIRD\s*AC|SLEEPER|3E|3A|2S|2A|1A|SL|CC|EC|EV|AC\s*Chair\s*Car)\b/i;
+
+        // ── PNR ──────────────────────────────────────────────
+        var pnrResult = findLabel(/PNR\s*(?:No\.?)?\s*[:\-]?\s*(\d{10})/i);
+        if(pnrResult) out.pnr = pnrResult.match[1];
+        else { var pFb = text.match(/\b(\d{10})\b/); if(pFb) out.pnr = pFb[1]; }
+
+        // ── Train No / Name ─────────────────────────────────
+        // Pattern 1: "NNNNN/NAME" anywhere in text (most reliable for IRCTC)
+        var trainFull = text.match(/\b(\d{5})\s*\/\s*([A-Z][A-Z0-9 \-]+)/i);
+        if(!trainFull) trainFull = text.match(/\b(\d{4})\s*\/\s*([A-Z][A-Z0-9 \-]+)/i);
+        if(trainFull){
+          out.trainNo = trainFull[1];
+          var tn = trainFull[2].trim();
+          // Stop train name at known field labels
+          var tnStop = tn.match(/\b(?:Class|Quota|Date|Departure|Arrival|Boarding|Reservation|PNR|Distance|Passenger|Fare|Amount|Charting|Transaction|Scheduled|Coach|Berth)\b/i);
+          if(tnStop) tn = tn.slice(0, tnStop.index).trim();
+          // Strip class suffix from train name (e.g. "ADI DURONTO SECOND AC" → "ADI DURONTO")
+          var classInName = tn.match(/\s+(FIRST\s*AC|SECOND\s*AC|THIRD\s*AC|SLEEPER|AC\s*Chair\s*Car|3A|2A|1A|SL|CC|2S|3E)\s*$/i);
+          if(classInName){
+            out.class = classInName[1].trim();
+            tn = tn.slice(0, classInName.index).trim();
+          }
+          out.trainName = tn;
+        }
+        // Pattern 2: label-based "Train No./Name: ..."
+        if(!out.trainNo){
+          for(var ti=0; ti<lines.length; ti++){
+            var trainM = lines[ti].match(/Train\s*(?:No\.?\s*\/?\s*Name|No\.?|Number)\s*[:\-]?\s*(\d{4,5})\s*[\/]\s*([^\n]+)/i);
+            if(trainM){
+              out.trainNo = trainM[1];
+              var tn2 = trainM[2].trim().split(/\s{2,}/)[0];
+              var cin2 = tn2.match(/\s+(FIRST\s*AC|SECOND\s*AC|THIRD\s*AC|SLEEPER|AC\s*Chair\s*Car|3A|2A|1A|SL|CC|2S|3E)\s*$/i);
+              if(cin2){ if(!out.class) out.class = cin2[1].trim(); tn2 = tn2.slice(0, cin2.index).trim(); }
+              out.trainName = tn2;
+              break;
+            }
+            var trainN = lines[ti].match(/Train\s*(?:No\.?|Number)\s*[:\-]?\s*(\d{4,5})\b/i);
+            if(trainN && !out.trainNo){ out.trainNo = trainN[1]; break; }
+          }
+        }
+        if(out.trainNo && out.trainName) out.train = out.trainNo + '/' + out.trainName;
+        log('[Parse] Train: ' + (out.trainNo||'—') + ' / ' + (out.trainName||'—'), 'info');
+
+        // ── FROM / TO ────────────────────────────────────────
+        // Strategy: find labels, extract station-like values (uppercase), reject disclaimers.
+        function extractStation(labelPatterns, limitFraction){
+          var limit = Math.ceil(lines.length * (limitFraction || 0.6));
+          for(var lp=0; lp<labelPatterns.length; lp++){
+            var pat = labelPatterns[lp];
+            for(var li=0; li<limit; li++){
+              var m = lines[li].match(pat);
+              if(!m) continue;
+              var rest = lines[li].slice(m.index + m[0].length).replace(/^[\s:\-]+/, '').trim();
+              // Next-line fallback if label is alone on its line
+              if(!rest && li+1 < lines.length) rest = lines[li+1].trim();
+              if(!rest || rest.length < 2) continue;
+              // Stop at field-boundary keywords
+              var boundary = rest.match(/\b(?:Class|Quota|Date|Departure|Arrival|Train|PNR|Distance|Passenger|Fare|Amount|Charting|Transaction|Scheduled|Coach|Berth|S\.?\s*No)\b/i);
+              if(boundary) rest = rest.slice(0, boundary.index).trim();
+              // Stop at "To" or "From" as standalone words
+              var toFrom = rest.match(/\s+(?:To|From)\s+/i);
+              if(toFrom) rest = rest.slice(0, toFrom.index).trim();
+              // Validate: must look like a station (mostly uppercase, no English sentences)
+              if(!isStationLike(rest)) continue;
+              if(rest.length >= 2) return rest;
+            }
+          }
+          return null;
+        }
+
+        out.from = extractStation([
+          /Boarding\s*(?:Pt\.?|Point|At)\s*/i,
+          /\bFrom\s*[:\-]\s*/i,
+          /\bFrom\s+/i
+        ], 0.5);
+
+        out.to = extractStation([
+          /Reservation\s*(?:Up\s*to|Upto)\s*/i,
+          /\bTo\s*[:\-]\s*/i,
+          /\bTo\s+/i
+        ], 0.5);
+
+        // Clean station names
+        if(out.from) out.from = out.from.replace(/\s*[-]\s*$/, '').trim();
+        if(out.to) out.to = out.to.replace(/\s*[-]\s*$/, '').trim();
+        if(out.from && /^(JN|JUNC|JCT|SF|EXP|TO|FROM)$/i.test(out.from)) out.from = undefined;
+        if(out.to && /^(JN|JUNC|JCT|SF|EXP|TO|FROM)$/i.test(out.to)) out.to = undefined;
+        log('[Parse] From: "' + (out.from||'—') + '"', 'info');
+        log('[Parse] To: "' + (out.to||'—') + '"', 'info');
+
+        // ── Class ────────────────────────────────────────────
+        // Already might be set from train name stripping above
+        if(!out.class){
+          // Look for lines with "Class" label
+          for(var ci=0; ci<lines.length; ci++){
+            if(!/Class/i.test(lines[ci])) continue;
+            var classAfter = lines[ci].replace(/^.*Class\s*[:\-]?\s*/i, '');
+            var classM = classAfter.match(CLASS_RX);
+            if(classM){ out.class = classM[1].trim(); break; }
+          }
+        }
+        // Fallback: search any line for class value (skip train number lines)
+        if(!out.class){
+          for(var ci2=0; ci2<lines.length; ci2++){
+            if(/\d{4,5}\s*\//.test(lines[ci2])) continue;
+            var classM2 = lines[ci2].match(CLASS_RX);
+            if(classM2){ out.class = classM2[1].trim(); break; }
+          }
+        }
+
+        // ── Quota ────────────────────────────────────────────
+        out.quota = null;
+        var QUOTA_RX = /\b(GENERAL|TATKAL|PREMIUM\s*TATKAL|LADIES|LOWER\s*BERTH|SENIOR\s*CITIZEN|DIVYANGJAN|DEFENCE|FOREIGN\s*TOURIST|GN|TQ|PT|LD|SS|HP|DF|FT)\b/i;
+        for(var qi=0; qi<lines.length; qi++){
+          if(!/Quota/i.test(lines[qi])) continue;
+          var quotaAfter = lines[qi].replace(/^.*Quota\s*[:\-]?\s*/i, '');
+          var quotaM = quotaAfter.match(QUOTA_RX);
+          if(quotaM){ out.quota = quotaM[1].trim(); break; }
+        }
+        if(!out.quota){
+          var qParen = text.match(/\((?:GN|TQ|PT|LD|SS|HP|DF|FT)\)/i);
+          if(qParen) out.quota = qParen[0].replace(/[()]/g, '').trim();
+        }
+
+        // ── Date of Journey + Departure ──────────────────────
+        out.dateOfJourney = null;
+        out.departureTime = null;
+        out.departure = null;
+
+        // Date patterns: "DD-Mon-YYYY" or "DD/Mon/YYYY" or "DD-MM-YYYY"
+        var DATE_RX = /(\d{1,2}[-\/](?:[A-Za-z]{3,9}|\d{1,2})[-\/]\d{2,4})/;
+
+        for(var di=0; di<lines.length; di++){
+          if(!/Date/i.test(lines[di]) && !/Journey/i.test(lines[di])) continue;
+          var dojM = lines[di].match(DATE_RX);
+          if(dojM){ out.dateOfJourney = dojM[1]; break; }
+        }
+        // Broader fallback: any date in first 40% of text
+        if(!out.dateOfJourney){
+          var firstPart = lines.slice(0, Math.ceil(lines.length * 0.4)).join(' ');
+          var fpDate = firstPart.match(DATE_RX);
+          if(fpDate) out.dateOfJourney = fpDate[1];
+        }
+
+        // Departure time
+        for(var dti=0; dti<lines.length; dti++){
+          var depM = lines[dti].match(/(?:Scheduled\s*)?Departure\s*[:\-]?\s*(\d{1,2}:\d{2})/i);
+          if(depM){ out.departureTime = depM[1]; break; }
+        }
+        if(!out.departureTime){
+          for(var dti2=0; dti2<lines.length; dti2++){
+            if(!/Departure/i.test(lines[dti2])) continue;
+            var timeM = lines[dti2].match(/(\d{1,2}:\d{2})/);
+            if(timeM){ out.departureTime = timeM[1]; break; }
+            if(dti2+1 < lines.length){
+              var ntm = lines[dti2+1].match(/(\d{1,2}:\d{2})/);
+              if(ntm){ out.departureTime = ntm[1]; break; }
+            }
+          }
+        }
+
+        out.departure = out.dateOfJourney || '';
+
+        // ── Arrival ──────────────────────────────────────────
+        for(var ai=0; ai<lines.length; ai++){
+          var arrM = lines[ai].match(/(?:Scheduled\s*)?Arrival\s*[:\-]?\s*(\d{1,2}:\d{2})/i);
+          if(arrM){ out.arrival = arrM[1]; break; }
+        }
+
+        // ── Distance ─────────────────────────────────────────
+        var distResult = findLabel(/Distance\s*[:\-]?\s*(\d[\d,]*)\s*(?:KM|Kms)?/i);
+        if(distResult) out.distance = distResult.match[1].replace(/,/g,'') + ' KM';
+
+        // ── Passengers ───────────────────────────────────────
+        var PASS_STOP = /\b(?:Total|Fare|GST|Amount|Legends|This\s*ticket|clerkage|insurance|Consumer|Helpline|unauthorized|purchase|IRCTC|refund|cancellation|liability|responsibility|Important|Please\s*note|Copyright|Indian\s*Railway|contact|website|National|e-ticket|Note\s*:|charges?\s*of\s*Rs|In\s*case\s*of)/i;
+        var STATUS_TOKENS = /^(CNF|CONFIRMED|RAC|WL|RLWL|PQWL|RSWL|CAN|CANCL|CANX)/i;
+
+        // Helper: parse IRCTC status string like "CNF/A1/46/UPPER" → { status: "CNF", seat: "A1/46/UPPER" }
+        function parseStatus(raw){
+          if(!raw) return { status: '', seat: '' };
+          var parts = raw.split('/');
+          var tok = parts[0].toUpperCase();
+          if(STATUS_TOKENS.test(tok)){
+            return { status: tok, seat: parts.length > 1 ? parts.slice(1).join('/') : '' };
+          }
+          return { status: raw.toUpperCase(), seat: '' };
+        }
+
+        var passHeaderIdx = -1;
+        for(var ii=0; ii<lines.length; ii++){
+          if(/Passenger\s*Detail|S\.?\s*No\.?\s+Name/i.test(lines[ii])){ passHeaderIdx = ii; break; }
+        }
+
+        if(passHeaderIdx >= 0){
+          log('[Parse] Passenger header at line ' + (passHeaderIdx+1) + ': ' + lines[passHeaderIdx].slice(0,80), 'info');
+          var passLines = lines.slice(passHeaderIdx+1, passHeaderIdx+25);
+          for(var pi2=0; pi2<passLines.length; pi2++){
+            var pl = passLines[pi2];
+            if(PASS_STOP.test(pl)){ log('[Parse] Passenger stop at: ' + pl.slice(0,60), 'info'); break; }
+            if(pl.length < 3 || /^[\-=]+$/.test(pl)) continue;
+
+            // Pattern A: "1 NAME AGE GENDER STATUS1 [STATUS2]"
+            var pmA = pl.match(/(\d{1,2})[\.\)\s]+([A-Z][A-Za-z\s\.\'\-]+?)\s+(\d{1,3})\s+(Male|Female|M|F|Transgender)\s+([\S]+)(?:\s+([\S]+))?/i);
+            if(pmA){
+              // Prefer the column that starts with a known status token
+              var s1 = parseStatus(pmA[5] || '');
+              var s2 = pmA[6] ? parseStatus(pmA[6]) : null;
+              var bestStatus, bestSeat;
+              if(s2 && STATUS_TOKENS.test(s2.status)){
+                bestStatus = s2.status; bestSeat = s2.seat;
+              } else if(STATUS_TOKENS.test(s1.status)){
+                bestStatus = s1.status; bestSeat = s1.seat;
+              } else {
+                bestStatus = s1.status; bestSeat = s1.seat;
+              }
+              // Combine seat info from both columns if needed
+              if(!bestSeat && s2 && s2.seat) bestSeat = s2.seat;
+              if(!bestSeat && s1.seat && s1.status !== bestStatus) bestSeat = (pmA[5]||'').replace(/^[^\/]*\/?/, '');
+              out.passengers.push({ seq: pmA[1], name: pmA[2].trim(), age: pmA[3], gender: (pmA[4]||'')[0], status: bestStatus, seat: bestSeat });
+              continue;
+            }
+
+            // Pattern B: "1 NAME STATUS/COACH/BERTH" (no age/gender)
+            var pmB = pl.match(/(\d{1,2})[\).\s]+([A-Z][A-Za-z\s\.\'\-]{2,40}?)\s+(CNF|WL|RAC|CAN|CANCL|CANX|RLWL|PQWL|RSWL|CONFIRMED)([\S]*)/i);
+            if(pmB){
+              var nmB = pmB[2].trim();
+              if(!PASS_STOP.test(nmB)){
+                var sB = parseStatus((pmB[3]+(pmB[4]||'')));
+                out.passengers.push({ seq: pmB[1], name: nmB, age: '', gender: '', status: sB.status, seat: sB.seat });
+              }
+              continue;
+            }
+          }
+        }
+
+        // Fallback: scan text for status tokens near numbered entries
+        if(out.passengers.length === 0){
+          log('[Parse] No passengers from primary scan, trying fallback...', 'warn');
+          var statusRx = /\b(CNF|CONFIRMED|RAC|WL|RLWL|PQWL|RSWL|CANCL|CAN|CANX)((?:\/[A-Z0-9\-]+)*)/ig;
+          var stMatch;
+          while((stMatch = statusRx.exec(text)) !== null){
+            if(stMatch.index > text.length * 0.7) break;
+            var fullSt = (stMatch[1] + (stMatch[2]||'')).toUpperCase();
+            var sParsed = parseStatus(fullSt);
+            var back = text.slice(Math.max(0, stMatch.index-150), stMatch.index);
+            var numMatch = back.match(/(\d{1,2})\.\s*([A-Z][A-Za-z\s\.]{2,35})/);
+            if(numMatch && !out.passengers.some(function(p){ return p.seq===numMatch[1]; })){
+              var fbName = numMatch[2].trim();
+              if(!PASS_STOP.test(fbName)){
+                out.passengers.push({ seq: numMatch[1], name: fbName, age: '', gender: '', status: sParsed.status, seat: sParsed.seat });
               }
             }
           }
         }
 
-        // If from/to codes found, try to locate full station names (shortCode + full name)
-        try{
-          if(out.fromCode){
-            var rc = new RegExp('\\b'+out.fromCode+'\\b\s+([A-Z][A-Za-z\s]{2,60})','g');
-            var mfn = rc.exec(text);
-            if(mfn && mfn[1]) out.fromName = mfn[1].trim();
-          }
-          if(out.toCode){
-            var rc2 = new RegExp('\\b'+out.toCode+'\\b\s+([A-Z][A-Za-z\s]{2,60})','g');
-            var mtn = rc2.exec(text);
-            if(mtn && mtn[1]) out.toName = mtn[1].trim();
-          }
-          // fallback: if no toCode but two uppercase tokens appear near each other like 'ADI PUNE', use that
-          if(!out.toCode){
-            var near = text.match(/\b([A-Z]{2,5})\b[\s\-\/]+\b([A-Z]{2,5})\b/);
-            if(near){ out.fromCode = out.fromCode || near[1]; out.toCode = near[2]; }
-          }
+        // Derive overall status from first passenger
+        if(out.passengers.length > 0) out.status = out.passengers[0].status || '';
 
-          // Additional heuristic: scan nearby lines for two uppercase station codes (e.g., 'ADI PUNE SF') and prefer those
-          if(!out.fromCode || !out.toCode){
-            var blacklist = ['PNR','CLASS','TRAIN','QUOTA','DISTANCE','BOOKING','PASSENGER','DETAILS','ARRIVAL','DEPARTURE','GENERAL','HRS','KM','AC','SECOND','THIRD','FIRST','SLEEPER','SF','SL','CC','FC','ER','WR','SR','NR','NW','NE','ECR','COACHING','COACH','CAR','SEAT','CHARTING','CONCESSION','RESERVATION','ENRICH','CONFIRMATION','CANCELLATION','CONFIRMED','DURONTO','EXPRESS','RAJDHANI','SHATABDI','JN','JUNC','JCT'];
-            for(var li=0; li<lines.length; li++){
-              var L = lines[li];
-              // skip lines that look like train info (contain train number or class keywords)
-              if(/\b\d{4,5}\b|SLEEPER|COACH|AC/i.test(L)) continue;
-              var m = L.match(/\b([A-Z]{2,5})\b[\s,\/]+\b([A-Z]{2,5})\b/);
-              if(m){
-                var a = m[1], b = m[2];
-                if(blacklist.indexOf(a.toUpperCase())===-1 && blacklist.indexOf(b.toUpperCase())===-1){
-                  out.fromCode = out.fromCode || a; out.toCode = out.toCode || b; break;
-                }
-              }
-            }
-          }
-
-          // If we still don't have station names but have codes, attempt to find full names by locating the code token followed by titlecase words
-          if((out.fromCode && !out.fromName) || (out.toCode && !out.toName)){
-            var nameRegex = /\b([A-Z]{2,5})\b\s+([A-Z][A-Za-z\s]{2,60})/g;
-            var nm;
-            while((nm = nameRegex.exec(text))!==null){
-              if(out.fromCode && nm[1]===out.fromCode && !out.fromName) out.fromName = nm[2].trim();
-              if(out.toCode && nm[1]===out.toCode && !out.toName) out.toName = nm[2].trim();
-              if(out.fromName && out.toName) break;
-            }
-          }
-        }catch(e){}
-
-        // Broader status extraction: find status tokens and associate them with nearest passenger number
-        try{
-          var statusRx = /(CNF(?:\/[A-Z0-9\-\/]*)|CONFIRMED|WL|RAC(?:\/[0-9]+)?|RLWL|PQWL|RSWL|CANCL|CAN|CANX)/ig;
-          var st;
-          while((st = statusRx.exec(text)) !== null){
-            var statusToken = st[1];
-            var idx = st.index;
-            // search backward up to 200 chars for a numbered passenger '1.' pattern
-            var back = text.slice(Math.max(0, idx-200), idx);
-            var numMatch = back.match(/(\d{1,2})\.\s*([A-Z][A-Za-z\s\.\'\-]{2,80})/i);
-            if(numMatch){
-              var seq = numMatch[1]; var name = numMatch[2].trim();
-              // don't duplicate
-              if(!out.passengers.some(function(p){ return p.seq===seq; })){ out.passengers.push({ seq: seq, name: name, age: '', status: statusToken.toUpperCase() }); }
-            }
-          }
-          // after collecting statuses, if overall status not set, derive from first passenger
-          if(out.passengers && out.passengers.length>0 && !out.status) out.status = out.passengers[0].status || '';
-        }catch(e){}
-
-        // Fallback: if no passengers found, try table-like rows
-        if(out.passengers.length===0){
-          // find start of passenger block by header
-          var start = -1;
-          for(var k=0;k<lines.length;k++){
-            if(/Seq\b.*Name\b.*Status\b/i.test(lines[k])){ start = k+1; break; }
-          }
-          if(start>=0){
-            for(var j=start;j<lines.length;j++){
-              var ln2 = lines[j];
-              if(/Total|Fare|GST|Amount/i.test(ln2)) break;
-              var parts = ln2.split(/\s{2,}/);
-              if(parts.length>=3){
-                var seq = (parts[0]||'').replace(/[^0-9]/g,'');
-                var name = parts[1]||'';
-                var rawStatus = (parts.slice(-1)[0]||'');
-                var status = (rawStatus||'').match(/(CNF|WL|RAC|CAN|CANCL|CANX)/i);
-                status = status?status[1].toUpperCase():'';
-                var seat = '';
-                try{ var rs = rawStatus.split('/').slice(1).join('/').trim(); if(rs) seat = rs; }catch(e){}
-                out.passengers.push({ seq: seq, name: name, age: '', status: status, seat: seat });
-              }
-            }
-          }
-        }
-
-        // derive overall status from first passenger if not explicitly set
-        if(out.passengers && out.passengers.length>0){ out.status = out.passengers[0].status || ''; }
+        // Final summary log
+        log('[Parse] RESULT: PNR=' + (out.pnr||'—') + ' Train=' + (out.trainNo||'—') + '/' + (out.trainName||'—') + ' From=' + (out.from||'—') + ' To=' + (out.to||'—') + ' Class=' + (out.class||'—') + ' Quota=' + (out.quota||'—') + ' Pax=' + out.passengers.length + (out.passengers.length ? ' [' + out.passengers.map(function(p){return p.name + '(st:' + p.status + ' seat:' + p.seat + ')';}).join(', ') + ']' : ''), 'ok');
 
       } catch (e){ log('Parser error: '+e.message,'err'); }
       out._meta = meta || {};
@@ -357,7 +459,25 @@
           (function(pageNum){
             pagePromises.push(pdf.getPage(pageNum).then(function(page){
               return page.getTextContent().then(function(tc){
-                return tc.items.map(function(i){ return i.str; }).join(' ');
+                // Group text items by Y coordinate to preserve line structure
+                var items = [];
+                for(var k=0; k<tc.items.length; k++){
+                  var it = tc.items[k];
+                  if(it.str && it.str.trim()) items.push({ x: it.transform[4], y: Math.round(it.transform[5]/4)*4, str: it.str });
+                }
+                var yMap = {};
+                for(var k2=0; k2<items.length; k2++){
+                  var yk = items[k2].y;
+                  if(!yMap[yk]) yMap[yk] = [];
+                  yMap[yk].push(items[k2]);
+                }
+                var ys = Object.keys(yMap).map(Number).sort(function(a,b){ return b-a; });
+                var textLines = [];
+                for(var k3=0; k3<ys.length; k3++){
+                  var row = yMap[ys[k3]].sort(function(a,b){ return a.x - b.x; });
+                  textLines.push(row.map(function(r){ return r.str; }).join(' '));
+                }
+                return textLines.join('\n');
               });
             }));
           })(p);
@@ -428,92 +548,146 @@
   /** Grid rendering */
   var defaultColumns = [
     { key: 'departure', label: 'Date / Time', sortable:true },
-    { key: 'from', label: 'From → To', sortable:false },
-    { key: 'train', label: 'Train', sortable:false },
-    { key: 'seat', label: 'Seat', sortable:false },
+    { key: 'route', label: 'From → To', sortable:false },
+    { key: 'trainNo', label: 'Train No.', sortable:true },
+    { key: 'trainName', label: 'Train Name', sortable:false },
     { key: 'class', label: 'Class', sortable:false },
+    { key: 'quota', label: 'Quota', sortable:false },
+    { key: 'passengers', label: 'Passengers', sortable:false },
     { key: 'pnr', label: 'PNR', sortable:true },
     { key: 'status', label: 'Status', sortable:false },
-    { key: 'actions', label: 'Actions', sortable:false }
+    { key: 'actions', label: '', sortable:false }
   ];
-  var visibleCols = defaultColumns.map(function(c){ return c.key; });
+  var hiddenByDefault = ['quota'];
+  var visibleCols = defaultColumns.map(function(c){ return c.key; }).filter(function(k){ return hiddenByDefault.indexOf(k) === -1; });
+
+  // Suffix tokens not meaningful as station codes
+  var SUFFIX_TOKENS = ['JN','JUNC','JCT','SF'];
+  function firstMeaningfulToken(str) {
+    if (!str) return null;
+    var tks = str.split(/\s+/).filter(Boolean);
+    for (var ti2 = 0; ti2 < tks.length; ti2++) {
+      if (SUFFIX_TOKENS.indexOf(tks[ti2].toUpperCase()) === -1 && /^[A-Z]{2,}$/i.test(tks[ti2])) return tks[ti2].toUpperCase();
+    }
+    return null;
+  }
+  function escH(s){ var d=document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
   function renderGrid(){
-    // head
     gridHead.innerHTML = '';
     defaultColumns.forEach(function(col){
       if(visibleCols.indexOf(col.key)===-1) return;
       var th = document.createElement('th'); th.textContent = col.label; if(col.sortable) th.className='sortable';
       gridHead.appendChild(th);
     });
-    // body
     gridBody.innerHTML = '';
     var filtered = tickets.slice();
     var q = (searchInput && searchInput.value) ? searchInput.value.trim().toLowerCase() : '';
-    if(q){ filtered = filtered.filter(function(t){ return (t.pnr||'').toLowerCase().indexOf(q)!==-1 || (t.passengers||[]).some(function(p){ return (p.name||'').toLowerCase().indexOf(q)!==-1; }) || (t.from||'').toLowerCase().indexOf(q)!==-1 || (t.to||'').toLowerCase().indexOf(q)!==-1; }); }
+    if(q){ filtered = filtered.filter(function(t){ return (t.pnr||'').toLowerCase().indexOf(q)!==-1 || (t.trainNo||'').indexOf(q)!==-1 || (t.trainName||'').toLowerCase().indexOf(q)!==-1 || (t.passengers||[]).some(function(p){ return (p.name||'').toLowerCase().indexOf(q)!==-1; }) || (t.from||'').toLowerCase().indexOf(q)!==-1 || (t.to||'').toLowerCase().indexOf(q)!==-1; }); }
 
     if(filtered.length===0){ gridEmpty.style.display='block'; } else { gridEmpty.style.display='none'; }
 
     filtered.forEach(function(t){
       var tr = document.createElement('tr');
-      // departure
+
+      // Date / Time
       if(visibleCols.indexOf('departure')!==-1){
-        var td = document.createElement('td'); td.innerHTML = '<div class="cell-date__date">'+(t.departure||'—')+'</div>'+(t.departure?'<div class="cell-date__time">&nbsp;</div>':''); tr.appendChild(td);
+        var td = document.createElement('td');
+        var dateStr = t.dateOfJourney || t.departureDate || t.departure || '—';
+        var timeStr = t.departureTime || '';
+        td.innerHTML = '<div class="cell-date__date">'+escH(dateStr)+'</div>'+(timeStr ? '<div class="cell-date__time">'+escH(timeStr)+'</div>' : '');
+        tr.appendChild(td);
       }
-      // route: show short codes on top and full station names below when available
-      if(visibleCols.indexOf('from')!==-1){
+
+      // From → To
+      if(visibleCols.indexOf('route')!==-1){
         var td2 = document.createElement('td');
-        // Tokens that are suffixes/abbreviations, not valid standalone station codes
-        var SUFFIX_TOKENS = ['JN','JUNC','JCT','SF'];
-        function firstMeaningfulToken(str) {
-          if (!str) return null;
-          var tks = str.split(/\s+/).filter(Boolean);
-          for (var ti2 = 0; ti2 < tks.length; ti2++) {
-            if (SUFFIX_TOKENS.indexOf(tks[ti2].toUpperCase()) === -1 && /^[A-Z]{2,}$/.test(tks[ti2])) return tks[ti2];
-          }
-          return null;
-        }
-        var shortLeft = (t.fromCode && SUFFIX_TOKENS.indexOf(t.fromCode.toUpperCase()) === -1 ? t.fromCode : null) || firstMeaningfulToken(t.from) || '—';
-        var shortRight = (t.toCode && SUFFIX_TOKENS.indexOf(t.toCode.toUpperCase()) === -1 ? t.toCode : null) || firstMeaningfulToken(t.to) || '—';
-        // Full name: prefer explicit names; when captured from-label only got "JN", reconstruct from code
-        var fullLeft = (t.fromName && t.fromName.length > 2 ? t.fromName : null) || (t.from && t.from.length > 2 ? t.from : null) || (shortLeft !== '—' ? shortLeft + ' JN' : '—');
-        var fullRight = (t.toName && t.toName.length > 2 ? t.toName : null) || (t.to && t.to.length > 2 ? t.to : null) || (shortRight !== '—' ? shortRight + ' JN' : '—');
-        td2.innerHTML = '<div class="cell-route__short"><span class="cell-route__code">'+shortLeft+'</span><span class="cell-route__dash"> - </span><span class="cell-route__code">'+shortRight+'</span></div>'+
-                         '<div class="cell-route__full">'+fullLeft+' <span class="cell-route__arrow">→</span> '+fullRight+'</div>'+
-                         ((t.train && t.train.split('/')[1])?('<div class="cell-route__train">'+t.train.split('/')[1].trim()+'</div>'):'');
+        var shortL = firstMeaningfulToken(t.from) || '—';
+        var shortR = firstMeaningfulToken(t.to) || '—';
+        var fullL = (t.from && t.from.length > 2) ? t.from : shortL;
+        var fullR = (t.to && t.to.length > 2) ? t.to : shortR;
+        td2.innerHTML = '<div class="cell-route__short"><span class="cell-route__code">'+escH(shortL)+'</span><span class="cell-route__dash"> → </span><span class="cell-route__code">'+escH(shortR)+'</span></div>'+
+                         '<div class="cell-route__full">'+escH(fullL)+' <span class="cell-route__arrow">→</span> '+escH(fullR)+'</div>';
         tr.appendChild(td2);
       }
-      // train
-      if(visibleCols.indexOf('train')!==-1){ var td3 = document.createElement('td'); td3.innerHTML = '<span class="cell-train__no">'+(t.train||'—')+'</span>'; tr.appendChild(td3); }
-      // seat (show coach/berth or RAC number)
-      if(visibleCols.indexOf('seat')!==-1){
-        var tdSeat = document.createElement('td'); tdSeat.className = 'cell-seat';
-        var seatVal = '—';
-        try{ if(t.passengers && t.passengers[0]){ seatVal = t.passengers[0].seat || (t.passengers[0].status || '—'); } }catch(e){}
-        tdSeat.textContent = seatVal || '—';
-        tr.appendChild(tdSeat);
+
+      // Train No.
+      if(visibleCols.indexOf('trainNo')!==-1){
+        var td3 = document.createElement('td'); td3.className='cell-train-no';
+        td3.innerHTML = '<span class="cell-train__no">'+escH(t.trainNo||'—')+'</span>';
+        tr.appendChild(td3);
       }
-      // class
-      if(visibleCols.indexOf('class')!==-1){ var td4 = document.createElement('td'); td4.className='cell-class'; td4.textContent = (t.class||'—'); tr.appendChild(td4); }
-      // pnr
-      if(visibleCols.indexOf('pnr')!==-1){ var td5 = document.createElement('td'); td5.className='cell-pnr'; td5.textContent = (t.pnr||'—'); tr.appendChild(td5); }
-      // status (derive from first passenger if exists)
+
+      // Train Name
+      if(visibleCols.indexOf('trainName')!==-1){
+        var td3b = document.createElement('td'); td3b.className='cell-train-name';
+        td3b.innerHTML = '<span class="cell-train__name">'+escH(t.trainName||'—')+'</span>';
+        tr.appendChild(td3b);
+      }
+
+      // Class
+      if(visibleCols.indexOf('class')!==-1){
+        var td4 = document.createElement('td'); td4.className='cell-class';
+        td4.textContent = t.class || '—';
+        tr.appendChild(td4);
+      }
+
+      // Quota
+      if(visibleCols.indexOf('quota')!==-1){
+        var tdQ = document.createElement('td'); tdQ.className='cell-quota';
+        tdQ.textContent = t.quota || '—';
+        tr.appendChild(tdQ);
+      }
+
+      // Passengers
+      if(visibleCols.indexOf('passengers')!==-1){
+        var tdP = document.createElement('td'); tdP.className='cell-passengers';
+        if(t.passengers && t.passengers.length > 0){
+          var pHtml = t.passengers.map(function(p){
+            var parts = [escH(p.name||'?')];
+            if(p.age) parts.push(escH(p.age) + (p.gender ? p.gender : ''));
+            if(p.seat) parts.push('<span class="cell-passengers__seat">'+escH(p.seat)+'</span>');
+            return '<div class="cell-passengers__entry"><span class="cell-passengers__name">'+parts[0]+'</span>'+(parts.length>1 ? ' <span class="cell-passengers__detail">'+parts.slice(1).join(' · ')+'</span>' : '')+'</div>';
+          }).join('');
+          tdP.innerHTML = pHtml;
+        } else { tdP.textContent = '—'; }
+        tr.appendChild(tdP);
+      }
+
+      // PNR
+      if(visibleCols.indexOf('pnr')!==-1){
+        var td5 = document.createElement('td'); td5.className='cell-pnr';
+        td5.textContent = t.pnr || '—';
+        tr.appendChild(td5);
+      }
+
+      // Status
       if(visibleCols.indexOf('status')!==-1){
         var td6 = document.createElement('td');
         var st = (t.passengers && t.passengers[0] && t.passengers[0].status) ? t.passengers[0].status.toUpperCase() : 'UNKNOWN';
-        // Extract status prefix only (CNF, RAC, WL, CAN, etc) — strip seat/coach info
         var statusPrefix = st.match(/(CNF|RAC|WL|CAN|CANL|CANX|CONFIRMED|RLWL|PQWL|RSWL)/i);
         var displayStatus = statusPrefix ? statusPrefix[1].toUpperCase() : st;
         var cls='status--unknown';
-        if(/CNF/i.test(displayStatus)) cls='status--cnf';
+        if(/CNF|CONFIRMED/i.test(displayStatus)) cls='status--cnf';
         else if(/WL/i.test(displayStatus)) cls='status--wl';
         else if(/RAC/i.test(displayStatus)) cls='status--rac';
         else if(/CAN/i.test(displayStatus)) cls='status--can';
-        td6.innerHTML = '<span class="status-badge '+cls+'">'+displayStatus+'</span>';
+        td6.innerHTML = '<span class="status-badge '+cls+'">'+escH(displayStatus)+'</span>';
         tr.appendChild(td6);
       }
-      // actions
-      if(visibleCols.indexOf('actions')!==-1){ var td7 = document.createElement('td'); td7.className='cell-actions'; var vbtn = document.createElement('button'); vbtn.className='btn btn--outline'; vbtn.textContent='View PDF'; vbtn.addEventListener('click', function(){ viewPdf(t._id); }); var del = document.createElement('button'); del.className='btn btn--danger-outline'; del.textContent='Delete'; del.addEventListener('click', function(){ deleteTicket(t._id); }); td7.appendChild(vbtn); td7.appendChild(del); tr.appendChild(td7); }
+
+      // Actions (View PDF, QR/Preview, Delete)
+      if(visibleCols.indexOf('actions')!==-1){
+        var td7 = document.createElement('td'); td7.className='cell-actions';
+        var vbtn = document.createElement('button'); vbtn.className='btn btn--outline'; vbtn.textContent='PDF';
+        vbtn.addEventListener('click', (function(id){ return function(){ viewPdf(id); }; })(t._id));
+        var qbtn = document.createElement('button'); qbtn.className='btn btn--outline'; qbtn.textContent='QR';
+        qbtn.addEventListener('click', (function(id){ return function(){ showPdfModal(id); }; })(t._id));
+        var del = document.createElement('button'); del.className='btn btn--danger-outline'; del.textContent='Del';
+        del.addEventListener('click', (function(id){ return function(){ deleteTicket(id); }; })(t._id));
+        td7.appendChild(vbtn); td7.appendChild(qbtn); td7.appendChild(del);
+        tr.appendChild(td7);
+      }
 
       gridBody.appendChild(tr);
     });
@@ -541,6 +715,51 @@
       }
       alert('PDF not available. Try re-uploading the file.');
     });
+  }
+
+  /** Render PDF page to canvas in a modal (shows QR code) */
+  function showPdfModal(id){
+    var modal = document.getElementById('pdf-modal');
+    var canvas = document.getElementById('pdf-canvas');
+    if(!modal || !canvas){ alert('Modal not available'); return; }
+
+    function renderFromBuffer(arrayBuffer){
+      if(!arrayBuffer){ alert('PDF not available. Try re-uploading.'); return; }
+      if(!pdfjsAvailable){ alert('PDF.js not loaded'); return; }
+      pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise.then(function(pdf){
+        pdf.getPage(1).then(function(page){
+          var scale = 1.5;
+          var viewport = page.getViewport({ scale: scale });
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          var ctx = canvas.getContext('2d');
+          page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function(){
+            modal.hidden = false;
+            modal.style.display = 'flex';
+          });
+        });
+      }).catch(function(err){ alert('Failed to render PDF: ' + err.message); });
+    }
+
+    // Get PDF data from IndexedDB
+    getPdfFromIndexedDB(id).then(function(arrayBuffer){
+      if(arrayBuffer){ renderFromBuffer(arrayBuffer); return; }
+      // Fallback: base64 in ticket data
+      var t = tickets.find(function(x){ return x._id === id; });
+      if(t && t._pdfBase64){
+        try{
+          var bin = atob(t._pdfBase64);
+          var bytes = new Uint8Array(bin.length);
+          for(var i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          renderFromBuffer(bytes.buffer);
+        }catch(e){ alert('Failed to decode PDF'); }
+      } else { alert('PDF not available. Try re-uploading.'); }
+    });
+  }
+
+  function closePdfModal(){
+    var modal = document.getElementById('pdf-modal');
+    if(modal){ modal.hidden = true; modal.style.display = 'none'; }
   }
 
   function restoreSessionBlobs(){
@@ -646,6 +865,12 @@
   // btn-back, btn-delete, btn-reset wired by AnkuraCore.init
   var btnDeleteAll = document.getElementById('btn-delete-all');
   if(btnDeleteAll){ btnDeleteAll.addEventListener('click', function(){ deleteAll(); }); }
+
+  // Wire PDF modal close
+  var modalCloseBtn = document.getElementById('pdf-modal-close');
+  var modalBackdrop = document.getElementById('pdf-modal-backdrop');
+  if(modalCloseBtn) modalCloseBtn.addEventListener('click', closePdfModal);
+  if(modalBackdrop) modalBackdrop.addEventListener('click', closePdfModal);
 
   // init — theme/meta handled by AnkuraCore.init
   try{ renderGrid(); } catch(e){ console.warn('renderGrid failed', e); }

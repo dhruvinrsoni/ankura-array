@@ -121,6 +121,20 @@
       <div id="parse-log" class="parse-log" hidden></div>
     </main>
 
+    <!-- ── PDF Preview Modal ─────────────────────────── -->
+    <div id="pdf-modal" class="gg-modal" hidden style="display:none;">
+      <div id="pdf-modal-backdrop" class="gg-modal__backdrop"></div>
+      <div class="gg-modal__content">
+        <div class="gg-modal__header">
+          <span class="gg-modal__title">Ticket Preview</span>
+          <button id="pdf-modal-close" class="gg-modal__close" title="Close">&times;</button>
+        </div>
+        <div class="gg-modal__body">
+          <canvas id="pdf-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Scripts ─────────────────────────────────── -->
     <script>
     (function(){
