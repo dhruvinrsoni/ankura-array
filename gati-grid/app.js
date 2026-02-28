@@ -23,6 +23,8 @@
   var btnTogglePaste = document.getElementById('btn-toggle-paste');
   var pastePanel = document.getElementById('paste-panel');
   var pasteBody = document.getElementById('paste-body');
+  var btnColToggle = document.getElementById('btn-col-toggle');
+  var columnPanel = document.getElementById('column-panel');
 
   // Framework init — AnkuraCore provides instanceId, State, meta, theme, back/delete/reset buttons
   var _fw = window.AnkuraCore.init({
@@ -630,6 +632,30 @@
   var hiddenByDefault = ['quota'];
   var visibleCols = defaultColumns.map(function(c){ return c.key; }).filter(function(k){ return hiddenByDefault.indexOf(k) === -1; });
 
+  function buildColumnPanel() {
+    if (!columnPanel) return;
+    columnPanel.innerHTML = '';
+    defaultColumns.forEach(function(col) {
+      if (col.key === 'actions') return;
+      var item = document.createElement('label');
+      item.className = 'column-panel__item';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = visibleCols.indexOf(col.key) !== -1;
+      cb.addEventListener('change', function() {
+        if (cb.checked) {
+          if (visibleCols.indexOf(col.key) === -1) visibleCols.push(col.key);
+        } else {
+          visibleCols = visibleCols.filter(function(k) { return k !== col.key; });
+        }
+        renderGrid();
+      });
+      item.appendChild(cb);
+      item.appendChild(document.createTextNode(' ' + col.label));
+      columnPanel.appendChild(item);
+    });
+  }
+
   // Extract the best short code for a station string.
   // Prefers parenthetical codes like "(ADI)" or "(PUNE)", falls back to first meaningful word.
   var SUFFIX_TOKENS = ['JN','JUNC','JCT','SF','RD','RDSTN','EXP'];
@@ -937,6 +963,20 @@
   }
 
   if(searchInput){ searchInput.addEventListener('input', function(){ renderGrid(); }); }
+
+  if (btnColToggle && columnPanel) {
+    buildColumnPanel();
+    btnColToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      columnPanel.hidden = !columnPanel.hidden;
+    });
+    document.addEventListener('click', function(e) {
+      if (!columnPanel.hidden && !columnPanel.contains(e.target) && e.target !== btnColToggle) {
+        columnPanel.hidden = true;
+      }
+    });
+  }
+
   // btn-back, btn-delete, btn-reset wired by AnkuraCore.init
   var btnDeleteAll = document.getElementById('btn-delete-all');
   if(btnDeleteAll){ btnDeleteAll.addEventListener('click', function(){ deleteAll(); }); }
