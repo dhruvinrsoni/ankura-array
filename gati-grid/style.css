@@ -518,6 +518,11 @@
 .pstatus--can     { background: rgba(107,101,96,0.12);  color: #6b6560; border: 1px solid rgba(107,101,96,0.25); text-decoration: line-through; }
 .pstatus--unknown { background: rgba(107,101,96,0.08);  color: var(--text-muted); border: 1px solid var(--border); }
 
+/* ── Touch targets for grid actions ──────────────── */
+@media (pointer: coarse) {
+  .cell-actions .btn { min-height:36px; min-width:36px }
+}
+
 /* ── PDF Preview Modal ────────────────────────────── */
 
 .gg-modal {

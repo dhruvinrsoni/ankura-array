@@ -16,8 +16,8 @@
     <header class="top-bar">
       <h1 class="top-bar__title">
         <span class="accent">⚖️</span> Tula-Bench
-        <span style="font-size:0.75em; opacity:0.7; margin-left:4px;">(TB)</span>
-        <span class="version-badge" style="margin-left:8px;">v2.0.0</span>
+        <span class="top-bar__short-form">(TB)</span>
+        <span class="version-badge">v2.0.0</span>
       </h1>
       <div class="top-bar__left">
         <div class="top-bar__meta" title="Instance timestamps">
@@ -63,7 +63,7 @@
             <!-- Injected by app.js -->
           </div>
 
-          <div style="height:1.25rem;"></div>
+          <div class="spacer"></div>
 
           <!-- Step 2: Sentiment -->
           <div class="tb-step-label">What happened?</div>
@@ -71,15 +71,15 @@
             <!-- Injected by app.js -->
           </div>
 
-          <div style="height:1.25rem;"></div>
+          <div class="spacer"></div>
 
           <!-- Step 3: Criterion (optional) -->
-          <div class="tb-step-label">Area <span style="font-weight:400;font-style:italic;text-transform:none;letter-spacing:0;">(optional — tap to tag)</span></div>
+          <div class="tb-step-label">Area <span class="tb-step-label__hint">(optional — tap to tag)</span></div>
           <div id="criterion-pills" class="tb-criterion-pills">
             <!-- Injected by app.js -->
           </div>
 
-          <div style="height:1.25rem;"></div>
+          <div class="spacer"></div>
 
           <!-- Step 4: Note (optional) -->
           <div class="float-field float-field--input">
@@ -87,12 +87,12 @@
             <label class="float-field__label" for="capture-note">What happened? (optional — e.g. 'wrong type annotation', 'nailed the PR review')</label>
           </div>
 
-          <div style="height:1rem;"></div>
+          <div class="spacer spacer--sm"></div>
 
           <!-- Submit -->
           <button id="btn-log-it" class="tb-log-btn" disabled>⚡ LOG IT</button>
 
-          <div style="height:1.25rem;"></div>
+          <div class="spacer"></div>
 
           <!-- Recent events feed -->
           <div class="tb-recent-feed" id="recent-feed">
@@ -159,7 +159,7 @@
             <tbody id="heatmap-body"></tbody>
           </table>
         </div>
-        <p class="tb-hint" style="margin-top:0.75rem;">Score scale: 💀 = −2 · 😤 = −1 · 😐 = 0 · 👍 = +1 · 🚀 = +2</p>
+        <p class="tb-hint" style="margin-top:0.75rem">Score scale: 💀 = −2 · 😤 = −1 · 😐 = 0 · 👍 = +1 · 🚀 = +2</p>
       </div>
 
       <!-- E: Pain Points -->
@@ -183,7 +183,7 @@
       <div class="tb-section">
         <div class="tb-section-header">
           <h2 class="tb-section-title">Report Preview</h2>
-          <div style="display:flex;gap:0.5rem;">
+          <div class="preview-actions">
             <button id="btn-regen" class="btn btn--outline">↺ Regenerate</button>
             <button id="btn-copy" class="btn btn--solid">📋 Copy Markdown</button>
           </div>

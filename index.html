@@ -24,7 +24,7 @@
 
     <!-- ── Main ────────────────────────────────────── -->
     <main class="main-content">
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem;">
+      <div class="section-row">
         <div class="section-label">Nano Applications</div>
         <input
           id="search-apps"
@@ -47,9 +47,9 @@
 
       <!-- ── Instance Manager ────────────────────── -->
       <div id="instance-manager" class="instance-manager" hidden>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+        <div class="section-row section-row--compact">
           <div class="section-label">Instance Storage & Cleanup</div>
-          <button id="btn-toggle-instances" class="btn btn--outline" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;">
+          <button id="btn-toggle-instances" class="btn btn--outline btn--sm">
             ✕ Hide
           </button>
         </div>
@@ -58,18 +58,18 @@
           <!-- Instance items rendered by script -->
         </div>
 
-        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-          <div class="section-label" style="margin-bottom: 0.75rem;">Per-App Cleanup</div>
-          <div id="per-app-cleanup-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+        <div class="divider">
+          <div class="section-label">Per-App Cleanup</div>
+          <div id="per-app-cleanup-grid" class="cleanup-grid">
             <!-- populated dynamically from ANKURA_REGISTRY, only for apps with data -->
           </div>
 
-          <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-bottom: 0;">
-            <button id="btn-reset-all" class="btn btn--danger" style="width: 100%;">
+          <div class="divider divider--flush">
+            <button id="btn-reset-all" class="btn btn--danger btn--full">
               🗑️ Reset & Clean Up Everything
             </button>
           </div>
-          <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">
+          <p class="help-text">
             Wipes all instance data and localStorage. Use with caution.
           </p>
         </div>
@@ -127,6 +127,34 @@
         const searchInput = document.getElementById("search-apps");
         const registry = window.ANKURA_REGISTRY || [];
 
+        // ── Shared helpers (used by renderApps + renderInstanceManager) ──
+
+        function timeAgo(d) {
+          if (!d) return '—';
+          var s = Math.floor((Date.now() - d.getTime()) / 1000);
+          if (s < 5) return 'now';
+          if (s < 60) return s + 's';
+          var m = Math.floor(s / 60);
+          if (m < 60) return m + 'm';
+          var h = Math.floor(m / 60);
+          if (h < 24) return h + 'h';
+          var days = Math.floor(h / 24);
+          return days + 'd';
+        }
+
+        function parseInstanceMeta(instanceId) {
+          var rawC = null, rawU = null;
+          try { rawC = localStorage.getItem(instanceId + '__meta_created'); } catch (e) {}
+          try { rawU = localStorage.getItem(instanceId + '__meta_updated'); } catch (e) {}
+          var isoC = rawC, isoU = rawU;
+          try { isoC = JSON.parse(rawC); } catch (e) {}
+          try { isoU = JSON.parse(rawU); } catch (e) {}
+          var dC = null, dU = null;
+          try { dC = isoC ? new Date(isoC) : (rawC ? new Date(rawC) : null); } catch (e) { dC = null; }
+          try { dU = isoU ? new Date(isoU) : (rawU ? new Date(rawU) : null); } catch (e) { dU = null; }
+          return { isoCreated: isoC || rawC, isoUpdated: isoU || rawU, created: dC, updated: dU };
+        }
+
         if (!registry.length) {
           emptyState.hidden = false;
           return;
@@ -155,17 +183,8 @@
 
             // Build instance meta list
             var instMeta = instancesForApp.map(function (it) {
-              var iid = it.instanceId;
-              var rawU = null, rawC = null;
-              try { rawU = localStorage.getItem(iid + '__meta_updated'); } catch (e) {}
-              try { rawC = localStorage.getItem(iid + '__meta_created'); } catch (e) {}
-              var isoU = rawU, isoC = rawC;
-              try { isoU = JSON.parse(rawU); } catch (e) {}
-              try { isoC = JSON.parse(rawC); } catch (e) {}
-              var dU = null, dC = null;
-              try { dU = isoU ? new Date(isoU) : (rawU ? new Date(rawU) : null); } catch (e) { dU = null; }
-              try { dC = isoC ? new Date(isoC) : (rawC ? new Date(rawC) : null); } catch (e) { dC = null; }
-              return { instanceId: iid, updated: dU, created: dC, isoUpdated: isoU || rawU, isoCreated: isoC || rawC };
+              var meta = parseInstanceMeta(it.instanceId);
+              return { instanceId: it.instanceId, updated: meta.updated, created: meta.created, isoUpdated: meta.isoUpdated, isoCreated: meta.isoCreated };
             }).filter(function (m) { return m.updated || m.created; });
 
             // Determine latest updated across instances
@@ -175,35 +194,22 @@
               if (!latest || m.updated > latest.updated) latest = m;
             });
 
-            function timeAgo(d) {
-              if (!d) return '—';
-              var s = Math.floor((Date.now() - d.getTime()) / 1000);
-              if (s < 5) return 'now';
-              if (s < 60) return s + 's';
-              var m = Math.floor(s / 60);
-              if (m < 60) return m + 'm';
-              var h = Math.floor(m / 60);
-              if (h < 24) return h + 'h';
-              var days = Math.floor(h / 24);
-              return days + 'd';
-            }
-
             var rel = latest && latest.updated ? timeAgo(latest.updated) : null;
 
             const card = document.createElement("article");
             card.className = "app-card";
             card.innerHTML =
               '<div class="app-card__icon">' + escapeHTML(app.icon || "📦") + '</div>' +
-              '<div style="display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px;">' +
+              '<div class="app-card__name-row">' +
                 '<h2 class="app-card__name">' + escapeHTML(app.name) + '</h2>' +
-                (app.shortForm ? '<span style="font-size: 0.8em; font-weight: bold; background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px; letter-spacing: 0.5px;">' + escapeHTML(app.shortForm) + '</span>' : '') +
+                (app.shortForm ? '<span class="app-card__short-form">' + escapeHTML(app.shortForm) + '</span>' : '') +
               '</div>' +
               '<p class="app-card__desc">' + escapeHTML(app.description) + '</p>' +
               (app.version ? '<span class="app-card__version">v' + escapeHTML(app.version) + '</span>' : '') +
               (rel ? '<span class="app-card__meta" title="Updated: ' + (latest ? (latest.isoUpdated || '') : '') + '\nCreated: ' + (latest ? (latest.isoCreated || '') : '') + '\nAbsolute: ' + (latest && latest.updated ? latest.updated.toLocaleString() : '') + '">Updated: ' + rel + '</span>' : '') +
-              '<button class="app-card__expand btn btn--outline" style="margin-left:8px; font-size:0.75rem;">Instances</button>' +
+              '<button class="app-card__expand btn btn--outline btn--sm">Instances</button>' +
               '<button class="app-card__launch" data-path="' + escapeHTML(app.path) + '">&#9654; Launch</button>' +
-              '<div class="app-card__instances" style="display:none; margin-top:0.75rem; font-size:0.9rem;"></div>';
+              '<div class="app-card__instances" hidden></div>';
 
             // Launch handler
             card.querySelector('.app-card__launch').addEventListener('click', function () { launchApp(app.path); });
@@ -212,7 +218,7 @@
             var expBtn = card.querySelector('.app-card__expand');
             var instContainer = card.querySelector('.app-card__instances');
             expBtn.addEventListener('click', function () {
-              if (instContainer.style.display === 'none' || instContainer.style.display === '') {
+              if (instContainer.hidden) {
                 // populate list
                 instContainer.innerHTML = '';
                 if (instMeta.length === 0) {
@@ -222,21 +228,21 @@
                   instMeta.sort(function(a,b){ var ta = a.updated ? a.updated.getTime() : 0; var tb = b.updated ? b.updated.getTime() : 0; return tb - ta; });
                   instMeta.forEach(function (m) {
                     var row = document.createElement('div');
-                    row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems = 'center'; row.style.gap = '0.5rem'; row.style.padding = '0.35rem 0';
+                    row.className = 'instance-row';
                     var idSpan = document.createElement('span'); idSpan.textContent = m.instanceId.slice(0,8) + (m.instanceId.length>8? '…':''); idSpan.title = m.instanceId;
                     var timeSpan = document.createElement('span'); timeSpan.textContent = (m.updated ? timeAgo(m.updated) : (m.created ? 'created' : '—'));
                     timeSpan.title = 'Updated: ' + (m.isoUpdated || '') + '\nCreated: ' + (m.isoCreated || '') + '\nLocal: ' + (m.updated ? (m.updated.toLocaleString()) : (m.created ? (m.created.toLocaleString()) : ''));
-                    var openBtn = document.createElement('button'); openBtn.className = 'btn btn--outline'; openBtn.textContent = 'Open';
+                    var openBtn = document.createElement('button'); openBtn.className = 'btn btn--outline btn--sm'; openBtn.textContent = 'Open';
                     openBtn.addEventListener('click', function () { var sep = app.path.indexOf('?')===-1 ? '?' : '&'; window.open(app.path + sep + 'instanceId=' + encodeURIComponent(m.instanceId), '_blank'); });
                     row.appendChild(idSpan); row.appendChild(timeSpan); row.appendChild(openBtn);
                     list.appendChild(row);
                   });
                   instContainer.appendChild(list);
                 }
-                instContainer.style.display = 'block';
+                instContainer.hidden = false;
                 expBtn.textContent = 'Hide Instances';
               } else {
-                instContainer.style.display = 'none';
+                instContainer.hidden = true;
                 expBtn.textContent = 'Instances';
               }
             });
@@ -554,28 +560,9 @@
             var el = document.createElement("div");
             el.className = "instance-item";
               // collect meta timestamps for this instance
-              var rawCreated = null, rawUpdated = null;
-              try { rawCreated = localStorage.getItem(inst.instanceId + '__meta_created'); } catch (e) {}
-              try { rawUpdated = localStorage.getItem(inst.instanceId + '__meta_updated'); } catch (e) {}
-              var isoC = rawCreated, isoU = rawUpdated;
-              try { isoC = JSON.parse(rawCreated); } catch (e) {}
-              try { isoU = JSON.parse(rawUpdated); } catch (e) {}
-              var dC = null, dU = null;
-              try { dC = isoC ? new Date(isoC) : (rawCreated ? new Date(rawCreated) : null); } catch (e) { dC = null; }
-              try { dU = isoU ? new Date(isoU) : (rawUpdated ? new Date(rawUpdated) : null); } catch (e) { dU = null; }
-
-              function timeAgo(d) {
-                if (!d) return '—';
-                var s = Math.floor((Date.now() - d.getTime()) / 1000);
-                if (s < 5) return 'now';
-                if (s < 60) return s + 's';
-                var m = Math.floor(s / 60);
-                if (m < 60) return m + 'm';
-                var h = Math.floor(m / 60);
-                if (h < 24) return h + 'h';
-                var days = Math.floor(h / 24);
-                return days + 'd';
-              }
+              var meta = parseInstanceMeta(inst.instanceId);
+              var isoC = meta.isoCreated, isoU = meta.isoUpdated;
+              var dC = meta.created, dU = meta.updated;
 
               var shortId = inst.instanceId && inst.instanceId.length > 8 ? (inst.instanceId.slice(0,8) + '…') : inst.instanceId;
               var infoHTML =
@@ -652,8 +639,7 @@
               } catch (e) {}
               if (!hasData) return;
               var btn = document.createElement('button');
-              btn.className = 'btn btn--danger';
-              btn.style.fontSize = '0.8rem';
+              btn.className = 'btn btn--danger btn--sm';
               btn.textContent = (app.icon || '') + ' Clear ' + app.name;
               btn.addEventListener('click', (function (id) {
                 return function () { deleteAppData(id); refreshCleanupGrid(); };
@@ -675,8 +661,7 @@
               } catch (e) {}
               if (!hasData) return;
               var btn = document.createElement('button');
-              btn.className = 'btn btn--danger';
-              btn.style.fontSize = '0.8rem';
+              btn.className = 'btn btn--danger btn--sm';
               btn.textContent = (app.icon || '') + ' Clear ' + app.name;
               btn.addEventListener('click', (function (id) {
                 return function () { deleteAppData(id); refreshCleanupGrid(); };
@@ -694,8 +679,8 @@
     </script>
 
     <!-- ── Version badge ──────────────────────────────── -->
-    <footer style="text-align:center; padding: 1.5rem 1rem 1rem; border-top: 1px solid var(--border); margin-top: 2rem;">
-      <span id="version-badge" style="font-size:0.7rem; color:var(--text-muted); font-family:monospace; letter-spacing:0.03em;">
+    <footer class="version-footer">
+      <span id="version-badge" class="version-footer__badge">
         <!-- populated by version fetch below -->
       </span>
     </footer>

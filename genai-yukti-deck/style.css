@@ -738,4 +738,12 @@
   .card-grid {
     grid-template-columns: 1fr;
   }
+  .var-input-group__input {
+    width: 100%;
+    min-width: 80px;
+  }
+  .var-input-group {
+    flex: 1;
+    min-width: 0;
+  }
 }

@@ -78,6 +78,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   color: var(--text-muted);
   margin-bottom: 0.75rem;
 }
+.tb-step-label__hint { font-weight:400; font-style:italic; text-transform:none; letter-spacing:0 }
 
 /* ── Tool buttons ────────────────────────────────────────────── */
 .tb-tool-row {

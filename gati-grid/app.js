@@ -13,7 +13,6 @@
   var parseLog = document.getElementById('parse-log');
   var searchInput = document.getElementById('search-input');
   var ticketCount = document.getElementById('ticket-count');
-  var btnReset = document.getElementById('btn-reset');
   var btnBack = document.getElementById('btn-back');
   var btnDelete = document.getElementById('btn-delete');
   var themeSelect = document.getElementById('theme-select');
@@ -29,7 +28,6 @@
   // Framework init — AnkuraCore provides instanceId, State, meta, theme, back/delete/reset buttons
   var _fw = window.AnkuraCore.init({
     backUrl: '../index.html',
-    onReset: function(){ resetAll(); },
     onDelete: function(){
       tickets = []; logs = [];
       try{ State.clearAll(); }catch(e){}
@@ -1020,17 +1018,6 @@
     renderGrid();
   }
 
-  function resetAll(){ 
-    if(!confirm('Clear all tickets?')) return; 
-    try{ for(var k in sessionBlobs){ URL.revokeObjectURL(sessionBlobs[k]); } sessionBlobs={}; }catch(e){}
-    // Clear all PDFs from IndexedDB
-    if(db && tickets.length>0){
-      try{
-        tickets.forEach(function(t){ deletePdfFromIndexedDB(t._id); });
-      }catch(e){}
-    }
-  }
-
   // wire upload/drop
   if(uploadZone){
     // Avoid double-opening the file picker when the upload area contains a <label for="file-input">.
@@ -1090,7 +1077,7 @@
     });
   }
 
-  // btn-back, btn-delete, btn-reset wired by AnkuraCore.init
+  // btn-back, btn-delete wired by AnkuraCore.init
   var btnDeleteAll = document.getElementById('btn-delete-all');
   if(btnDeleteAll){ btnDeleteAll.addEventListener('click', function(){ deleteAll(); }); }
 

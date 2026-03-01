@@ -17,8 +17,8 @@
     <header class="top-bar">
       <h1 class="top-bar__title">
         <span class="accent">🚆</span> Gati-Grid
-        <span style="font-size: 0.75em; opacity: 0.7; margin-left: 4px;">(GG)</span>
-        <span class="version-badge" style="margin-left:8px; font-size:0.75em; padding:2px 6px; border-radius:6px; background:#e0f2f1; color:#004d40;">v1</span>
+        <span class="top-bar__short-form">(GG)</span>
+        <span class="version-badge" style="background:#e0f2f1; color:#004d40;">v1</span>
       </h1>
       <div class="top-bar__left">
         <div class="top-bar__meta" title="Instance timestamps">
@@ -30,7 +30,7 @@
         <button id="btn-back" class="btn btn--outline" title="Back to dashboard">← Back</button>
         <button id="btn-delete-all" class="btn btn--danger-outline" title="Delete all tickets and logs">🗑 Clear All</button>
         <button id="btn-delete" class="btn btn--danger-outline" title="Delete this instance and close tab">🗑 Delete</button>
-        <select id="theme-select" class="select" title="Theme" style="width:auto; min-width:80px;">
+        <select id="theme-select" class="select select--compact" title="Theme">
           <option value="auto">Auto</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
@@ -62,16 +62,16 @@
       </div>
 
       <!-- Paste Text (optional, collapsed) -->
-      <div class="paste-panel collapsed" id="paste-panel" style="margin-top:12px;">
-        <div class="paste-panel__header" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-          <div style="font-weight:600;">Paste extracted PDF text (optional)</div>
-          <div style="display:flex; gap:8px; align-items:center;">
+      <div class="paste-panel collapsed" id="paste-panel">
+        <div class="paste-panel__header">
+          <div style="font-weight:600">Paste extracted PDF text (optional)</div>
+          <div class="paste-panel__actions">
             <button id="btn-toggle-paste" class="btn btn--outline" aria-expanded="false">Show</button>
           </div>
         </div>
         <div class="paste-panel__body" id="paste-body" hidden>
           <textarea id="paste-text" rows="6" placeholder="Paste full PDF text (or a region around Train/PNR/Passenger Details)"></textarea>
-          <div style="margin-top:6px; display:flex; gap:8px;">
+          <div class="paste-panel__footer">
             <button id="btn-parse-text" class="btn">Parse Text</button>
             <button id="btn-clear-text" class="btn btn--outline">Clear</button>
           </div>

@@ -36,6 +36,13 @@
   --accent-subtle: rgba(212,160,60,0.06);
   --border-focus: rgba(212,160,60,0.14);
 
+  /* Fluid type scale (responsive without breakpoints) */
+  --fs-h1: clamp(1.35rem, 2.5vw + 0.5rem, 2rem);
+  --fs-h2: clamp(1rem, 1.5vw + 0.5rem, 1.2rem);
+  --fs-body: clamp(0.82rem, 0.5vw + 0.7rem, 0.875rem);
+  --fs-small: clamp(0.7rem, 0.3vw + 0.6rem, 0.75rem);
+  --touch-min: 44px;
+
   /* New simplified theme variables (used by theme switcher) */
   --bg-color: var(--bg-primary);
   --text-color: var(--text-primary);
@@ -127,7 +134,7 @@ body {
 }
 
 .site-header h1 {
-  font-size: 2rem;
+  font-size: var(--fs-h1);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-primary);
@@ -140,7 +147,7 @@ body {
 .site-header p {
   margin-top: 0.5rem;
   color: var(--text-secondary);
-  font-size: 1rem;
+  font-size: var(--fs-body);
   font-weight: 400;
 }
 
@@ -216,12 +223,6 @@ body {
 .search-input::placeholder {
   color: var(--text-muted);
   font-style: italic;
-}
-
-@media (max-width: 768px) {
-  .search-input {
-    max-width: 100%;
-  }
 }
 
 /* ── Card Grid ─────────────────────────────────────── */
@@ -326,29 +327,98 @@ body {
   font-size: 1rem;
 }
 
+/* ── Utility Classes ───────────────────────────────── */
+
+/* Flex row with space-between (replaces common inline styles) */
+.section-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.5rem }
+.section-row--compact { margin-bottom:1rem }
+
+/* Grid for per-app cleanup buttons */
+.cleanup-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem; margin-bottom:1.5rem }
+
+/* Divider line */
+.divider { border-top:1px solid var(--border); padding-top:1rem; margin-top:1.5rem }
+.divider--flush { margin-bottom:0 }
+
+/* Help / disclaimer text */
+.help-text { font-size:var(--fs-small); color:var(--text-muted); margin-top:0.5rem; text-align:center }
+
+/* Spacer (replaces inline height divs) */
+.spacer { height:1.25rem }
+.spacer--sm { height:1rem }
+
+/* Short-form badge in app cards */
+.app-card__name-row { display:flex; gap:8px; align-items:baseline; margin-bottom:4px }
+.app-card__short-form { font-size:0.8em; font-weight:bold; background:rgba(0,0,0,0.1); padding:2px 6px; border-radius:3px; letter-spacing:0.5px }
+
+/* Short-form label in top-bar title */
+.top-bar__short-form { font-size:0.75em; opacity:0.7; margin-left:4px }
+
+/* Version badge (top-bar / footer) */
+.version-badge { font-size:0.75em; padding:2px 6px; border-radius:6px; margin-left:8px }
+
+/* Footer version line */
+.version-footer { text-align:center; padding:1.5rem 1rem 1rem; border-top:1px solid var(--border); margin-top:2rem }
+.version-footer__badge { font-size:0.7rem; color:var(--text-muted); font-family:var(--font-mono); letter-spacing:0.03em }
+
+/* Compact select (width:auto) */
+.select--compact { width:auto; min-width:80px }
+
+/* Two-column layout that stacks on mobile */
+.layout-sidebar { display:grid; grid-template-columns:1fr 1fr; gap:0 }
+
+/* Visibility toggles */
+.hide-mobile, .show-mobile { }
+
+/* Instance row (JS-rendered) */
+.instance-row { display:flex; justify-content:space-between; align-items:center; gap:0.5rem; padding:0.35rem 0 }
+
+/* Paste panel helpers */
+.paste-panel__header { display:flex; align-items:center; justify-content:space-between; gap:8px }
+.paste-panel__actions { display:flex; gap:8px; align-items:center }
+.paste-panel__footer { margin-top:6px; display:flex; gap:8px }
+
 /* ── Responsive ────────────────────────────────────── */
 
+/* --- Tablet and below (768px) --- */
+@media (max-width: 768px) {
+  .search-input { max-width:100% }
+  .section-row { flex-wrap:wrap }
+  .instance-item { flex-direction:column }
+  .instance-item__actions { width:100%; gap:0.5rem }
+  .instance-item__actions .btn { flex:1 }
+  .top-bar { flex-wrap:wrap; gap:0.5rem; padding:0.75rem 1rem }
+  .top-bar__meta { margin-left:0; flex-wrap:wrap; gap:0.25rem }
+  .top-bar__actions { flex-wrap:wrap; gap:0.4rem }
+  .layout-sidebar { grid-template-columns:1fr }
+  .layout-sidebar > *:first-child { border-right:none; border-bottom:1px solid var(--border) }
+  .hide-mobile { display:none !important }
+  .show-mobile { display:block !important }
+}
+
+/* --- Small screens (640px) --- */
 @media (max-width: 640px) {
-  .site-header {
-    padding: 1.5rem 1rem 0.75rem;
-  }
+  .site-header { padding:1.5rem 1rem 0.75rem }
+  .site-header__theme-select { right:1rem; top:1rem }
+  .main-content { padding:1.25rem }
+  .app-grid { grid-template-columns:1fr }
+}
 
-  .site-header h1 {
-    font-size: 1.5rem;
-  }
+/* --- Phone (480px) --- */
+@media (max-width: 480px) {
+  .top-bar__title { font-size:1rem }
+  .top-bar__actions { width:100%; justify-content:flex-start }
+  .top-bar__actions .btn { flex:1; min-width:0; font-size:0.72rem; padding:0.4rem 0.6rem }
+  .top-bar__actions .select { flex:0 0 auto; width:auto; min-width:70px }
+  .preview-actions { flex-direction:column }
+  .cleanup-grid { grid-template-columns:1fr }
+}
 
-  .site-header__theme-select {
-    right: 1rem;
-    top: 1rem;
-  }
-
-  .main-content {
-    padding: 1.25rem;
-  }
-
-  .app-grid {
-    grid-template-columns: 1fr;
-  }
+/* --- Touch devices --- */
+@media (pointer: coarse) {
+  .btn { min-height:var(--touch-min); min-width:var(--touch-min); padding:0.6rem 1rem }
+  .select { min-height:var(--touch-min) }
+  .app-card__launch { min-height:var(--touch-min) }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -368,7 +438,7 @@ body {
 }
 
 .top-bar__title {
-  font-size: 1.15rem;
+  font-size: var(--fs-h2);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text-primary);
@@ -402,6 +472,10 @@ body {
 .btn--solid { color:var(--text-on-accent); background:var(--accent); border:1.5px solid var(--accent) }
 .btn--solid:hover { background:var(--accent-hover); border-color:var(--accent-hover) }
 .btn--copied { background:var(--success) !important; border-color:var(--success) !important; color:#fff !important; pointer-events:none }
+.btn--sm { font-size:0.75rem; padding:0.4rem 0.8rem }
+.btn--full { width:100% }
+.btn--danger-outline { color:var(--danger); background:transparent; border:1.5px solid var(--danger) }
+.btn--danger-outline:hover { background:var(--danger); color:var(--text-primary) }
 
 /* Layout */
 .app-layout { display:grid; grid-template-columns:1fr 1fr; gap:0; flex:1; overflow:hidden }
@@ -472,13 +546,6 @@ body {
 .instance-item__actions .btn { font-size:0.7rem; padding:0.45rem 0.75rem }
 .instance-item--empty { text-align:center; color:var(--text-muted); font-style:italic; padding:1.5rem; border:1px dashed var(--border) }
 
-@media (max-width:768px) {
-  .instance-item { flex-direction:column }
-  .instance-item__actions { width:100%; gap:0.5rem }
-  .instance-item__actions .btn { flex:1 }
-}
-
-@media (max-width:480px) { .top-bar__title { font-size:1rem } .preview-actions { flex-direction:column } }
 
 /* ── Floating Label Field ──────────────────────────────────────
    Helper text appears as ghost text inside the empty field, then
