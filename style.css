@@ -378,6 +378,23 @@ body {
 .paste-panel__actions { display:flex; gap:8px; align-items:center }
 .paste-panel__footer { margin-top:6px; display:flex; gap:8px }
 
+/* Pop Panel — viewport-safe absolute dropdown/popup container
+   Parent must have position:relative.  Default: anchors to right edge.
+   On small screens the anchor auto-flips to the left edge so the panel
+   always opens rightward and never overflows the viewport.                */
+.pop-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  margin-top: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  max-width: calc(100vw - 2rem);
+}
+
 /* ── Responsive ────────────────────────────────────── */
 
 /* --- Tablet and below (768px) --- */
@@ -402,6 +419,9 @@ body {
   .site-header__theme-select { right:1rem; top:1rem }
   .main-content { padding:1.25rem }
   .app-grid { grid-template-columns:1fr }
+
+  /* Pop Panel: flip anchor to left so the panel opens rightward on narrow screens */
+  .pop-panel { right:auto; left:0 }
 }
 
 /* --- Phone (480px) --- */
