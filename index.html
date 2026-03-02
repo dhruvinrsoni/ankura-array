@@ -688,13 +688,15 @@
       (function () {
         var badge = document.getElementById('version-badge');
         if (!badge) return;
-        fetch('./version.json')
+        fetch('https://api.github.com/repos/dhruvinrsoni/ankura-array/commits/main')
           .then(function (r) { return r.json(); })
           .then(function (v) {
-            badge.textContent = v.sha + ' · ' + (v.date || '').slice(0, 10);
-            badge.title = 'Deployed commit: ' + v.sha + '\n' + v.date;
+            var sha = (v.sha || '').slice(0, 7);
+            var date = v.commit && v.commit.author && v.commit.author.date || '';
+            badge.textContent = sha + ' · ' + date.slice(0, 10);
+            badge.title = 'Deployed commit: ' + sha + '\n' + date;
           })
-          .catch(function () { /* not available on file:// */ });
+          .catch(function () { /* offline or rate-limited */ });
       })();
     </script>
   </body>
