@@ -70,7 +70,7 @@
             </button>
           </div>
           <p class="help-text">
-            Wipes all instance data and localStorage. Use with caution.
+            Wipes all app data on this browser: local/session storage, IndexedDB, caches, and service workers.
           </p>
         </div>
       </div>
@@ -429,7 +429,7 @@
               var dk = dataKey.toLowerCase();
               if (dk.indexOf('yukti') !== -1) instances[instanceId].apps.add('genai-yukti-deck');
               if (dk.indexOf('vaak') !== -1) instances[instanceId].apps.add('vaak-smith');
-              if (dk.indexOf('gati') !== -1 || dk.indexOf('gati_tickets') !== -1) instances[instanceId].apps.add('gati-grid');
+              if (dk.indexOf('yatra') !== -1 || dk.indexOf('yatra_tickets') !== -1 || dk.indexOf('gati') !== -1 || dk.indexOf('gati_tickets') !== -1) instances[instanceId].apps.add('yatra-monitor');
               if (dk.indexOf('tb_tools') !== -1 || dk.indexOf('tb_events') !== -1 ||
                   dk.indexOf('tb_last_tool') !== -1) {
                 instances[instanceId].apps.add('tula-bench');
@@ -451,7 +451,7 @@
               if (instances[iid].apps.size > 0) continue;
               var full = k.toLowerCase();
               if (full.indexOf('yukti') !== -1) instances[iid].apps.add('genai-yukti-deck');
-              else if (full.indexOf('gati') !== -1 || full.indexOf('gati_tickets') !== -1) instances[iid].apps.add('gati-grid');
+              else if (full.indexOf('yatra') !== -1 || full.indexOf('yatra_tickets') !== -1 || full.indexOf('gati') !== -1 || full.indexOf('gati_tickets') !== -1) instances[iid].apps.add('yatra-monitor');
               else instances[iid].apps.add('vaak-smith');
             }
           } catch (e) {}
@@ -489,7 +489,7 @@
         function keyBelongsToApp(key, appId) {
           var dk = key.toLowerCase();
           if (appId === 'genai-yukti-deck') return dk.indexOf('yukti') !== -1;
-          if (appId === 'gati-grid')        return dk.indexOf('gati') !== -1;
+          if (appId === 'yatra-monitor')    return dk.indexOf('yatra') !== -1 || dk.indexOf('gati') !== -1;
           if (appId === 'tula-bench')       return dk.indexOf('__tb_') !== -1 || dk.indexOf('tb_tools') !== -1 || dk.indexOf('tb_events') !== -1 || dk.indexOf('tb_last_tool') !== -1;
           // vaak-smith: catch-all — anything not claimed by the above apps
           return dk.indexOf('yukti') === -1 && dk.indexOf('gati') === -1 &&
@@ -517,15 +517,60 @@
         }
 
         /**
-         * Delete ALL localStorage (nuclear option).
+         * Delete ALL browser-side app data (nuclear option):
+         * localStorage, sessionStorage, IndexedDB, Cache Storage, Service Workers.
          */
-        function resetEverything() {
-          if (!confirm("Permanently delete ALL instance data? This cannot be undone.")) return;
-          if (!confirm("Really?")) return;
+        async function resetEverything() {
+          if (!confirm("Permanently delete ALL app data on this browser? This cannot be undone.")) return;
+          if (!confirm("Really wipe everything (including IndexedDB, caches, and service workers)?")) return;
+
+          try { localStorage.clear(); } catch (e) {}
+          try { sessionStorage.clear(); } catch (e) {}
+
           try {
-            localStorage.clear();
+            if (window.indexedDB) {
+              if (typeof indexedDB.databases === 'function') {
+                var dbs = await indexedDB.databases();
+                await Promise.all((dbs || []).map(function (info) {
+                  return new Promise(function (resolve) {
+                    if (!info || !info.name) { resolve(); return; }
+                    try {
+                      var req = indexedDB.deleteDatabase(info.name);
+                      req.onsuccess = function () { resolve(); };
+                      req.onerror = function () { resolve(); };
+                      req.onblocked = function () { resolve(); };
+                    } catch (e) { resolve(); }
+                  });
+                }));
+              } else {
+                ['YatraMonitorDB','GatiGridDB'].forEach(function (name) {
+                  try { indexedDB.deleteDatabase(name); } catch (e) {}
+                });
+              }
+            }
           } catch (e) {}
+
+          try {
+            if ('caches' in window && caches && typeof caches.keys === 'function') {
+              var cacheNames = await caches.keys();
+              await Promise.all((cacheNames || []).map(function (name) {
+                try { return caches.delete(name); } catch (e) { return Promise.resolve(false); }
+              }));
+            }
+          } catch (e) {}
+
+          try {
+            if ('serviceWorker' in navigator && navigator.serviceWorker && typeof navigator.serviceWorker.getRegistrations === 'function') {
+              var regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all((regs || []).map(function (reg) {
+                try { return reg.unregister(); } catch (e) { return Promise.resolve(false); }
+              }));
+            }
+          } catch (e) {}
+
           renderInstanceManager();
+          try { alert('Cleanup complete. Reloading dashboard...'); } catch (e) {}
+          try { location.reload(); } catch (e) {}
         }
 
         /**

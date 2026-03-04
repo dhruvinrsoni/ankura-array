@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yatra-Monitor</title>
+    <meta
+      name="description"
+      content="Yatra-Monitor — Offline IRCTC ticket parser and travel dashboard. Upload PDF e-tickets and organize journeys in a sortable, searchable data grid."
+    />
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="../app_registry.js"></script>
+  </head>
+  <body><script>!function(){try{var id=new URLSearchParams(location.search).get('instanceId')||sessionStorage.getItem('ankura_instanceId')||'';var raw=id?localStorage.getItem(id+'__theme'):null;var v=raw?JSON.parse(raw):'auto';var d=v==='dark'||(v==='auto'&&window.matchMedia('(prefers-color-scheme:dark)').matches);document.body.classList.toggle('dark-theme',d);document.body.classList.toggle('light-theme',!d)}catch(e){}}()</script>
+    <!-- ── Top Bar ─────────────────────────────────── -->
+    <header class="top-bar">
+      <h1 class="top-bar__title">
+        <span class="accent">🚆</span> Yatra-Monitor
+        <span class="top-bar__short-form">(YM)</span>
+        <span class="version-badge" style="background:#e0f2f1; color:#004d40;">v1</span>
+      </h1>
+      <div class="top-bar__left">
+        <div class="top-bar__meta" title="Instance timestamps">
+          <span id="meta-created" class="meta-item">Created: —</span>
+          <span id="meta-updated" class="meta-item">Updated: —</span>
+        </div>
+      </div>
+      <div class="top-bar__actions">
+        <button id="btn-back" class="btn btn--outline" title="Back to dashboard">← Back</button>
+        <button id="btn-delete-all" class="btn btn--danger-outline" title="Delete all tickets and logs">🗑 Clear All</button>
+        <button id="btn-delete" class="btn btn--danger-outline" title="Delete this instance and close tab">🗑 Delete</button>
+        <select id="theme-select" class="select select--compact" title="Theme">
+          <option value="auto">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- ── PDF.js Missing Banner (hidden by JS if lib loads) ── -->
+    <div id="pdfjs-banner" class="pdfjs-banner" hidden>
+      <strong>⚠ PDF.js not found.</strong>
+      Download <code>pdf.min.js</code> and <code>pdf.worker.min.js</code> into
+      <code>assets/libs/pdfjs/</code>.
+      <a href="../assets/libs/pdfjs/README.md" style="color:#ffd580;">See instructions →</a>
+    </div>
+
+    <!-- ── Main Content ────────────────────────────── -->
+    <main class="gg-main">
+      <!-- Upload Zone -->
+      <div id="upload-zone" class="upload-zone">
+        <div class="upload-zone__inner">
+          <span class="upload-zone__icon">📄</span>
+          <span class="upload-zone__text">
+            Drop IRCTC PDF tickets here or
+            <label for="file-input" class="upload-zone__link">browse files</label>
+          </span>
+          <span class="upload-zone__hint">Accepts .pdf — multiple files OK</span>
+        </div>
+        <input id="file-input" type="file" accept=".pdf" multiple hidden />
+      </div>
+
+      <!-- Paste Text (optional, collapsed) -->
+      <div class="paste-panel collapsed" id="paste-panel">
+        <div class="paste-panel__header">
+          <div style="font-weight:600">Paste extracted PDF text (optional)</div>
+          <div class="paste-panel__actions">
+            <button id="btn-toggle-paste" class="btn btn--outline" aria-expanded="false">Show</button>
+          </div>
+        </div>
+        <div class="paste-panel__body" id="paste-body" hidden>
+          <textarea id="paste-text" rows="6" placeholder="Paste full PDF text (or a region around Train/PNR/Passenger Details)"></textarea>
+          <div class="paste-panel__footer">
+            <button id="btn-parse-text" class="btn">Parse Text</button>
+            <button id="btn-clear-text" class="btn btn--outline">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls Bar -->
+      <div class="controls-bar">
+        <input
+          id="search-input"
+          type="text"
+          class="search-input gg-search"
+          placeholder="Search PNR, name, station, train…"
+          autocomplete="off"
+        />
+        <div class="controls-bar__right">
+          <div class="column-toggle-wrap">
+            <button id="btn-col-toggle" class="btn btn--outline" title="Show/hide columns">⚙ Columns</button>
+            <div id="column-panel" class="column-panel pop-panel" hidden>
+              <!-- checkboxes injected by JS -->
+            </div>
+          </div>
+          <span id="ticket-count" class="ticket-count">0 tickets</span>
+        </div>
+      </div>
+
+      <!-- Data Grid -->
+      <div class="grid-wrap">
+        <table id="data-grid" class="data-grid">
+          <thead>
+            <tr id="grid-head-row">
+              <!-- headers injected by JS -->
+            </tr>
+          </thead>
+          <tbody id="grid-body">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+        <div id="grid-empty" class="grid-empty">
+          <span class="grid-empty__icon">🚆</span>
+          <span class="grid-empty__text">No tickets yet — upload an IRCTC PDF to get started.</span>
+        </div>
+      </div>
+
+      <!-- Parse Log -->
+      <div id="parse-log" class="parse-log" hidden></div>
+    </main>
+
+    <!-- ── PDF Preview Modal ─────────────────────────── -->
+    <div id="pdf-modal" class="gg-modal" hidden style="display:none;">
+      <div id="pdf-modal-backdrop" class="gg-modal__backdrop"></div>
+      <div class="gg-modal__content">
+        <div class="gg-modal__header">
+          <span class="gg-modal__title">Ticket Preview</span>
+          <button id="pdf-modal-close" class="gg-modal__close" title="Close">&times;</button>
+        </div>
+        <div class="gg-modal__body">
+          <canvas id="pdf-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Scripts ─────────────────────────────────── -->
+    <script>
+    (function(){
+      var CDN_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174';
+      var CDN_SCRIPT = CDN_BASE + '/pdf.min.js';
+      var CDN_WORKER = CDN_BASE + '/pdf.worker.min.js';
+      var LOCAL_SCRIPT = '../assets/libs/pdfjs/pdf.min.js';
+      var LOCAL_WORKER = '../assets/libs/pdfjs/pdf.worker.min.js';
+
+      function loadScript(src, onload, onerror, timeoutMs){
+        var s = document.createElement('script'); s.src = src; s.async = true; s.__loaded = false;
+        s.onload = function(){ s.__loaded = true; onload && onload(); };
+        s.onerror = function(){ onerror && onerror(); };
+        if(timeoutMs){ setTimeout(function(){ if(!s.__loaded){ s.onerror && s.onerror(); } }, timeoutMs); }
+        document.head.appendChild(s);
+      }
+
+      function startApp(){
+        var core = document.createElement('script'); core.src = '../ankura-core.js';
+        core.onload = function(){ var s = document.createElement('script'); s.src = 'app.js'; document.body.appendChild(s); };
+        core.onerror = function(){ var s = document.createElement('script'); s.src = 'app.js'; document.body.appendChild(s); };
+        document.head.appendChild(core);
+      }
+      function setWorker(src){ try{ if(window.pdfjsLib && pdfjsLib.GlobalWorkerOptions) pdfjsLib.GlobalWorkerOptions.workerSrc = src; }catch(e){} }
+      var banner = document.getElementById('pdfjs-banner');
+
+      if(navigator.onLine){
+        // Try CDN first with short timeout, fallback to local
+        loadScript(CDN_SCRIPT, function(){ setWorker(CDN_WORKER); if(banner) banner.hidden = true; startApp(); }, function(){ loadScript(LOCAL_SCRIPT, function(){ setWorker(LOCAL_WORKER); if(banner) banner.hidden = true; startApp(); }, function(){ if(banner) banner.hidden = false; startApp(); }); }, 5000);
+      } else {
+        // Offline -> prefer local copy
+        loadScript(LOCAL_SCRIPT, function(){ setWorker(LOCAL_WORKER); if(banner) banner.hidden = true; startApp(); }, function(){ if(banner) banner.hidden = false; startApp(); });
+      }
+    })();
+    </script>
+  </body>
+</html>
