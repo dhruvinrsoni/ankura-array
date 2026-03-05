@@ -178,12 +178,60 @@
   var NO_FRAMEWORK_KEY = "__NO_FRAMEWORK__";
 
   /* ═══════════════════════════════════════════════════
+     §4b  PRE-FLIGHT — Task Types, Tips & Importance
+     ═══════════════════════════════════════════════════ */
+
+  var TASK_TYPES = [
+    { id: 'codegen',  emoji: '💻', label: 'Code Gen' },
+    { id: 'analysis', emoji: '📊', label: 'Analysis' },
+    { id: 'writing',  emoji: '✍️', label: 'Writing' },
+    { id: 'debug',    emoji: '🐛', label: 'Debugging' },
+    { id: 'review',   emoji: '🔍', label: 'Code Review' },
+    { id: 'planning', emoji: '📋', label: 'Planning' }
+  ];
+
+  /** Per-section micro-tips keyed by normalised label */
+  var SECTION_TIPS = {
+    'context':               'Specify what the AI should NOT assume about your environment.',
+    'persona':               'The more specific the persona, the more consistent the output.',
+    'role':                  'The more specific the persona, the more consistent the output.',
+    'task':                  'Include success criteria — what does "done" look like?',
+    'goal':                  'Include success criteria — what does "done" look like?',
+    'what i\'m trying to figure out': 'Include success criteria — what does "done" look like?',
+    'format':                'Show an example of the exact output format you want.',
+    'output':                'Describe the file format, structure, or visual layout you need.',
+    'what a good answer looks like': 'Describe the file format, structure, or visual layout you need.',
+    'source':                'Paste real code/data. AI performs better with concrete input.',
+    'what i already know':   'Paste real code/data. AI performs better with concrete input.',
+    'expectations':          'List what you do NOT want as explicitly as what you do.',
+    'action checklist':      'Number your steps. AI follows numbered lists more reliably.',
+    'why this matters':      'Explain the stakes — urgency and impact shape better answers.',
+    'where i\'m getting stuck': 'Pinpoint the exact blocker — vague struggles get vague answers.'
+  };
+
+  /** Which section labels are important per task type (normalised lowercase) */
+  var IMPORTANCE_MAP = {
+    'codegen':  ['context', 'task', 'goal', 'source', 'what i already know', 'expectations', 'output', 'what a good answer looks like', 'action checklist'],
+    'analysis': ['context', 'source', 'what i already know', 'format', 'output', 'what a good answer looks like', 'expectations'],
+    'writing':  ['persona', 'role', 'format', 'output', 'what a good answer looks like', 'expectations', 'context', 'why this matters'],
+    'debug':    ['context', 'source', 'what i already know', 'where i\'m getting stuck', 'task', 'goal', 'what i\'m trying to figure out'],
+    'review':   ['context', 'source', 'what i already know', 'expectations', 'action checklist', 'where i\'m getting stuck'],
+    'planning': ['context', 'task', 'goal', 'what i\'m trying to figure out', 'why this matters', 'action checklist', 'output', 'what a good answer looks like']
+  };
+
+  var selectedTaskType = null;
+
+  /* ═══════════════════════════════════════════════════
      §5  INITIALIZATION / HYDRATION
      ═══════════════════════════════════════════════════ */
 
   function init() {
     populateFrameworks();
     hydrateState();
+    // Pre-flight task type selector
+    var savedTT = State.load('vs_task_type');
+    if (savedTT) selectedTaskType = savedTT;
+    renderTaskTypeRow();
     // Render framework-specific fields (including the no-framework sandbox)
     renderFrameworkFields($framework.value);
     // tuning/provider UI removed — slider/model sync omitted
@@ -434,6 +482,97 @@
     return out;
   }
 
+  /* ── Pre-flight task type row ── */
+  function renderTaskTypeRow() {
+    var container = document.getElementById('preflight-row');
+    if (!container) return;
+    container.innerHTML = '';
+
+    var saved = State.load('vs_task_type');
+    if (saved) selectedTaskType = saved;
+
+    TASK_TYPES.forEach(function (tt) {
+      var btn = document.createElement('button');
+      btn.className = 'vs-task-chip' + (selectedTaskType === tt.id ? ' vs-task-chip--selected' : '');
+      btn.textContent = tt.emoji + ' ' + tt.label;
+      btn.type = 'button';
+      btn.addEventListener('click', function () {
+        if (selectedTaskType === tt.id) {
+          selectedTaskType = null;
+          State.save('vs_task_type', '');
+        } else {
+          selectedTaskType = tt.id;
+          State.save('vs_task_type', tt.id);
+        }
+        renderTaskTypeRow();
+        applyPreflightHighlights();
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  /** Normalise section label for lookup */
+  function normLabel(label) {
+    return (label || '').trim().toLowerCase();
+  }
+
+  /** Check if a section is important for the current task type */
+  function isSectionImportant(label) {
+    if (!selectedTaskType) return false;
+    var list = IMPORTANCE_MAP[selectedTaskType] || [];
+    var n = normLabel(label);
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] === n) return true;
+    }
+    return false;
+  }
+
+  /** Get micro-tip for a section label */
+  function getSectionTip(label) {
+    return SECTION_TIPS[normLabel(label)] || '';
+  }
+
+  /** Compute quality level from char count */
+  function qualityLevel(charCount) {
+    if (charCount === 0) return 'empty';
+    if (charCount < 20) return 'thin';
+    if (charCount <= 100) return 'good';
+    return 'rich';
+  }
+
+  /** Apply importance highlights and tip visibility to all rendered sections */
+  function applyPreflightHighlights() {
+    var container = document.getElementById('framework-fields');
+    if (!container) return;
+    var wraps = container.querySelectorAll('.editor-section');
+    for (var i = 0; i < wraps.length; i++) {
+      var wrap = wraps[i];
+      var ta = wrap.querySelector('textarea');
+      if (!ta) continue;
+      var label = ta.dataset.sectionLabel || '';
+      var important = isSectionImportant(label);
+
+      wrap.classList.toggle('editor-section--important', important);
+
+      // Show/hide tip
+      var tip = wrap.querySelector('.vs-section-tip');
+      if (tip) {
+        tip.style.display = (important && selectedTaskType) ? '' : 'none';
+      }
+    }
+  }
+
+  /** Update quality dot for a single textarea */
+  function updateQualityDot(ta) {
+    if (!ta) return;
+    var wrap = ta.closest('.editor-section');
+    if (!wrap) return;
+    var dot = wrap.querySelector('.vs-quality-dot');
+    if (!dot) return;
+    var level = qualityLevel((ta.value || '').length);
+    dot.className = 'vs-quality-dot vs-quality-dot--' + level;
+  }
+
   function renderFrameworkFields(frameworkKey) {
     // ensure container exists
     var container = document.getElementById("framework-fields");
@@ -497,7 +636,8 @@
 
     sectionsDef.forEach(function (section) {
       var wrap = document.createElement('div');
-      wrap.className = 'editor-section float-field';
+      var important = isSectionImportant(section.label);
+      wrap.className = 'editor-section float-field' + (important ? ' editor-section--important' : '');
 
       var ta = document.createElement('textarea');
       ta.className = 'textarea float-field__textarea';
@@ -514,21 +654,38 @@
         var nodes = container.querySelectorAll('textarea[data-section-label]');
         var obj = {};
         nodes.forEach(function (n) { obj[n.dataset.sectionLabel] = n.value; });
-        // Persist all section fields per-instance (do not sync across instances)
         saveFrameworkInstanceSections(frameworkKey, obj);
-        // Update composed userPrompt for preview
         var combinedUser = combineSectionsToText(obj, 'user');
         State.save('userPrompt', combinedUser);
         renderPreview();
       }, 400);
 
+      // Quality dot update on input
+      var debQuality = debounce(function () { updateQualityDot(ta); }, 150);
       ta.addEventListener('input', deb);
+      ta.addEventListener('input', debQuality);
       wrap.appendChild(ta);
 
+      // Float label with quality dot
       var floatLabel = document.createElement('label');
       floatLabel.className = 'float-field__label';
       floatLabel.textContent = section.placeholder || (section.label + (section.target === 'system' ? ' (system)' : ' (user)'));
+
+      var dot = document.createElement('span');
+      dot.className = 'vs-quality-dot vs-quality-dot--' + qualityLevel((ta.value || '').length);
+      floatLabel.insertBefore(dot, floatLabel.firstChild);
+
       wrap.appendChild(floatLabel);
+
+      // Micro-tip
+      var tipText = getSectionTip(section.label);
+      if (tipText) {
+        var tip = document.createElement('div');
+        tip.className = 'vs-section-tip';
+        tip.textContent = tipText;
+        tip.style.display = (important && selectedTaskType) ? '' : 'none';
+        wrap.appendChild(tip);
+      }
 
       container.appendChild(wrap);
     });
@@ -912,6 +1069,8 @@
       // Reset to defaults (framework/system).
       $framework.value = "";
       $system.value = "";
+      selectedTaskType = null;
+      renderTaskTypeRow();
       // instance userPrompt state cleared by State.clearAll();
       renderPreview();
       try { localStorage.setItem(INSTANCE_ID + "__meta_updated", JSON.stringify(new Date().toISOString())); } catch (e) {}

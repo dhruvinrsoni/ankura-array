@@ -40,6 +40,24 @@
     { id: 'c-agentic',    name: 'Agentic',     full: 'Agentic Capabilities'         }
   ];
 
+  var DECISIONS = [
+    { id: 'accept',  emoji: '✅', label: 'Accepted as-is' },
+    { id: 'tweak',   emoji: '✏️', label: 'Tweaked it' },
+    { id: 'rewrite', emoji: '🔄', label: 'Rewrote it' },
+    { id: 'reject',  emoji: '🚫', label: 'Rejected entirely' }
+  ];
+
+  var SKILL_REASONS = [
+    { id: 'sk-arch',     short: 'Architecture',  name: 'Architectural Reasoning' },
+    { id: 'sk-debug',    short: 'Debugging',     name: 'Distributed Debugging' },
+    { id: 'sk-legacy',   short: 'Legacy',        name: 'Legacy Code Understanding' },
+    { id: 'sk-business', short: 'Business',      name: 'Business Translation' },
+    { id: 'sk-strategy', short: 'Strategy',      name: 'Strategic Systems Thinking' },
+    { id: 'sk-legal',    short: 'Legal/Ethics',  name: 'Legal/Ethical Accountability' },
+    { id: 'sk-human',    short: 'Human',         name: 'Human Connection' },
+    { id: 'sk-nocode',   short: 'No-Code',       name: 'Knowing When NOT to Code' }
+  ];
+
   /* ══════════════════════════════════════════════════════════════
      §3  STATE
      ══════════════════════════════════════════════════════════════ */
@@ -50,9 +68,11 @@
   var captureTool      = State.load('tb_last_tool', tools[0] ? tools[0].id : null);
   var captureSentiment = null;
   var captureCriterion = null;
+  var captureDecision  = null;
+  var captureReason    = null;
 
   // Log tab filter state
-  var logFilter = { tool: null, sentiment: null };
+  var logFilter = { tool: null, sentiment: null, decision: null };
 
   /* ══════════════════════════════════════════════════════════════
      §4  HELPERS
@@ -165,6 +185,20 @@
     return null;
   }
 
+  function decisionById(id) {
+    for (var i = 0; i < DECISIONS.length; i++) {
+      if (DECISIONS[i].id === id) return DECISIONS[i];
+    }
+    return null;
+  }
+
+  function reasonById(id) {
+    for (var i = 0; i < SKILL_REASONS.length; i++) {
+      if (SKILL_REASONS[i].id === id) return SKILL_REASONS[i];
+    }
+    return null;
+  }
+
   function sentimentScore(sentimentId) {
     var s = sentimentById(sentimentId);
     return s ? s.score : 0;
@@ -240,6 +274,7 @@
       btn.addEventListener('click', function () {
         captureSentiment = s.id;
         renderCaptureSentiments();
+        showDecisionStep();
         updateLogBtn();
       });
       row.appendChild(btn);
@@ -261,6 +296,56 @@
       });
       wrap.appendChild(btn);
     });
+  }
+
+  function renderCaptureDecisions() {
+    var row = document.getElementById('decision-row');
+    if (!row) return;
+    row.innerHTML = '';
+    DECISIONS.forEach(function (d) {
+      var btn = document.createElement('button');
+      btn.className = 'tb-decision-btn' + (d.id === captureDecision ? ' tb-decision-btn--selected' : '');
+      btn.innerHTML = '<span class="tb-decision-btn__emoji">' + d.emoji + '</span>' +
+                      '<span class="tb-decision-btn__label">' + escHTML(d.label) + '</span>';
+      btn.addEventListener('click', function () {
+        captureDecision = (captureDecision === d.id) ? null : d.id;
+        renderCaptureDecisions();
+        showReasonStep();
+      });
+      row.appendChild(btn);
+    });
+  }
+
+  function renderCaptureReasons() {
+    var wrap = document.getElementById('reason-pills');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    SKILL_REASONS.forEach(function (r) {
+      var btn = document.createElement('button');
+      btn.className = 'tb-pill' + (r.id === captureReason ? ' tb-pill--selected' : '');
+      btn.textContent = r.short;
+      btn.addEventListener('click', function () {
+        captureReason = (captureReason === r.id) ? null : r.id;
+        renderCaptureReasons();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function showDecisionStep() {
+    var el = document.getElementById('decision-step');
+    if (el) el.style.display = captureSentiment ? '' : 'none';
+    if (captureSentiment) renderCaptureDecisions();
+    if (!captureSentiment) { captureDecision = null; captureReason = null; }
+    showReasonStep();
+  }
+
+  function showReasonStep() {
+    var el = document.getElementById('reason-step');
+    var show = captureDecision === 'rewrite' || captureDecision === 'reject';
+    if (el) el.style.display = show ? '' : 'none';
+    if (show) renderCaptureReasons();
+    if (!show) captureReason = null;
   }
 
   function updateLogBtn() {
@@ -286,18 +371,23 @@
       tool:      captureTool,
       sentiment: captureSentiment,
       criterion: captureCriterion || null,
-      note:      note
+      note:      note,
+      decision:  captureDecision || null,
+      reason:    captureReason || null
     };
     events.unshift(ev); // newest first
     persist();
 
-    // Reset: sentiment + criterion + note, keep tool sticky
+    // Reset: sentiment + criterion + decision + reason + note, keep tool sticky
     captureSentiment = null;
     captureCriterion = null;
+    captureDecision  = null;
+    captureReason    = null;
     if (noteEl) noteEl.value = '';
 
     renderCaptureSentiments();
     renderCaptureCriteria();
+    showDecisionStep();
     updateLogBtn();
     renderRecent();
     flashLogBtn();
@@ -328,11 +418,13 @@
       var s    = sentimentById(ev.sentiment);
       var tool = toolById(ev.tool);
       var crit = ev.criterion ? criterionById(ev.criterion) : null;
+      var dec = ev.decision ? decisionById(ev.decision) : null;
       html += '<div class="tb-recent-item">' +
                 '<span class="tb-recent-emoji">' + (s ? s.emoji : '?') + '</span>' +
                 '<span class="tb-recent-meta">' +
                   (tool ? '<span class="tb-chip ' + escHTML(tool.chipClass) + '">' + escHTML(tool.label) + '</span>' : '') +
                   (crit ? '<span class="tb-chip tb-chip--crit">' + escHTML(crit.name) + '</span>' : '') +
+                  (dec ? '<span class="tb-chip tb-chip--decision">' + dec.emoji + '</span>' : '') +
                   (ev.note ? '<span class="tb-recent-note">"' + escHTML(ev.note) + '"</span>' : '') +
                 '</span>' +
                 '<span class="tb-recent-time">' + relTime(ev.ts) + '</span>' +
@@ -363,6 +455,7 @@
     renderCaptureTools();
     renderCaptureSentiments();
     renderCaptureCriteria();
+    showDecisionStep();
     updateLogBtn();
     renderRecent();
   }
@@ -398,12 +491,22 @@
     SENTIMENTS.forEach(function (s) {
       makeFilter(s.emoji, 'sentiment', s.id, function () { return logFilter.sentiment === s.id; });
     });
+
+    // Decision filters
+    var sep = document.createElement('span');
+    sep.className = 'tb-filter-sep';
+    sep.textContent = '|';
+    bar.appendChild(sep);
+    DECISIONS.forEach(function (d) {
+      makeFilter(d.emoji + ' ' + d.label, 'decision', d.id, function () { return logFilter.decision === d.id; });
+    });
   }
 
   function filteredEvents() {
     return events.filter(function (ev) {
       if (logFilter.tool && ev.tool !== logFilter.tool) return false;
       if (logFilter.sentiment && ev.sentiment !== logFilter.sentiment) return false;
+      if (logFilter.decision && ev.decision !== logFilter.decision) return false;
       return true;
     });
   }
@@ -435,12 +538,16 @@
 
       var card = document.createElement('div');
       card.className = 'tb-event-card';
+      var dec = ev.decision ? decisionById(ev.decision) : null;
+      var rsn = ev.reason ? reasonById(ev.reason) : null;
       card.innerHTML =
         '<span class="tb-event-sentiment">' + (s ? s.emoji : '?') + '</span>' +
         '<div class="tb-event-body">' +
           '<div class="tb-event-meta">' +
             (tool ? '<span class="tb-chip ' + escHTML(tool.chipClass) + '">' + escHTML(tool.label + ' ' + tool.name) + '</span>' : '') +
             (crit ? '<span class="tb-chip tb-chip--crit">' + escHTML(crit.name) + '</span>' : '') +
+            (dec ? '<span class="tb-chip tb-chip--decision">' + dec.emoji + ' ' + escHTML(dec.label) + '</span>' : '') +
+            (rsn ? '<span class="tb-chip tb-chip--reason">' + escHTML(rsn.short) + '</span>' : '') +
             '<span class="tb-chip tb-chip--time">' + relTime(ev.ts) + '</span>' +
           '</div>' +
           (ev.note ? '<div class="tb-event-note">"' + escHTML(ev.note) + '"</div>' : '') +
@@ -508,10 +615,41 @@
       });
     });
 
-    return { toolStats: toolStats, heatmap: heatmap };
+    // Decision stats per tool
+    var decisionStats = {};
+    tools.forEach(function (t) {
+      decisionStats[t.id] = { accept: 0, tweak: 0, rewrite: 0, reject: 0, total: 0 };
+    });
+    events.forEach(function (ev) {
+      if (!ev.decision || !decisionStats[ev.tool]) return;
+      decisionStats[ev.tool][ev.decision]++;
+      decisionStats[ev.tool].total++;
+    });
+
+    // Skill reason stats (across all events)
+    var reasonStats = {};
+    SKILL_REASONS.forEach(function (r) { reasonStats[r.id] = 0; });
+    events.forEach(function (ev) {
+      if (ev.reason && reasonStats[ev.reason] !== undefined) reasonStats[ev.reason]++;
+    });
+
+    // Trust per (tool, criterion): trust = (accept+tweak) / decided
+    var trustMap = {};
+    tools.forEach(function (t) {
+      trustMap[t.id] = {};
+      CRITERIA.forEach(function (c) { trustMap[t.id][c.id] = { trusted: 0, total: 0 }; });
+    });
+    events.forEach(function (ev) {
+      if (!ev.decision || !ev.criterion) return;
+      if (!trustMap[ev.tool] || !trustMap[ev.tool][ev.criterion]) return;
+      trustMap[ev.tool][ev.criterion].total++;
+      if (ev.decision === 'accept' || ev.decision === 'tweak') trustMap[ev.tool][ev.criterion].trusted++;
+    });
+
+    return { toolStats: toolStats, heatmap: heatmap, decisionStats: decisionStats, reasonStats: reasonStats, trustMap: trustMap };
   }
 
-  function renderSmartSummary(toolStats, heatmap) {
+  function renderSmartSummary(toolStats, heatmap, decisionStats, reasonStats) {
     var el = document.getElementById('smart-summary');
     if (!el) return;
 
@@ -571,6 +709,29 @@
     });
     if (missing.length > 0 && missing.length < CRITERIA.length) {
       sentences.push('No data yet for: <em>' + missing.map(function (c) { return escHTML(c.name); }).join(', ') + '</em>. Log more moments to improve coverage.');
+    }
+
+    // Decision-based sentences
+    var toolsWithDecisions = tools.filter(function (t) { return decisionStats[t.id].total >= 3; });
+    if (toolsWithDecisions.length >= 1) {
+      toolsWithDecisions.forEach(function (t) {
+        var ds = decisionStats[t.id];
+        var acceptRate = Math.round(((ds.accept + ds.tweak) / ds.total) * 100);
+        if (acceptRate >= 80) {
+          sentences.push('You accept <strong>' + acceptRate + '%</strong> of <strong>' + escHTML(t.name) + '</strong>\'s output — high trust.');
+        } else if (acceptRate <= 40) {
+          sentences.push('You reject/rewrite <strong>' + (100 - acceptRate) + '%</strong> of <strong>' + escHTML(t.name) + '</strong>\'s output — consider using it differently.');
+        }
+      });
+    }
+
+    // Top rejection reason
+    var topReason = null, topReasonCount = 0;
+    SKILL_REASONS.forEach(function (r) {
+      if (reasonStats[r.id] > topReasonCount) { topReasonCount = reasonStats[r.id]; topReason = r; }
+    });
+    if (topReason && topReasonCount >= 2) {
+      sentences.push('Top rejection reason: <strong>' + escHTML(topReason.name) + '</strong> (' + topReasonCount + ' events).');
     }
 
     el.innerHTML = '<div class="tb-smart-summary">' +
@@ -751,14 +912,116 @@
     el.innerHTML = html;
   }
 
+  function renderDecisionPattern(decisionStats) {
+    var el = document.getElementById('decision-pattern');
+    if (!el) return;
+
+    var hasData = tools.some(function (t) { return decisionStats[t.id].total > 0; });
+    if (!hasData) {
+      el.innerHTML = '<div class="tb-empty"><span class="tb-empty-icon">✅</span>No decision data yet. Use the Capture tab and log what you did with the AI output.</div>';
+      return;
+    }
+
+    var COLORS = { accept: '#2ea44f', tweak: '#d4a03c', rewrite: '#d47a3c', reject: '#e05959' };
+    var html = '';
+    tools.forEach(function (t) {
+      var ds = decisionStats[t.id];
+      if (ds.total === 0) return;
+      html += '<div class="tb-tool-block"><div class="tb-tool-block-header">' +
+              '<span class="tb-tool-block-name">' + escHTML(t.name) + '</span>' +
+              '<span class="tb-tool-block-count">' + ds.total + ' decided</span></div>';
+      html += '<div class="tb-decision-bar">';
+      DECISIONS.forEach(function (d) {
+        var pct = Math.round((ds[d.id] / ds.total) * 100);
+        if (pct > 0) {
+          html += '<div class="tb-decision-bar__seg" style="width:' + pct + '%;background:' + COLORS[d.id] + ';" title="' + escHTML(d.label) + ': ' + pct + '%">' +
+                  (pct >= 12 ? d.emoji + ' ' + pct + '%' : '') + '</div>';
+        }
+      });
+      html += '</div>';
+      html += '<div class="tb-sentiment-breakdown">' +
+              DECISIONS.map(function (d) { return '<span class="tb-bd-item">' + d.emoji + '×' + ds[d.id] + '</span>'; }).join('') +
+              '</div></div>';
+    });
+    el.innerHTML = html;
+  }
+
+  function renderTrustScore(trustMap) {
+    var el = document.getElementById('trust-score');
+    if (!el) return;
+
+    var hasTrust = false;
+    tools.forEach(function (t) {
+      CRITERIA.forEach(function (c) { if (trustMap[t.id][c.id].total >= 3) hasTrust = true; });
+    });
+
+    if (!hasTrust) {
+      el.innerHTML = '<div class="tb-empty"><span class="tb-empty-icon">🔒</span>Need ≥3 decided events per (tool, area) pair. Keep logging!</div>';
+      return;
+    }
+
+    var html = '<div class="tb-heatmap-wrap"><table class="tb-heatmap-table"><thead><tr><th class="tb-heatmap-crit-col">Area</th>';
+    tools.forEach(function (t) { html += '<th>' + escHTML(t.name) + '</th>'; });
+    html += '</tr></thead><tbody>';
+    CRITERIA.forEach(function (c) {
+      html += '<tr><td class="tb-heatmap-crit-col">' + escHTML(c.full) + '</td>';
+      tools.forEach(function (t) {
+        var cell = trustMap[t.id][c.id];
+        if (cell.total < 3) {
+          html += '<td class="tb-heatmap-cell tb-heatmap-empty">—</td>';
+        } else {
+          var pct = Math.round((cell.trusted / cell.total) * 100);
+          var bg = pct >= 70 ? '#164030' : pct >= 50 ? null : '#5c2e2e';
+          var style = bg ? 'background:' + bg + ';' : '';
+          html += '<td class="tb-heatmap-cell" style="' + style + '">' +
+                  '<span class="tb-heatmap-score">' + pct + '%</span>' +
+                  '<span class="tb-heatmap-count">' + cell.total + ' ev.</span></td>';
+        }
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  }
+
+  function renderSkillGapAnalysis(reasonStats) {
+    var el = document.getElementById('skill-gap');
+    if (!el) return;
+
+    var sorted = SKILL_REASONS.map(function (r) { return { reason: r, count: reasonStats[r.id] }; })
+                              .filter(function (r) { return r.count > 0; })
+                              .sort(function (a, b) { return b.count - a.count; });
+
+    if (sorted.length === 0) {
+      el.innerHTML = '<div class="tb-empty"><span class="tb-empty-icon">🧠</span>No skill-based rejections logged yet. When you reject or rewrite AI output, tag the human skill that was needed.</div>';
+      return;
+    }
+
+    var maxCount = sorted[0].count;
+    var totalReasons = sorted.reduce(function (s, r) { return s + r.count; }, 0);
+    var html = '';
+    sorted.forEach(function (r) {
+      var pct = Math.round((r.count / totalReasons) * 100);
+      var barW = Math.round((r.count / maxCount) * 100);
+      html += '<div class="tb-insight-item">' +
+              '<div class="tb-skill-bar-label"><strong>' + escHTML(r.reason.name) + '</strong> — ' + pct + '% of rejections (' + r.count + ')</div>' +
+              '<div class="tb-bar-wrap"><div class="tb-bar-track"><div class="tb-bar-fill" style="width:' + barW + '%;background:var(--accent);"></div></div></div>' +
+              '</div>';
+    });
+    el.innerHTML = html;
+  }
+
   function renderInsights() {
     var stats = computeStats();
-    renderSmartSummary(stats.toolStats, stats.heatmap);
+    renderSmartSummary(stats.toolStats, stats.heatmap, stats.decisionStats, stats.reasonStats);
     renderStatCards(stats.toolStats);
     renderToolComparison(stats.toolStats);
     renderHeatmap(stats.heatmap);
     renderPainPoints(stats.heatmap);
     renderHighlights(stats.heatmap);
+    renderDecisionPattern(stats.decisionStats);
+    renderTrustScore(stats.trustMap);
+    renderSkillGapAnalysis(stats.reasonStats);
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -845,19 +1108,54 @@
       lines.push('');
     }
 
+    // Decision patterns
+    var hasDecisions = events.some(function (ev) { return !!ev.decision; });
+    if (hasDecisions) {
+      lines.push('## Decision Patterns');
+      lines.push('');
+      lines.push('| Tool | Accepted | Tweaked | Rewrote | Rejected | Total |');
+      lines.push('| :--- | :---: | :---: | :---: | :---: | :---: |');
+      tools.forEach(function (t) {
+        var ds = stats.decisionStats[t.id];
+        if (ds.total === 0) return;
+        lines.push('| ' + t.name + ' | ' + ds.accept + ' | ' + ds.tweak + ' | ' + ds.rewrite + ' | ' + ds.reject + ' | ' + ds.total + ' |');
+      });
+      lines.push('');
+    }
+
+    // Skill gap
+    var reasonList = SKILL_REASONS.map(function (r) { return { reason: r, count: stats.reasonStats[r.id] }; })
+                                  .filter(function (r) { return r.count > 0; })
+                                  .sort(function (a, b) { return b.count - a.count; });
+    if (reasonList.length > 0) {
+      var totalReasons = reasonList.reduce(function (s, r) { return s + r.count; }, 0);
+      lines.push('## Skill Gap Analysis');
+      lines.push('');
+      lines.push('Why you rejected/rewrote AI output:');
+      lines.push('');
+      reasonList.forEach(function (r) {
+        lines.push('- **' + r.reason.name + '**: ' + r.count + ' (' + Math.round((r.count / totalReasons) * 100) + '%)');
+      });
+      lines.push('');
+    }
+
     // Full event log
     lines.push('## Full Event Log');
     lines.push('');
-    lines.push('| Time | Tool | Signal | Area | Note |');
-    lines.push('| :--- | :--- | :---: | :--- | :--- |');
+    lines.push('| Time | Tool | Signal | Area | Decision | Reason | Note |');
+    lines.push('| :--- | :--- | :---: | :--- | :--- | :--- | :--- |');
     events.forEach(function (ev) {
       var s    = sentimentById(ev.sentiment);
       var tool = toolById(ev.tool);
       var crit = ev.criterion ? criterionById(ev.criterion) : null;
+      var dec  = ev.decision ? decisionById(ev.decision) : null;
+      var rsn  = ev.reason ? reasonById(ev.reason) : null;
       var time = new Date(ev.ts).toLocaleString();
       lines.push('| ' + time + ' | ' + (tool ? tool.name : ev.tool) + ' | ' +
         (s ? s.emoji + ' ' + s.label : ev.sentiment) + ' | ' +
-        (crit ? crit.name : '—') + ' | ' + (ev.note || '—') + ' |');
+        (crit ? crit.name : '—') + ' | ' +
+        (dec ? dec.emoji + ' ' + dec.label : '—') + ' | ' +
+        (rsn ? rsn.short : '—') + ' | ' + (ev.note || '—') + ' |');
     });
     lines.push('');
     lines.push('---');
@@ -936,6 +1234,8 @@
     // Keep tools and last_tool (not data)
     captureSentiment = null;
     captureCriterion = null;
+    captureDecision  = null;
+    captureReason    = null;
     renderCaptureTab();
     switchTab('capture');
   }

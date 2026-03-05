@@ -50,6 +50,27 @@
 
 .top-bar { display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid rgba(255,255,255,0.02); background:transparent }
 
+/* ── Pre-Flight Task Type ──────────────────────── */
+.vs-preflight { margin-bottom:12px }
+.vs-preflight-label { display:block; font-size:0.82rem; color:var(--text-secondary); font-weight:600; margin-bottom:6px; letter-spacing:0.02em }
+.vs-preflight-row { display:flex; flex-wrap:wrap; gap:6px }
+.vs-task-chip { padding:0.35rem 0.7rem; border-radius:999px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); font-size:0.82rem; font-weight:500; cursor:pointer; transition:all 0.15s ease; white-space:nowrap }
+.vs-task-chip:hover { border-color:var(--accent); color:var(--text-color) }
+.vs-task-chip--selected { background:var(--accent); color:var(--bg-primary); border-color:var(--accent); box-shadow:0 2px 8px var(--accent-glow) }
+
+/* ── Quality Dots ─────────────────────────────── */
+.vs-quality-dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:middle; transition:all 0.2s ease; flex-shrink:0 }
+.vs-quality-dot--empty { background:var(--border) }
+.vs-quality-dot--thin { background:#f0ad4e; box-shadow:0 0 4px rgba(240,173,78,0.4) }
+.vs-quality-dot--good { background:#5cb85c }
+.vs-quality-dot--rich { background:#5cb85c; box-shadow:0 0 6px rgba(92,184,92,0.5), 0 0 12px rgba(92,184,92,0.2) }
+
+/* ── Micro-Tips ───────────────────────────────── */
+.vs-section-tip { font-size:0.76rem; color:var(--text-muted); font-style:italic; padding:2px 0 4px 2px; line-height:1.3 }
+
+/* ── Important Section Highlight ──────────────── */
+.editor-section--important { border-left:3px solid var(--accent); padding-left:10px; border-radius:var(--radius-sm) }
+
 /* ── Responsive ─────────────────────────────────── */
 @media (max-width: 768px) {
   .app-layout { grid-template-columns:1fr; gap:0; padding:0.75rem }

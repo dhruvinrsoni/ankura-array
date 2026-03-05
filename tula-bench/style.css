@@ -562,6 +562,84 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .tb-empty-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
 
 /* ══════════════════════════════════════════════════════════════
+   DECISION DIMENSION — Capture, Log, Insights
+   ══════════════════════════════════════════════════════════════ */
+
+/* Capture: Decision row (Step 5) */
+.tb-decision-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.tb-decision-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.tb-decision-btn:hover { border-color: var(--accent); }
+.tb-decision-btn--selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+.tb-decision-btn__emoji { font-size: 0.9rem; }
+.tb-decision-btn__label { white-space: nowrap; }
+
+/* Log: chip variants for decision & reason */
+.tb-chip--decision {
+  background: rgba(91,155,213,0.12);
+  color: #5b9bd5;
+  border: 1px solid rgba(91,155,213,0.25);
+}
+.tb-chip--reason {
+  background: rgba(160,91,213,0.12);
+  color: #a05bd5;
+  border: 1px solid rgba(160,91,213,0.25);
+}
+
+/* Log: filter separator */
+.tb-filter-sep {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  padding: 0 0.15rem;
+  user-select: none;
+}
+
+/* Insights: Decision pattern stacked bar */
+.tb-decision-bar {
+  display: flex;
+  height: 22px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0.4rem 0;
+}
+.tb-decision-bar__seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  transition: width 0.4s ease;
+}
+
+/* Insights: Skill gap bar label */
+.tb-skill-bar-label {
+  font-size: 0.84rem;
+  margin-bottom: 0.25rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════════════ */
 @media (max-width: 640px) {

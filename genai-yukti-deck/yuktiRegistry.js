@@ -154,4 +154,120 @@ window.YUKTI_DECK = [
     citation:
       "Based on Google Research: 'Lost in the Middle' Phenomenon.",
   },
+
+  /* ═══════════════════════════════════════════════════
+     Category: Grounding
+     AI Guardrails — operationalize the human skills
+     AI cannot replicate (architecture, legacy awareness,
+     business context, accountability, simplicity, self-review).
+     ═══════════════════════════════════════════════════ */
+  {
+    id: "constraint-injector",
+    card: "The Constraint Injector",
+    content:
+      "Before answering, list 3 things you must NOT do:\n1. Do not {{ANTI_1}}\n2. Do not {{ANTI_2}}\n3. Do not {{ANTI_3}}\n\nNow proceed with the task.",
+    type: "prefix",
+    layer: 1,
+    category: "Grounding",
+    tags: ["constraints", "guardrails", "negative prompting", "boundaries", "safety"],
+    defaults: {
+      ANTI_1: "make assumptions about my tech stack",
+      ANTI_2: "over-engineer the solution",
+      ANTI_3: "skip error handling",
+    },
+    description:
+      "Forces the AI to acknowledge constraints upfront. Prevents runaway assumptions.",
+    citation:
+      "Inspired by: 'AI doesn't know your hidden constraints' — Architectural Reasoning.",
+  },
+  {
+    id: "architecture-guard",
+    card: "The Architecture Guard",
+    content:
+      "Before writing any code, state:\n1. Your assumptions about the existing architecture\n2. What technologies/patterns you expect are in use\n3. What you would need to verify with a human\n\nThen wait for confirmation before proceeding.",
+    type: "prefix",
+    layer: 1,
+    category: "Grounding",
+    tags: ["architecture", "assumptions", "verification", "guard", "constraints"],
+    defaults: {},
+    description:
+      "Makes AI explicit about its assumptions. Prevents blind refactoring of systems it doesn't understand.",
+    citation:
+      "Inspired by: 'AI suggests textbook solutions' — Architectural Reasoning.",
+  },
+  {
+    id: "legacy-lens",
+    card: "The Legacy Lens",
+    content:
+      "This code may look messy, but it exists for a reason. Before suggesting changes:\n1. Explain what this code does and WHY it might be written this way\n2. List possible reasons the original developer chose this approach\n3. Only then suggest improvements, noting what each change might break\n\n{{CONTEXT}}",
+    type: "wrapper",
+    layer: 3,
+    category: "Grounding",
+    tags: ["legacy", "refactoring", "understanding", "caution", "technical debt"],
+    defaults: {},
+    description:
+      "Prevents AI from reflexively refactoring code. Forces understanding before action.",
+    citation:
+      "Inspired by: 'AI sees messy code and wants to refactor it. Humans know WHY it survived.'",
+  },
+  {
+    id: "business-translator",
+    card: "The Business Translator",
+    content:
+      "Before solving this, ask me {{COUNT}} clarifying questions about:\n- Business constraints (budget, timeline, team size)\n- Success criteria (what does 'done' look like?)\n- Stakeholders (who cares about this?)\n\nDo NOT start coding until I answer.",
+    type: "prefix",
+    layer: 1,
+    category: "Grounding",
+    tags: ["business", "requirements", "clarification", "stakeholder", "translation"],
+    defaults: { COUNT: "3" },
+    description:
+      "Forces AI to ask 'why' before answering 'how'. Prevents solving the wrong problem.",
+    citation:
+      "Inspired by: 'Make it faster' — AI codes, a human asks 'how much are you willing to pay?'",
+  },
+  {
+    id: "accountability-anchor",
+    card: "The Accountability Anchor",
+    content:
+      "For each claim or recommendation, provide:\n- Confidence level (high/medium/low)\n- Source or reasoning\n- What could go wrong if this is wrong\n\nIf you're uncertain, say so explicitly.",
+    type: "suffix",
+    layer: 2,
+    category: "Grounding",
+    tags: ["accountability", "confidence", "sources", "uncertainty", "honesty"],
+    defaults: {},
+    description:
+      "Makes AI cite sources and express uncertainty. Prevents confident hallucination.",
+    citation:
+      "Inspired by: 'AI cannot be sued. You can.' — Legal/Ethical Accountability.",
+  },
+  {
+    id: "complexity-throttle",
+    card: "The Complexity Throttle",
+    content:
+      "Constraint: Your solution must be expressible in under {{MAX_LINES}} lines of code. If it can't, explain what's truly necessary vs what's over-engineering. Prefer configuration over code, and simple over clever.",
+    type: "suffix",
+    layer: 2,
+    category: "Grounding",
+    tags: ["simplicity", "over-engineering", "YAGNI", "minimal", "pragmatic"],
+    defaults: { MAX_LINES: "50" },
+    description:
+      "Prevents AI from generating 500 lines for a config change. Forces minimal solutions.",
+    citation:
+      "Inspired by: 'The best engineers delete more code than they write.' — Knowing when NOT to code.",
+  },
+  {
+    id: "review-protocol",
+    card: "The Review Protocol",
+    content:
+      "After generating your response:\n1. Critique it — what's weak, risky, or assumed?\n2. Rate your own confidence (1-10)\n3. Suggest what a human should double-check\n\nThen present the final version.",
+    type: "suffix",
+    layer: 4,
+    category: "Grounding",
+    tags: ["self-review", "meta", "quality", "critique", "verification"],
+    defaults: {},
+    description:
+      "Forces AI to self-critique before presenting output. Layer 4 ensures it runs last.",
+    citation:
+      "Inspired by: 'AI optimizes for today. Engineers think about the future.' — Strategic Systems Thinking.",
+  },
 ];

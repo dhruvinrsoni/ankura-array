@@ -87,6 +87,25 @@
             <label class="float-field__label" for="capture-note">What happened? (optional — e.g. 'wrong type annotation', 'nailed the PR review')</label>
           </div>
 
+          <div class="spacer"></div>
+
+          <!-- Step 5: Decision (optional, progressive disclosure) -->
+          <div id="decision-step" style="display:none">
+            <div class="tb-step-label">What did you do? <span class="tb-step-label__hint">(optional)</span></div>
+            <div id="decision-row" class="tb-decision-row">
+              <!-- Injected by app.js -->
+            </div>
+          </div>
+
+          <!-- Step 6: Reason (conditional, shown on rewrite/reject) -->
+          <div id="reason-step" style="display:none">
+            <div class="spacer spacer--sm"></div>
+            <div class="tb-step-label">Why? <span class="tb-step-label__hint">(which human skill was needed?)</span></div>
+            <div id="reason-pills" class="tb-criterion-pills">
+              <!-- Injected by app.js -->
+            </div>
+          </div>
+
           <div class="spacer spacer--sm"></div>
 
           <!-- Submit -->
@@ -172,6 +191,24 @@
       <div class="tb-section">
         <h2 class="tb-section-title">Highlights</h2>
         <div id="highlights" class="tb-insight-list"></div>
+      </div>
+
+      <!-- G: Decision Pattern -->
+      <div class="tb-section">
+        <h2 class="tb-section-title">Decision Pattern</h2>
+        <div id="decision-pattern"></div>
+      </div>
+
+      <!-- H: AI Trust Score -->
+      <div class="tb-section">
+        <h2 class="tb-section-title">AI Trust Score</h2>
+        <div id="trust-score"></div>
+      </div>
+
+      <!-- I: Skill Gap Analysis -->
+      <div class="tb-section">
+        <h2 class="tb-section-title">Skill Gap Analysis</h2>
+        <div id="skill-gap" class="tb-insight-list"></div>
       </div>
 
     </section>
