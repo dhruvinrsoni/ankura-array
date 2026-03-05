@@ -33,9 +33,6 @@
 .slider--fader::-moz-range-thumb { width:20px; height:20px; border-radius:50%; background:var(--accent); box-shadow:0 4px 10px var(--accent-glow); border:2px solid rgba(0,0,0,0.2) }
 .slider--fader { background-image: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%), repeating-linear-gradient(90deg, transparent, transparent 19%, rgba(255,255,255,0.06) 20%, transparent 21%, transparent 49%, rgba(255,255,255,0.06) 50%, transparent 51%, transparent 79%, rgba(255,255,255,0.06) 80%, transparent 81%); background-size:100% 100%, 100% 100% }
 
-.btn--toggle { padding:0.4rem 0.7rem; border-radius:999px; font-weight:600; font-size:0.86rem }
-.btn--toggle.btn--active { box-shadow:0 6px 20px rgba(212,160,60,0.18), 0 0 8px rgba(212,160,60,0.12) inset }
-
 .preview-monitor { background:var(--card-bg); border-radius:8px; border:1px solid var(--border); padding:10px; display:flex; flex-direction:column; flex:1 }
 .preview-content { font-family:var(--font-mono); font-size:0.92rem; color:var(--text-color); background:transparent; border-radius:6px; padding:12px; overflow:auto; flex:1; white-space:pre-wrap }
 .preview-content--empty { color:var(--text-muted) }

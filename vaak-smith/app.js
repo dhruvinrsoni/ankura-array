@@ -172,8 +172,6 @@
   var $btnDelete = document.getElementById("btn-delete");
   var $metaCreated = document.getElementById("meta-created");
   var $metaUpdated = document.getElementById("meta-updated");
-  var $btnApplyGuidance = document.getElementById("btn-apply-guidance");
-
   var CONFIGS = window.LLM_CONFIGS || { PROVIDERS: {}, FRAMEWORKS: {} };
   var NO_FRAMEWORK_KEY = "__NO_FRAMEWORK__";
 
@@ -236,7 +234,6 @@
     renderFrameworkFields($framework.value);
     // tuning/provider UI removed — slider/model sync omitted
     initTheme();
-    updateApplyButtonState();
     renderPreview();
     bindEvents();
     // render meta timestamps
@@ -787,75 +784,6 @@
     }
   }
 
-    // Guidance toggle helper functions
-    function guidanceMarkers(provider) {
-      var model = provider.model.replace(/\s+/g, "_");
-      var start = "\n\n--- Provider Guidance (" + model + ") START ---\n";
-      var end = "\n--- Provider Guidance (" + model + ") END ---\n";
-      return { start: start, end: end };
-    }
-
-    function buildGuidance(provider) {
-      return (
-        "Provider Guidance:\n" +
-        "- Model: " + provider.model + "\n" +
-        "- Max tokens: " + provider.maxTokens + "\n" +
-        "- Recommended temperature: " + provider.temperature.default.toFixed(2) + "\n" +
-        "- Recommended top_p: " + provider.topP.default.toFixed(2) + "\n\n" +
-        "Behavioral guidance: Keep responses concise and prefer structured output when possible."
-      );
-    }
-
-    function isGuidancePresentFor(provider) {
-      if (!provider) return false;
-      var markers = guidanceMarkers(provider);
-      return $system.value.indexOf(markers.start) !== -1 && $system.value.indexOf(markers.end) !== -1;
-    }
-
-    function removeGuidanceFor(provider) {
-      if (!provider) return;
-      var markers = guidanceMarkers(provider);
-      var idx = $system.value.indexOf(markers.start);
-      if (idx === -1) return;
-      var idxEnd = $system.value.indexOf(markers.end, idx);
-      if (idxEnd === -1) return;
-      var before = $system.value.slice(0, idx);
-      var after = $system.value.slice(idxEnd + markers.end.length);
-      $system.value = before.trim() + (after.trim() ? "\n\n" + after.trim() : "");
-      try { localStorage.setItem(globalSystemKey($framework.value || NO_FRAMEWORK_KEY), $system.value); } catch (e) {}
-    }
-
-    function insertGuidanceFor(provider) {
-      if (!provider) return;
-      var markers = guidanceMarkers(provider);
-      var guidance = buildGuidance(provider);
-      // Prevent duplicate insertion: only insert when absent
-      if (isGuidancePresentFor(provider)) return;
-      if (!$system.value.trim()) {
-        $system.value = guidance + "\n";
-      } else {
-        $system.value = $system.value.trim() + markers.start + guidance + markers.end;
-      }
-      try { localStorage.setItem(globalSystemKey($framework.value || NO_FRAMEWORK_KEY), $system.value); } catch (e) {}
-    }
-
-    function updateApplyButtonState() {
-      var providerKey = $provider.value;
-      var provider = CONFIGS.PROVIDERS[providerKey];
-      if (!$btnApplyGuidance) return;
-      // Always show the same label; indicate active state via class + aria-pressed
-      $btnApplyGuidance.textContent = "Toggle Guidance";
-      if (provider && isGuidancePresentFor(provider)) {
-        $btnApplyGuidance.classList.add("btn--active");
-        $btnApplyGuidance.classList.remove("btn--outline");
-        $btnApplyGuidance.setAttribute("aria-pressed", "true");
-      } else {
-        $btnApplyGuidance.classList.remove("btn--active");
-        $btnApplyGuidance.classList.add("btn--outline");
-        $btnApplyGuidance.setAttribute("aria-pressed", "false");
-      }
-    }
-
   /* ═══════════════════════════════════════════════════
      §7  OUTPUT ASSEMBLY & PREVIEW
      ═══════════════════════════════════════════════════ */
@@ -1144,23 +1072,6 @@
       if (!md.trim()) return;
       copyToClipboard(md, $btnCopyMd);
     });
-
-    // ── Apply Guidance toggle ──
-    if ($btnApplyGuidance) {
-      $btnApplyGuidance.addEventListener("click", function () {
-        var providerKey = $provider.value;
-        var provider = CONFIGS.PROVIDERS[providerKey];
-        if (!provider) return;
-
-        if (isGuidancePresentFor(provider)) {
-          removeGuidanceFor(provider);
-        } else {
-          insertGuidanceFor(provider);
-        }
-        updateApplyButtonState();
-        renderPreview();
-      });
-    }
 
     // ── Cross-tab sync for framework sections & global system prompt ──
     window.addEventListener('storage', function (ev) {
