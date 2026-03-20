@@ -62,6 +62,14 @@
 .vs-quality-dot--good { background:#5cb85c }
 .vs-quality-dot--rich { background:#5cb85c; box-shadow:0 0 6px rgba(92,184,92,0.5), 0 0 12px rgba(92,184,92,0.2) }
 
+/* ── Static Section Label ────────────────────── */
+.vs-section-label { display:flex; align-items:center; gap:4px; font-size:0.82rem; font-weight:600; color:var(--text-color); margin-bottom:4px; letter-spacing:0.01em }
+
+/* Offset float label to account for static label above textarea */
+.editor-section .float-field__label { top:calc(0.75rem + 24px) }
+.editor-section .float-field__textarea:focus ~ .float-field__label,
+.editor-section .float-field__textarea:not(:placeholder-shown) ~ .float-field__label { top:22px; transform:translateY(-50%) }
+
 /* ── Micro-Tips ───────────────────────────────── */
 .vs-section-tip { font-size:0.76rem; color:var(--text-muted); font-style:italic; padding:2px 0 4px 2px; line-height:1.3 }
 

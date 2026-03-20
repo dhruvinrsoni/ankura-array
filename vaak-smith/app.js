@@ -702,26 +702,37 @@
       var debQuality = debounce(function () { updateQualityDot(ta); }, 150);
       ta.addEventListener('input', deb);
       ta.addEventListener('input', debQuality);
-      wrap.appendChild(ta);
 
-      // Float label with quality dot
-      var floatLabel = document.createElement('label');
-      floatLabel.className = 'float-field__label';
-      floatLabel.textContent = section.label + (section.target === 'system' ? ' (system)' : '');
-      if (section.placeholder) ta.title = section.placeholder;
+      // Static section label (always visible above the field)
+      var staticLabel = document.createElement('div');
+      staticLabel.className = 'vs-section-label';
+      var labelText = section.label + (section.target === 'system' ? ' (system)' : '');
 
+      // Quality dot in the static label
       var dot = document.createElement('span');
       var exFlag = isExamplesSection(section.label);
       dot.className = 'vs-quality-dot vs-quality-dot--' + qualityLevel((ta.value || '').length, exFlag);
-      floatLabel.insertBefore(dot, floatLabel.firstChild);
+      staticLabel.appendChild(dot);
 
-      // Leverage point badge
+      var labelSpan = document.createElement('span');
+      labelSpan.textContent = labelText;
+      staticLabel.appendChild(labelSpan);
+
+      // Leverage point badge in the static label
       if (fw.leverageSection && section.label === fw.leverageSection) {
         var badge = document.createElement('span');
         badge.className = 'vs-leverage-badge';
         badge.textContent = '\u26A1 leverage point';
-        floatLabel.appendChild(badge);
+        staticLabel.appendChild(badge);
       }
+
+      wrap.appendChild(staticLabel);
+      wrap.appendChild(ta);
+
+      // Float label — shows example text as ghost placeholder, floats up on focus/content
+      var floatLabel = document.createElement('label');
+      floatLabel.className = 'float-field__label';
+      floatLabel.textContent = section.placeholder || '';
 
       wrap.appendChild(floatLabel);
 
