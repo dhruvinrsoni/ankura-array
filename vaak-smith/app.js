@@ -204,17 +204,23 @@
     'expectations':          'List what you do NOT want as explicitly as what you do.',
     'action checklist':      'Number your steps. AI follows numbered lists more reliably.',
     'why this matters':      'Explain the stakes — urgency and impact shape better answers.',
-    'where i\'m getting stuck': 'Pinpoint the exact blocker — vague struggles get vague answers.'
+    'where i\'m getting stuck': 'Pinpoint the exact blocker — vague struggles get vague answers.',
+    'audience':              'Name the reader and their expertise — this calibrates vocabulary, depth, and assumed knowledge.',
+    'who this is for':       'Picture the person acting on this. What do they already know? What would confuse them?',
+    'examples':              'Concrete beats abstract. One real input\u2192output pair is worth ten sentences of instruction.',
+    'example of a good answer': 'Show, don\'t tell. A concrete example constrains the AI\'s universe far more than a description.',
+    'ground truths':         'Set the physics of your universe \u2014 axioms the AI must never violate.',
+    'world':                 'Define the domain, culture, and in-group language. You are spawning a universe for the AI.'
   };
 
   /** Which section labels are important per task type (normalised lowercase) */
   var IMPORTANCE_MAP = {
-    'codegen':  ['context', 'task', 'goal', 'source', 'what i already know', 'expectations', 'output', 'what a good answer looks like', 'action checklist'],
-    'analysis': ['context', 'source', 'what i already know', 'format', 'output', 'what a good answer looks like', 'expectations'],
-    'writing':  ['persona', 'role', 'format', 'output', 'what a good answer looks like', 'expectations', 'context', 'why this matters'],
-    'debug':    ['context', 'source', 'what i already know', 'where i\'m getting stuck', 'task', 'goal', 'what i\'m trying to figure out'],
-    'review':   ['context', 'source', 'what i already know', 'expectations', 'action checklist', 'where i\'m getting stuck'],
-    'planning': ['context', 'task', 'goal', 'what i\'m trying to figure out', 'why this matters', 'action checklist', 'output', 'what a good answer looks like']
+    'codegen':  ['context', 'task', 'goal', 'source', 'what i already know', 'expectations', 'output', 'what a good answer looks like', 'action checklist', 'examples', 'example of a good answer'],
+    'analysis': ['context', 'source', 'what i already know', 'format', 'output', 'what a good answer looks like', 'expectations', 'audience', 'who this is for', 'examples', 'example of a good answer'],
+    'writing':  ['persona', 'role', 'format', 'output', 'what a good answer looks like', 'expectations', 'context', 'why this matters', 'audience', 'who this is for', 'examples', 'example of a good answer'],
+    'debug':    ['context', 'source', 'what i already know', 'where i\'m getting stuck', 'task', 'goal', 'what i\'m trying to figure out', 'examples', 'example of a good answer'],
+    'review':   ['context', 'source', 'what i already know', 'expectations', 'action checklist', 'where i\'m getting stuck', 'examples', 'example of a good answer'],
+    'planning': ['context', 'task', 'goal', 'what i\'m trying to figure out', 'why this matters', 'action checklist', 'output', 'what a good answer looks like', 'audience', 'who this is for', 'examples', 'example of a good answer']
   };
 
   var selectedTaskType = null;
@@ -234,10 +240,33 @@
     renderFrameworkFields($framework.value);
     // tuning/provider UI removed — slider/model sync omitted
     initTheme();
+    initGroundTruths();
     renderPreview();
     bindEvents();
     // render meta timestamps
     try { renderMeta(); } catch (e) {}
+  }
+
+  /* ── Ground Truths (Axioms) ── */
+  function initGroundTruths() {
+    var $gt = document.getElementById('ground-truths');
+    var $gtWrap = document.getElementById('ground-truths-wrap');
+    if (!$gt) return;
+
+    // Hydrate
+    var saved = State.load('vs_ground_truths');
+    if (saved) {
+      $gt.value = saved;
+      // Auto-open if there's content
+      if ($gtWrap && saved.trim()) $gtWrap.open = true;
+    }
+
+    // Save on input
+    var debGT = debounce(function () {
+      State.save('vs_ground_truths', $gt.value);
+      renderPreview();
+    }, 400);
+    $gt.addEventListener('input', debGT);
   }
 
   // Theme handling: instance-scoped via State (INSTANCE_ID prefix)
@@ -530,11 +559,22 @@
   }
 
   /** Compute quality level from char count */
-  function qualityLevel(charCount) {
+  function qualityLevel(charCount, isExamples) {
     if (charCount === 0) return 'empty';
+    if (isExamples) {
+      if (charCount < 60) return 'thin';
+      if (charCount <= 200) return 'good';
+      return 'rich';
+    }
     if (charCount < 20) return 'thin';
     if (charCount <= 100) return 'good';
     return 'rich';
+  }
+
+  /** Check if a section label is an examples-type section */
+  function isExamplesSection(label) {
+    var n = normLabel(label);
+    return n === 'examples' || n === 'example of a good answer';
   }
 
   /** Apply importance highlights and tip visibility to all rendered sections */
@@ -566,7 +606,8 @@
     if (!wrap) return;
     var dot = wrap.querySelector('.vs-quality-dot');
     if (!dot) return;
-    var level = qualityLevel((ta.value || '').length);
+    var exFlag = isExamplesSection(ta.dataset.sectionLabel || '');
+    var level = qualityLevel((ta.value || '').length, exFlag);
     dot.className = 'vs-quality-dot vs-quality-dot--' + level;
   }
 
@@ -669,8 +710,17 @@
       floatLabel.textContent = section.placeholder || (section.label + (section.target === 'system' ? ' (system)' : ' (user)'));
 
       var dot = document.createElement('span');
-      dot.className = 'vs-quality-dot vs-quality-dot--' + qualityLevel((ta.value || '').length);
+      var exFlag = isExamplesSection(section.label);
+      dot.className = 'vs-quality-dot vs-quality-dot--' + qualityLevel((ta.value || '').length, exFlag);
       floatLabel.insertBefore(dot, floatLabel.firstChild);
+
+      // Leverage point badge
+      if (fw.leverageSection && section.label === fw.leverageSection) {
+        var badge = document.createElement('span');
+        badge.className = 'vs-leverage-badge';
+        badge.textContent = '\u26A1 leverage point';
+        floatLabel.appendChild(badge);
+      }
 
       wrap.appendChild(floatLabel);
 
@@ -815,6 +865,17 @@
     // Rough token estimate: words * 1.3 (very approximate)
     var tokens = Math.max(0, Math.ceil(words * 1.3));
     var status = "Tokens: ~" + tokens;
+
+    // Subtle vocabulary richness hint
+    if (words > 10) {
+      var allWords = (sys + " " + usr).toLowerCase().split(/\s+/).filter(Boolean);
+      var unique = {};
+      for (var wi = 0; wi < allWords.length; wi++) unique[allWords[wi]] = true;
+      var ratio = Object.keys(unique).length / allWords.length;
+      if (ratio > 0.65) status += " \u00B7 Specific \u2713";
+      else if (ratio < 0.40) status += " \u00B7 Consider more specifics";
+    }
+
     var $status = document.getElementById("preview-status");
     if ($status) {
       $status.textContent = status;
@@ -857,6 +918,11 @@
   function assembleSectionsPairs() {
     var fwKey = $framework ? $framework.value : "";
     var pairs = [];
+
+    // Prepend ground truths if present
+    var $gt = document.getElementById('ground-truths');
+    var gt = ($gt && $gt.value) ? $gt.value.trim() : "";
+    if (gt) pairs.push({ label: "Ground Truths", value: gt });
 
     if (!fwKey) {
       var sys = $system && $system.value ? $system.value.trim() : "";

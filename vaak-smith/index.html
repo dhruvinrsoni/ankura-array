@@ -44,7 +44,8 @@
       <div class="panel panel--editor">
         <!-- Pre-Flight: Task Type -->
         <div class="vs-preflight">
-          <label class="vs-preflight-label">What are you prompting for?</label>
+          <label class="vs-preflight-label">Define your universe</label>
+          <small class="vs-preflight-subtitle">Every prompt spawns a world for the AI. What kind of world are you building?</small>
           <div id="preflight-row" class="vs-preflight-row">
             <!-- Injected by app.js -->
           </div>
@@ -67,6 +68,13 @@
             <label class="float-field__label" for="system-instructions">Define the AI's role, persona, and behavioral guidelines...</label>
           </div>
         </div>
+
+        <!-- Ground Truths — axioms the AI must accept -->
+        <details id="ground-truths-wrap" class="vs-ground-truths">
+          <summary class="vs-ground-truths__summary">Ground Truths <small>(axioms the AI must accept)</small></summary>
+          <textarea id="ground-truths" class="textarea" rows="3"
+            placeholder="Facts the AI must treat as fixed. e.g. 'Codebase uses Python 3.11. No internet access at runtime. User is always an internal engineer.'"></textarea>
+        </details>
 
         <!-- User prompt removed; composed from per-framework fields -->
 

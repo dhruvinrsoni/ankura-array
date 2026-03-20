@@ -31,7 +31,8 @@ window.LLM_CONFIGS = {
   FRAMEWORKS: {
     "google-standard": {
       name: "Google Standard",
-      description: "Persona → Task → Context → Format",
+      description: "Persona → Task → Context → Audience → Examples → Format",
+      leverageSection: "Persona",
       sections: [
         {
           label: "Persona",
@@ -50,6 +51,18 @@ window.LLM_CONFIGS = {
           target: "user",
         },
         {
+          label: "Audience",
+          placeholder:
+            "Who will read this output? e.g. a non-technical PM, a junior dev, a C-suite exec",
+          target: "user",
+        },
+        {
+          label: "Examples",
+          placeholder:
+            "Paste 1–2 concrete input→output pairs to ground the AI's response.",
+          target: "user",
+        },
+        {
           label: "Format",
           placeholder:
             "e.g. a bullet-point executive summary followed by a markdown table",
@@ -64,7 +77,8 @@ window.LLM_CONFIGS = {
 
     "copilot-gcse": {
       name: "Copilot G.C.S.E.",
-      description: "Goal → Context → Source → Expectations",
+      description: "Goal → Context → Audience → Source → Examples → Expectations",
+      leverageSection: "Expectations",
       sections: [
         {
           label: "Goal",
@@ -79,10 +93,22 @@ window.LLM_CONFIGS = {
           target: "user",
         },
         {
+          label: "Audience",
+          placeholder:
+            "Who will read this output? e.g. a non-technical PM, a junior dev, a C-suite exec",
+          target: "user",
+        },
+        {
           label: "Source",
           placeholder:
             "e.g. Refer to the existing auth middleware in src/middleware/auth.js",
           target: "system",
+        },
+        {
+          label: "Examples",
+          placeholder:
+            "Paste 1–2 concrete input→output pairs to ground the AI's response.",
+          target: "user",
         },
         {
           label: "Expectations",
@@ -99,7 +125,8 @@ window.LLM_CONFIGS = {
     "GEMINI_ENTERPRISE": {
       name: "Gemini Enterprise Pro (Role/Task/Context/Source/Expectations)",
       description:
-        "Highly-structured enterprise prompt template: Role, Task, Context, Source, Expectations.",
+        "Highly-structured enterprise prompt: Role, Task, Context, Audience, Source, Examples, Expectations.",
+      leverageSection: "Context",
       sections: [
         {
           label: "Role",
@@ -118,8 +145,20 @@ window.LLM_CONFIGS = {
           target: "user",
         },
         {
+          label: "Audience",
+          placeholder:
+            "Who will read this output? e.g. a non-technical PM, a junior dev, a C-suite exec",
+          target: "user",
+        },
+        {
           label: "Source",
           placeholder: "Attach source material: code, logs, docs, or datasets",
+          target: "user",
+        },
+        {
+          label: "Examples",
+          placeholder:
+            "Paste 1–2 concrete input→output pairs to ground the AI's response.",
           target: "user",
         },
         {
@@ -137,6 +176,7 @@ window.LLM_CONFIGS = {
     "vivek-kram": {
       name: "Vivek-Kram",
       description: "Think it through clearly before you ask",
+      leverageSection: "Where I'm Getting Stuck",
       sections: [
         {
           label: "What I'm Trying to Figure Out",
@@ -151,6 +191,12 @@ window.LLM_CONFIGS = {
           target: "user",
         },
         {
+          label: "Who This Is For",
+          placeholder:
+            "Who will act on this answer? What do they already know vs. need explained?",
+          target: "user",
+        },
+        {
           label: "What I Already Know",
           placeholder:
             "Facts, constraints, or context you're working with. What have you already tried or ruled out? What do you know for certain?",
@@ -160,6 +206,12 @@ window.LLM_CONFIGS = {
           label: "Where I'm Getting Stuck",
           placeholder:
             "The specific part that's unclear, hard, or confusing. What's the actual bottleneck? If you knew the answer to just one thing, what would unblock you?",
+          target: "user",
+        },
+        {
+          label: "Example of a Good Answer",
+          placeholder:
+            "Show what a useful response looks like — paste a real or imagined example.",
           target: "user",
         },
         {
@@ -177,12 +229,15 @@ window.LLM_CONFIGS = {
 
     "ARCHITECT": {
       name: "The Architect (Role/Context/Action)",
-      description: "Architect's Command — Role/Task/Context/Action Checklist/Output",
+      description: "Architect's Command — Role/Task/Context/Audience/Action Checklist/Examples/Output",
+      leverageSection: "Action Checklist",
       sections: [
         { label: "Role", placeholder: "e.g. Senior Software Architect", target: "user" },
         { label: "Task", placeholder: "e.g. Define the migration strategy for X", target: "user" },
         { label: "Context", placeholder: "Background info, constraints, and current state", target: "user" },
+        { label: "Audience", placeholder: "Who will read this output? e.g. a non-technical PM, a junior dev, a C-suite exec", target: "user" },
         { label: "Action Checklist", placeholder: "Step-by-step instructions for the AI", target: "user" },
+        { label: "Examples", placeholder: "Paste 1–2 concrete input→output pairs to ground the AI's response.", target: "user" },
         { label: "Output", placeholder: "Define exactly what you want to see", target: "user" },
       ],
       template: `
@@ -203,6 +258,54 @@ window.LLM_CONFIGS = {
 # Output
 [Define exactly what you want to see]
 `,
+    },
+
+    "worldbuilder": {
+      name: "The Worldbuilder",
+      description: "Audience → Ground Truths → World/Context → Task → Examples → Output",
+      leverageSection: "Examples",
+      sections: [
+        {
+          label: "Audience",
+          placeholder:
+            "Who will read this output? Their role, expertise level, what they already know vs. need explained.",
+          target: "user",
+        },
+        {
+          label: "Ground Truths",
+          placeholder:
+            "Axioms the AI must accept as fixed. e.g. 'Codebase is Python 3.11. No internet access. User is internal.'",
+          target: "system",
+        },
+        {
+          label: "World",
+          placeholder:
+            "The universe this prompt lives in. Domain, constraints, culture, in-group language. What world must the AI inhabit?",
+          target: "user",
+        },
+        {
+          label: "Task",
+          placeholder:
+            "The specific thing you need done. Include success criteria — what does 'done' look like?",
+          target: "user",
+        },
+        {
+          label: "Examples",
+          placeholder:
+            "1–2 concrete input→output pairs. Show the AI the exact shape of what you want.",
+          target: "user",
+        },
+        {
+          label: "Output",
+          placeholder:
+            "Format, length, tone, structure. Describe the deliverable.",
+          target: "user",
+        },
+      ],
+      systemTemplate:
+        "# GROUND TRUTHS\n{{Ground Truths}}\n\nYou are operating within the following world. Treat these as the physics of your universe.",
+      userTemplate:
+        "# AUDIENCE\nThis output is for: {{Audience}}\n\n# WORLD\n{{World}}\n\n# TASK\n{{Task}}\n\n# EXAMPLES\n{{Examples}}\n\n# OUTPUT FORMAT\n{{Output}}",
     },
   },
 };
