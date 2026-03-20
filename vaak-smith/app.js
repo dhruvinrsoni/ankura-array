@@ -707,7 +707,8 @@
       // Float label with quality dot
       var floatLabel = document.createElement('label');
       floatLabel.className = 'float-field__label';
-      floatLabel.textContent = section.placeholder || (section.label + (section.target === 'system' ? ' (system)' : ' (user)'));
+      floatLabel.textContent = section.label + (section.target === 'system' ? ' (system)' : '');
+      if (section.placeholder) ta.title = section.placeholder;
 
       var dot = document.createElement('span');
       var exFlag = isExamplesSection(section.label);
@@ -1004,6 +1005,110 @@
   }
 
   /* ═══════════════════════════════════════════════════
+     §8b  TEMPLATE EXPORT / IMPORT
+     ═══════════════════════════════════════════════════ */
+
+  function flashButton(button, msg) {
+    var orig = button.innerHTML;
+    button.innerHTML = msg;
+    button.classList.add("btn--copied");
+    setTimeout(function () {
+      button.innerHTML = orig;
+      button.classList.remove("btn--copied");
+    }, 1500);
+  }
+
+  function exportTemplate() {
+    var fwKey = $framework ? $framework.value : "";
+    var sections = {};
+    var container = document.getElementById("framework-fields");
+    if (container) {
+      var nodes = container.querySelectorAll("textarea[data-section-label]");
+      nodes.forEach(function (n) { sections[n.dataset.sectionLabel] = n.value; });
+    }
+    var $gt = document.getElementById("ground-truths");
+    var payload = {
+      _ankura: true,
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      framework: fwKey,
+      sections: sections,
+      system: $system ? $system.value : "",
+      groundTruths: $gt ? $gt.value : ""
+    };
+    var json = JSON.stringify(payload, null, 2);
+    var blob = new Blob([json], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "vaak-template-" + (fwKey || "freeform") + "-" + Date.now() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    var btn = document.getElementById("btn-export-template");
+    if (btn) flashButton(btn, "\u2713 Exported!");
+  }
+
+  function importTemplate(file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var payload = JSON.parse(reader.result);
+        if (!payload._ankura) { alert("Invalid template file."); return; }
+
+        // Set framework
+        if (payload.framework !== undefined) {
+          $framework.value = payload.framework;
+          State.save("framework", payload.framework);
+        }
+        renderFrameworkFields($framework.value);
+
+        // Populate section fields
+        if (payload.sections) {
+          var fwKey = $framework.value;
+          var container = document.getElementById("framework-fields");
+          if (container) {
+            var nodes = container.querySelectorAll("textarea[data-section-label]");
+            nodes.forEach(function (n) {
+              if (payload.sections[n.dataset.sectionLabel] !== undefined) {
+                n.value = payload.sections[n.dataset.sectionLabel];
+              }
+            });
+          }
+          saveFrameworkInstanceSections(fwKey, payload.sections);
+        }
+
+        // System instructions
+        if (payload.system !== undefined && $system) {
+          $system.value = payload.system;
+          var fk = $framework.value || NO_FRAMEWORK_KEY;
+          try { localStorage.setItem(globalSystemKey(fk), payload.system); } catch (e) {}
+        }
+
+        // Ground truths
+        if (payload.groundTruths !== undefined) {
+          var $gt = document.getElementById("ground-truths");
+          if ($gt) {
+            $gt.value = payload.groundTruths;
+            State.save("vs_ground_truths", payload.groundTruths);
+            var $gtWrap = document.getElementById("ground-truths-wrap");
+            if ($gtWrap && payload.groundTruths.trim()) $gtWrap.open = true;
+          }
+        }
+
+        renderPreview();
+        var btn = document.getElementById("btn-import-template");
+        if (btn) flashButton(btn, "\u2713 Imported!");
+      } catch (e) {
+        alert("Failed to parse template: " + e.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  /* ═══════════════════════════════════════════════════
      §9  EVENT BINDING
      ═══════════════════════════════════════════════════ */
 
@@ -1138,6 +1243,21 @@
       if (!md.trim()) return;
       copyToClipboard(md, $btnCopyMd);
     });
+
+    // ── Export / Import Templates ──
+    var $btnExport = document.getElementById("btn-export-template");
+    var $btnImport = document.getElementById("btn-import-template");
+    var $importFile = document.getElementById("import-template-file");
+    if ($btnExport) $btnExport.addEventListener("click", exportTemplate);
+    if ($btnImport && $importFile) {
+      $btnImport.addEventListener("click", function () { $importFile.click(); });
+      $importFile.addEventListener("change", function () {
+        if ($importFile.files && $importFile.files[0]) {
+          importTemplate($importFile.files[0]);
+          $importFile.value = ""; // reset so same file can be re-imported
+        }
+      });
+    }
 
     // ── Cross-tab sync for framework sections & global system prompt ──
     window.addEventListener('storage', function (ev) {

@@ -1,6 +1,6 @@
-# PDF.js — Local Copy for Gati-Grid
+# PDF.js — Local Copy for Yatra-Monitor
 
-Gati-Grid requires **Mozilla PDF.js** for offline IRCTC ticket parsing.
+Yatra-Monitor requires **Mozilla PDF.js** for offline IRCTC ticket parsing.
 
 ## Setup (one-time)
 
@@ -38,5 +38,5 @@ assets/libs/pdfjs/
   └── pdf.worker.min.js  ← ~600 KB
 ```
 
-Open `gati-grid/index.html` — if PDF.js loaded correctly, the upload
+Open `yatra-monitor/index.html` — if PDF.js loaded correctly, the upload
 zone will be active. If not, a yellow banner will appear with instructions.

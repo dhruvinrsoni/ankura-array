@@ -45,7 +45,7 @@ Every app carries a Sanskrit name paired with an English word. This is not decor
 | Sanskrit Root | Meaning | App | Why |
 |---------------|---------|-----|-----|
 | **Vaak** (वाक्) | Speech, utterance, the power of the word | Vaak-Smith | Prompting is the act of speech directed at an intelligence. The "smith" forges that speech into a weapon. |
-| **Gati** (गति) | Movement, journey, velocity | Gati-Grid | Tracks physical movement — train journeys parsed from ticket data into a navigable grid. |
+| **Yatra** (यात्रा) | Journey, pilgrimage, travel | Yatra-Monitor | Tracks travel journeys — train tickets parsed from PDFs into a navigable dashboard. |
 | **Yukti** (युक्ति) | Wisdom, strategy, a clever device | GenAI-Yukti-Deck | Each card in the deck is a *yukti* — a named strategic device for prompt engineering. |
 | **Tula** (तुला) | Balance, the scales, measurement | Tula-Bench | A balance for weighing AI tool quality, moment by moment, through calibrated sentiment. |
 | **Ankura** (अङ्कुर) | Sprout, seedling, new growth | Ankura Array (the collection) | The whole project is a seedling — small tools that grow from simple roots. |
@@ -98,15 +98,15 @@ The "Define your universe" selector at the top of Vaak-Smith is not a filter. It
 
 ---
 
-### Gati-Grid — The Travel Intelligence Grid
+### Yatra-Monitor — The Travel Intelligence Dashboard
 
 **Core Belief:** Your data should work for you, not a corporation.
 
-IRCTC generates train ticket PDFs — dense, poorly formatted, opaque documents designed for printing, not querying. If you travel frequently by Indian Railways, you accumulate dozens of these files, each one a locked vault of your own travel history. Gati-Grid cracks those vaults open.
+IRCTC generates train ticket PDFs — dense, poorly formatted, opaque documents designed for printing, not querying. If you travel frequently by Indian Railways, you accumulate dozens of these files, each one a locked vault of your own travel history. Yatra-Monitor cracks those vaults open.
 
 #### Patient, Forgiving Extraction
 
-IRCTC PDFs are notoriously inconsistent. A table cell in one version is a floating text block in another. Rather than trusting structure, Gati-Grid treats the PDF as raw text and applies a layered regex strategy. It looks for labels first, then hunts for the value across the next one or two lines. When the primary extraction pattern fails, a fallback scan activates. This graceful degradation — trying harder rather than giving up — is rare in single-file web apps.
+IRCTC PDFs are notoriously inconsistent. Rather than trusting PDF structure, Yatra-Monitor loads the file via pdf.js (CDN with automatic local fallback for offline use), extracts raw text, and applies a layered regex strategy: label-based search first, then positional scanning across adjacent lines, then station name validation against an ALL-CAPS heuristic with a blocklist of false positives. When the primary passenger-extraction pattern fails, a fallback scan activates. For strict `file://` environments where pdf.js is unavailable, a paste-text fallback lets users manually supply extracted text — the parser still works, just without drag-and-drop.
 
 #### Transparent Parsing
 
@@ -116,9 +116,13 @@ Every parsing step is logged in a visible Parse Log panel — timestamped, colou
 
 The data grid is not just a display. It is searchable, sortable, and column-configurable. You can ask questions of your own travel history: "How many times did I travel in Sleeper class last year?" or "Which routes did I take most?" The columns are schema-driven — adding a new field requires touching only one definition, and the header, cells, search indexing, and column-visibility toggles all derive from it.
 
-#### Why IndexedDB + localStorage
+#### QR Preview
 
-PDF binary data (megabytes per file) lives in IndexedDB. Parsed metadata (kilobytes) lives in localStorage via the State API. This two-tier storage respects both the browser's limits and the user's expectation that their app will load instantly.
+Each ticket row has a "QR" button that renders the PDF's first page to a `<canvas>` element in a modal — a visual preview that shows the IRCTC QR code printed on the ticket. This is intentionally a display feature, not a QR decoder. The canvas render confirms the correct document was uploaded and provides quick visual verification without any external decoding library.
+
+#### Two-Tier Storage: IndexedDB + localStorage
+
+PDF binary data (megabytes per file) lives in IndexedDB (`YatraMonitorDB`). Parsed metadata (kilobytes) lives in localStorage via the State API. This two-tier approach respects both the browser's storage limits and the user's expectation that their app will load instantly. Closing and reopening the browser preserves everything — PDFs, parsed data, and the full grid state.
 
 ---
 

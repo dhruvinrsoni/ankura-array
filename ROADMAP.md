@@ -1,5 +1,27 @@
 # Ankura Array — Roadmap
 
+## Implemented
+
+### Prompt Template Library — Export/Import ✅
+
+**What:** Export a Vaak-Smith session (framework + all section values + system instructions + ground truths) as a `.json` file. Import that file into any instance to restore the full prompt configuration.
+
+**How it works:** Export creates a `Blob` with `JSON.stringify` and triggers a file download via `<a download>`. Import uses `<input type="file">` + `FileReader`. Both work on `file://` with zero dependencies.
+
+**Why it matters:** Worldbuilt prompts are valuable work. A brilliant prompt for "code review for junior developers" should be shareable, reusable, and archivable.
+
+---
+
+### Tula-Bench Trends Over Time ✅
+
+**What:** A time-series view in the Insights tab showing per-tool average sentiment scores bucketed by week or month. Rendered as pure SVG polylines — no external charting library.
+
+**How it works:** Events are grouped by `getBucketKey(ts, bucket)`, averaged per tool per bucket, and rendered as colored polylines on a -2 to +2 sentiment axis. Weekly and Monthly toggle buttons switch the bucketing. A legend maps colors to tool names.
+
+**Why it matters:** Snapshots tell you where you are. Trends tell you where you're heading. "Is Copilot getting better at architectural suggestions?" is now answerable.
+
+---
+
 ## Future Explorations
 
 ### Frame Shift / Iteration (from Worldbuilding Principles)
@@ -26,20 +48,8 @@
 
 ---
 
-### Prompt Template Library / Community Sharing
-
-**Idea:** Save and share worldbuilt prompts as reusable templates. Export a Vaak-Smith configuration (framework + filled sections) as a JSON file that others can import.
-
-**Why it matters:** The Worldbuilder framework creates rich, structured prompts. If a user crafts a brilliant prompt for "code review for junior developers," that worldbuilding work should be shareable.
-
----
-
-### Tula-Bench Cross-Tool Analysis
-
-**Idea:** Compare AI tool performance across different criteria over time. Track trends: "Is Copilot getting better at architectural suggestions?" Currently, Tula-Bench captures snapshots. A time-series view would reveal trajectories.
-
----
-
-### Gati-Grid Multi-Format Support
+### Yatra-Monitor Multi-Format Support
 
 **Idea:** Extend beyond IRCTC PDFs to other travel document formats (boarding passes, hotel confirmations, ride receipts). Same philosophy: your travel data, liberated from opaque formats, unified in a queryable grid.
+
+**Feasibility:** Text-extractable PDF variants (airline e-tickets) are medium scope — only the parser layer grows, the grid needs no changes. Image-based formats (wallet passes, scanned boarding passes) would require OCR, which conflicts with the zero-dependency philosophy.

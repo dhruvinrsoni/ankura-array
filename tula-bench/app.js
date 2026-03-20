@@ -1022,6 +1022,127 @@
     renderDecisionPattern(stats.decisionStats);
     renderTrustScore(stats.trustMap);
     renderSkillGapAnalysis(stats.reasonStats);
+    renderTimeSeries(tsBucket);
+  }
+
+  /* ── Time-Series Trend View ── */
+  var tsBucket = 'week';
+
+  function getISOWeek(d) {
+    var date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+    var week1 = new Date(date.getFullYear(), 0, 4);
+    return Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7) + 1;
+  }
+
+  function getBucketKey(ts, bucket) {
+    var d = new Date(ts);
+    if (bucket === 'month') return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    return d.getFullYear() + '-W' + String(getISOWeek(d)).padStart(2, '0');
+  }
+
+  // Stable color palette per tool index
+  var TOOL_COLORS = ['#d4a03c', '#5cb85c', '#5bc0de', '#d9534f', '#9b59b6', '#e67e22'];
+
+  function renderTimeSeries(bucket) {
+    var el = document.getElementById('timeseries-chart');
+    if (!el) return;
+
+    // Filter events with timestamps
+    var timed = events.filter(function (ev) { return ev.ts && ev.tool; });
+    if (timed.length < 2) {
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:12px 0">Need more data for trends. Log at least 2 events to see a chart.</div>';
+      return;
+    }
+
+    // Build buckets: { bucketKey: { toolId: { sum, count } } }
+    var buckets = {};
+    timed.forEach(function (ev) {
+      var key = getBucketKey(ev.ts, bucket);
+      if (!buckets[key]) buckets[key] = {};
+      if (!buckets[key][ev.tool]) buckets[key][ev.tool] = { sum: 0, count: 0 };
+      var score = sentimentScore(ev.sentiment);
+      buckets[key][ev.tool].sum += score;
+      buckets[key][ev.tool].count++;
+    });
+
+    var keys = Object.keys(buckets).sort();
+    var toolIds = tools.map(function (t) { return t.id; });
+
+    // Chart dimensions
+    var pad = { top: 20, right: 16, bottom: 40, left: 36 };
+    var colW = 52;
+    var chartW = Math.max(280, keys.length * colW);
+    var chartH = 140;
+    var totalW = pad.left + chartW + pad.right;
+    var totalH = pad.top + chartH + pad.bottom;
+
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + totalW + '" height="' + totalH + '" style="display:block;max-width:100%;font-family:var(--font-mono);font-size:10px">';
+
+    // Y-axis: -2 to +2
+    var yMin = -2, yMax = 2, yRange = yMax - yMin;
+    function yPos(score) { return pad.top + chartH - ((score - yMin) / yRange) * chartH; }
+    function xPos(i) { return pad.left + (i + 0.5) * (chartW / keys.length); }
+
+    // Grid lines and labels
+    for (var g = yMin; g <= yMax; g++) {
+      var gy = yPos(g);
+      var opacity = g === 0 ? '0.3' : '0.08';
+      var sw = g === 0 ? '1.5' : '1';
+      svg += '<line x1="' + pad.left + '" y1="' + gy + '" x2="' + (pad.left + chartW) + '" y2="' + gy + '" stroke="currentColor" stroke-opacity="' + opacity + '" stroke-width="' + sw + '"/>';
+      svg += '<text x="' + (pad.left - 4) + '" y="' + (gy + 3) + '" text-anchor="end" fill="currentColor" opacity="0.5">' + (g > 0 ? '+' : '') + g + '</text>';
+    }
+
+    // X-axis labels
+    keys.forEach(function (k, i) {
+      var label = bucket === 'month' ? k : k.replace(/^\d{4}-/, '');
+      svg += '<text x="' + xPos(i) + '" y="' + (pad.top + chartH + 16) + '" text-anchor="middle" fill="currentColor" opacity="0.5">' + label + '</text>';
+    });
+
+    // Per-tool polylines
+    toolIds.forEach(function (toolId, ti) {
+      var color = TOOL_COLORS[ti % TOOL_COLORS.length];
+      var points = [];
+      keys.forEach(function (k, i) {
+        if (buckets[k][toolId] && buckets[k][toolId].count > 0) {
+          var avg = buckets[k][toolId].sum / buckets[k][toolId].count;
+          points.push({ x: xPos(i), y: yPos(avg), valid: true });
+        } else {
+          points.push({ x: xPos(i), y: 0, valid: false });
+        }
+      });
+
+      // Draw polyline with gaps for missing data
+      var d = '';
+      for (var p = 0; p < points.length; p++) {
+        if (!points[p].valid) continue;
+        if (d === '' || (p > 0 && !points[p - 1].valid)) {
+          d += 'M' + points[p].x.toFixed(1) + ',' + points[p].y.toFixed(1);
+        } else {
+          d += 'L' + points[p].x.toFixed(1) + ',' + points[p].y.toFixed(1);
+        }
+      }
+      if (d) {
+        svg += '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      }
+      // Dots at data points
+      points.forEach(function (pt) {
+        if (pt.valid) svg += '<circle cx="' + pt.x.toFixed(1) + '" cy="' + pt.y.toFixed(1) + '" r="3" fill="' + color + '"/>';
+      });
+    });
+
+    svg += '</svg>';
+
+    // Legend
+    var legend = '<div style="display:flex;gap:12px;margin-top:6px;font-size:0.78rem">';
+    tools.forEach(function (t, ti) {
+      var color = TOOL_COLORS[ti % TOOL_COLORS.length];
+      legend += '<span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + '"></span>' + t.name + '</span>';
+    });
+    legend += '</div>';
+
+    el.innerHTML = svg + legend;
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -1254,6 +1375,16 @@
     renderCaptureTab();
     bindCaptureTab();
     bindExportTab();
+
+    // Time-series bucket toggles
+    document.querySelectorAll('.tb-ts-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        tsBucket = btn.dataset.bucket || 'week';
+        document.querySelectorAll('.tb-ts-btn').forEach(function (b) { b.classList.remove('tb-ts-btn--active'); });
+        btn.classList.add('tb-ts-btn--active');
+        renderTimeSeries(tsBucket);
+      });
+    });
 
     // Show capture tab (hero)
     switchTab('capture');

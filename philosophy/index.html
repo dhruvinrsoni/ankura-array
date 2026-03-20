@@ -58,7 +58,7 @@
           <thead><tr><th>Sanskrit Root</th><th>Meaning</th><th>App</th><th>Why</th></tr></thead>
           <tbody>
             <tr><td><strong>Vaak</strong> (वाक्)</td><td>Speech, utterance</td><td>Vaak-Smith</td><td>Prompting is speech directed at an intelligence. The "smith" forges it into a weapon.</td></tr>
-            <tr><td><strong>Gati</strong> (गति)</td><td>Movement, journey</td><td>Gati-Grid</td><td>Tracks physical movement — train journeys parsed into a navigable grid.</td></tr>
+            <tr><td><strong>Yatra</strong> (यात्रा)</td><td>Journey, pilgrimage, travel</td><td>Yatra-Monitor</td><td>Tracks travel journeys — train tickets parsed from PDFs into a navigable dashboard.</td></tr>
             <tr><td><strong>Yukti</strong> (युक्ति)</td><td>Wisdom, strategy</td><td>GenAI-Yukti-Deck</td><td>Each card is a <em>yukti</em> — a named strategic device for prompt engineering.</td></tr>
             <tr><td><strong>Tula</strong> (तुला)</td><td>Balance, the scales</td><td>Tula-Bench</td><td>A balance for weighing AI tool quality through calibrated sentiment.</td></tr>
             <tr><td><strong>Ankura</strong> (अङ्कुर)</td><td>Sprout, seedling</td><td>Ankura Array</td><td>The whole project is a seedling — small tools that grow from simple roots.</td></tr>
@@ -88,12 +88,12 @@
         <p>Each framework enforces a particular order of thought. Google Standard forces persona first. Vivek-Kram forces you to articulate where you're stuck. The Worldbuilder forces audience and ground truths before the task. The order matters because it shapes how you think, not just what you write.</p>
       </section>
 
-      <!-- ── Gati-Grid ── -->
+      <!-- ── Yatra-Monitor ── -->
       <section class="philosophy-section">
-        <h2>Gati-Grid — The Travel Intelligence Grid</h2>
+        <h2>Yatra-Monitor — The Travel Intelligence Dashboard</h2>
         <p><strong>Core Belief:</strong> Your data should work for you, not a corporation.</p>
-        <p>IRCTC ticket PDFs are locked vaults of your own travel history. Gati-Grid cracks them open with patient, forgiving text extraction — layered regex strategies with graceful fallbacks, transparent parse logs, and a schema-driven grid that turns opaque data into a queryable thinking tool.</p>
-        <p>Every parsing step is visible. The user is a collaborator, not a consumer.</p>
+        <p>IRCTC ticket PDFs are locked vaults of your own travel history. Yatra-Monitor cracks them open using pdf.js (CDN with local fallback for offline), extracting raw text and applying a layered regex strategy with graceful fallbacks. A paste-text fallback ensures the parser works even in strict <code>file://</code> environments without pdf.js.</p>
+        <p>Every parsing step is logged in a visible, timestamped, severity-coded Parse Log — the user is a collaborator, not a consumer. The schema-driven grid turns opaque data into a searchable, sortable thinking tool. A QR preview renders the PDF page to canvas for visual verification — no QR decoding library needed. Two-tier storage keeps PDF binaries in IndexedDB and parsed metadata in localStorage.</p>
       </section>
 
       <!-- ── GenAI-Yukti-Deck ── -->
