@@ -556,6 +556,8 @@ body {
 .toggle-switch input:focus-visible + .toggle-switch__slider { box-shadow:0 0 0 2px var(--accent-glow) }
 
 /* App Manager — hidden admin panel (revealed via #admin hash or 7-tap on logo) */
+/* Force-honor the [hidden] attribute even though the panel uses display:flex when shown. */
+.app-manager[hidden] { display: none !important; }
 .app-manager {
   margin-top: 2.5rem;
   padding: 1.5rem 1.5rem 1.25rem;
