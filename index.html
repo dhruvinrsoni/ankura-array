@@ -45,19 +45,19 @@
         No apps match your search. Try different keywords.
       </div>
 
-      <!-- ── Admin bar (always visible) ──────────── -->
-      <div class="admin-bar">
-        <button id="btn-toggle-app-manager" class="btn btn--outline btn--sm" title="Show/hide app enable-disable panel">
-          ⚙ Manage apps
-        </button>
-      </div>
-
-      <!-- ── App Manager (admin panel) ───────────── -->
+      <!-- ── App Manager (hidden admin panel) ───────────── -->
+      <!-- Reveal: URL hash #admin, or (if enabled in config.js) tap the "Ankura" title 7× in 3 s. -->
       <div id="app-manager" class="app-manager" hidden>
+        <div class="app-manager__header">
+          <h2 class="app-manager__title">⚙ Manage Apps</h2>
+          <button id="btn-close-app-manager" class="btn btn--outline btn--sm" title="Close admin panel">✕ Close</button>
+        </div>
         <p class="app-manager__hint">
           Disable an app to hide it from the dashboard, search, and instance manager. Direct URLs are blocked too. Re-enable here anytime — data is preserved.
         </p>
-        <!-- rows injected by script -->
+        <div id="app-manager-list" class="app-manager__list">
+          <!-- rows injected by script -->
+        </div>
       </div>
 
       <!-- ── Instance Manager ────────────────────── -->
@@ -97,7 +97,8 @@
       &middot; <a href="philosophy/index.html" class="footer-link">Philosophy</a>
     </footer>
 
-    <!-- ── Registry (Protocol A: Script-Injection) ── -->
+    <!-- ── Dashboard config + Registry (Protocol A: Script-Injection) ── -->
+    <script src="config.js"></script>
     <script src="app_registry.js"></script>
 
     <!-- ── Dashboard Logic ─────────────────────────── -->
@@ -232,7 +233,6 @@
             const card = document.createElement("article");
             card.className = "app-card";
             card.innerHTML =
-              '<button class="app-card__hide" type="button" title="Hide from dashboard (re-enable in Manage apps)" aria-label="Hide ' + escapeHTML(app.name) + '">👁️</button>' +
               '<div class="app-card__icon">' + escapeHTML(app.icon || "📦") + '</div>' +
               '<div class="app-card__name-row">' +
                 '<h2 class="app-card__name">' + escapeHTML(app.name) + '</h2>' +
@@ -244,15 +244,6 @@
               '<button class="app-card__expand btn btn--outline btn--sm">Instances</button>' +
               '<button class="app-card__launch" data-path="' + escapeHTML(app.path) + '">&#9654; Launch</button>' +
               '<div class="app-card__instances" hidden></div>';
-
-            // Hide handler — adds appId to disabled list, re-renders everything
-            card.querySelector('.app-card__hide').addEventListener('click', function (ev) {
-              ev.stopPropagation();
-              var d = getDisabled();
-              if (d.indexOf(app.id) === -1) d.push(app.id);
-              setDisabled(d);
-              if (typeof window.__rerenderAll === 'function') window.__rerenderAll();
-            });
 
             // Launch handler
             card.querySelector('.app-card__launch').addEventListener('click', function () { launchApp(app.path); });
@@ -757,17 +748,17 @@
             resetBtn.addEventListener('click', resetEverything);
           }
 
-          // ── App Manager (admin panel) ─────────────
-          var appManager   = document.getElementById('app-manager');
-          var toggleAppMgr = document.getElementById('btn-toggle-app-manager');
+          // ── App Manager (hidden admin panel) ──────
+          var appManager     = document.getElementById('app-manager');
+          var appManagerList = document.getElementById('app-manager-list');
+          var btnCloseAdmin  = document.getElementById('btn-close-app-manager');
+          var ADMIN_CONFIG   = (window.ANKURA_CONFIG && window.ANKURA_CONFIG.admin) || {};
+          var ADMIN_HASH     = ADMIN_CONFIG.hash || '#admin';
 
           function renderAppManager() {
-            if (!appManager) return;
+            if (!appManagerList) return;
             var disabledSet = getDisabled();
-            // Preserve the hint <p>; rebuild rows below it
-            var hint = appManager.querySelector('.app-manager__hint');
-            appManager.innerHTML = '';
-            if (hint) appManager.appendChild(hint);
+            appManagerList.innerHTML = '';
             registry.forEach(function (app) {
               var off = disabledSet.indexOf(app.id) !== -1;
               var row = document.createElement('div');
@@ -786,35 +777,70 @@
               row.querySelector('input').addEventListener('change', function (ev) {
                 var d = getDisabled();
                 if (ev.target.checked) {
-                  // enable → remove from disabled list
                   d = d.filter(function (id) { return id !== app.id; });
                 } else {
-                  // disable → add to disabled list
                   if (d.indexOf(app.id) === -1) d.push(app.id);
                 }
                 setDisabled(d);
-                rerenderAll();
+                window.__rerenderAll();
               });
-              appManager.appendChild(row);
+              appManagerList.appendChild(row);
             });
           }
 
-          if (toggleAppMgr && appManager) {
-            toggleAppMgr.addEventListener('click', function () {
-              appManager.hidden = !appManager.hidden;
-              toggleAppMgr.textContent = appManager.hidden ? '⚙ Manage apps' : '✕ Hide manage';
-            });
+          // Hidden reveal logic ── URL hash (always) + logo multi-tap (config-gated)
+          function isAdminRevealed() { return location.hash === ADMIN_HASH; }
+          function showAdmin() {
+            if (!appManager) return;
+            if (location.hash !== ADMIN_HASH) {
+              try { history.replaceState(null, '', location.pathname + location.search + ADMIN_HASH); } catch (e) { location.hash = ADMIN_HASH.slice(1); }
+            }
+            renderAppManager();
+            appManager.hidden = false;
+            try { appManager.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
           }
-          renderAppManager();
+          function hideAdmin() {
+            if (!appManager) return;
+            appManager.hidden = true;
+            if (location.hash === ADMIN_HASH) {
+              try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+            }
+          }
+          function toggleAdmin() { if (isAdminRevealed() || !appManager.hidden) hideAdmin(); else showAdmin(); }
+
+          if (btnCloseAdmin) btnCloseAdmin.addEventListener('click', hideAdmin);
+          window.addEventListener('hashchange', function () {
+            if (isAdminRevealed()) showAdmin(); else hideAdmin();
+          });
+          if (isAdminRevealed()) showAdmin();
+
+          // Multi-tap on logo (Android-style hidden-feature reveal) — gated by config
+          if (ADMIN_CONFIG.enableLogoMultiTap) {
+            var tapTarget = document.querySelector('.site-header h1');
+            if (tapTarget) {
+              var tapCount = 0;
+              var tapTimer = null;
+              var threshold = ADMIN_CONFIG.multiTapCount || 7;
+              var windowMs  = ADMIN_CONFIG.multiTapWindowMs || 3000;
+              tapTarget.addEventListener('click', function () {
+                tapCount++;
+                if (tapTimer) clearTimeout(tapTimer);
+                tapTimer = setTimeout(function () { tapCount = 0; }, windowMs);
+                if (tapCount >= threshold) {
+                  tapCount = 0;
+                  toggleAdmin();
+                }
+              });
+            }
+          }
 
           // Helper: re-render all dashboard surfaces affected by the disabled list.
-          // Exposed on window so the per-card hide-button can call it.
+          // Exposed on window so other tabs / external triggers can call it.
           window.__rerenderAll = function rerenderAllImpl() {
-            // Re-render grid honoring current search input
             var term = (searchInput && searchInput.value) || '';
             var filtered = term ? filterApps(term) : registry;
             renderApps(filtered);
-            renderAppManager();
+            if (appManager && !appManager.hidden) renderAppManager();
             refreshCleanupGrid();
             renderInstanceManager();
           };
