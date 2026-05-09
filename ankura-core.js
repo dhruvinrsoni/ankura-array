@@ -8,6 +8,36 @@ window.AnkuraCore = (function () {
   /* ── Utilities ────────────────────────────────────────── */
   function isoNow() { return new Date().toISOString(); }
 
+  /* ── Global app enable/disable registry ───────────────── */
+  // Stored as a JSON array of appIds in localStorage under 'ankura_disabled_apps'.
+  // Sibling to 'ankura_theme' — global, not instance-scoped.
+  var DISABLED_KEY = 'ankura_disabled_apps';
+
+  function getDisabledApps() {
+    try {
+      var raw = localStorage.getItem(DISABLED_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+  function setDisabledApps(arr) {
+    try { localStorage.setItem(DISABLED_KEY, JSON.stringify(arr || [])); } catch (e) {}
+  }
+  function isAppDisabled(appId) {
+    if (!appId) return false;
+    return getDisabledApps().indexOf(appId) !== -1;
+  }
+  // Derive appId from URL when not passed explicitly.
+  // Works for /<root>/<appId>/index.html, /<root>/<appId>/, etc.
+  function getCurrentAppId() {
+    try {
+      var p = location.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+      var segs = p.split('/');
+      return segs[segs.length - 1] || null;
+    } catch (e) { return null; }
+  }
+
   function uuid() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -146,14 +176,71 @@ window.AnkuraCore = (function () {
     }
   }
 
+  /* ── Disabled-app screen (replaces page body when app is disabled) ─ */
+  function renderDisabledScreen(appId, backUrl) {
+    var label = appId ? appId.replace(/-/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }) : 'This app';
+    document.title = label + ' — Disabled';
+    var bg   = 'background: var(--bg-color, #1a1a1a); color: var(--text-color, #e8e6e3);';
+    var card = 'background: var(--bg-card, #2d2d2d); border: 1px solid var(--border, #3d3d3d); border-radius: 12px; padding: 2.25rem 2rem; max-width: 460px; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.4);';
+    var btn  = 'display: inline-block; margin-top: 1.25rem; padding: 0.55rem 1rem; background: var(--accent, #d4a03c); color: #11110e; text-decoration: none; border-radius: 8px; font-weight: 500;';
+    document.body.innerHTML =
+      '<div data-ankura-disabled="1" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; ' + bg + '">' +
+        '<div style="' + card + '">' +
+          '<div style="font-size: 3rem; line-height: 1; margin-bottom: 0.5rem">🚫</div>' +
+          '<h1 style="font-size: 1.4rem; margin: 0 0 0.4rem; color: var(--accent, #d4a03c);">' + label + ' is disabled</h1>' +
+          '<p style="font-size: 0.92rem; line-height: 1.5; margin: 0; color: var(--text-secondary, #a09b93);">This app has been disabled from the Ankura-Array dashboard. Re-enable it under <strong>Manage apps</strong> to access it again.</p>' +
+          '<a href="' + (backUrl || '../index.html') + '" style="' + btn + '">← Back to dashboard</a>' +
+        '</div>' +
+      '</div>';
+  }
+
   /* ── Main init ────────────────────────────────────────── */
   /**
    * AnkuraCore.init(opts)
-   * opts: { backUrl, onReset, onDelete }
+   * opts: { backUrl, onReset, onDelete, appId }
    * returns: { instanceId, State, renderMeta }
+   *
+   * If the current app is in the global disabled list (ankura_disabled_apps),
+   * init() short-circuits, replaces the page with a disabled screen, and
+   * returns a stub object so callers don't crash if they invoke methods.
    */
   function init(opts) {
     opts = opts || {};
+    var appId = opts.appId || getCurrentAppId();
+    var backUrl = opts.backUrl || '../index.html';
+
+    function showDisabled() { renderDisabledScreen(appId, backUrl); }
+    function applyDisabledIfNeeded() {
+      if (isAppDisabled(appId)) {
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', showDisabled);
+        } else {
+          showDisabled();
+        }
+        return true;
+      }
+      return false;
+    }
+
+    // Cross-tab live sync: react to dashboard toggling apps in another tab.
+    window.addEventListener('storage', function (ev) {
+      if (ev.key !== DISABLED_KEY) return;
+      var nowDisabled = isAppDisabled(appId);
+      var hasDisabledScreen = !!document.querySelector('[data-ankura-disabled]');
+      if (nowDisabled && !hasDisabledScreen) {
+        showDisabled();
+      } else if (!nowDisabled && hasDisabledScreen) {
+        // Re-enabled in another tab — reload to restore the live app
+        try { window.location.reload(); } catch (e) {}
+      }
+    });
+
+    if (applyDisabledIfNeeded()) {
+      // Stub State so any caller code that runs synchronously won't blow up
+      var noopState = { save: function(){}, load: function(_,f){return f;}, clear: function(){}, clearAll: function(){}, _key: function(n){return n;} };
+      return { instanceId: '', State: noopState, renderMeta: function(){}, disabled: true };
+    }
+
     var instanceId = initInstanceId();
     var State = makeState(instanceId);
 
@@ -179,5 +266,14 @@ window.AnkuraCore = (function () {
   }
 
   /* ── Public API ───────────────────────────────────────── */
-  return { init: init, applyTheme: applyTheme, makeState: makeState, renderMeta: renderMeta };
+  return {
+    init: init,
+    applyTheme: applyTheme,
+    makeState: makeState,
+    renderMeta: renderMeta,
+    getDisabledApps: getDisabledApps,
+    setDisabledApps: setDisabledApps,
+    isAppDisabled: isAppDisabled,
+    getCurrentAppId: getCurrentAppId
+  };
 })();

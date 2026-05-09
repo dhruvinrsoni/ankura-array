@@ -45,6 +45,21 @@
         No apps match your search. Try different keywords.
       </div>
 
+      <!-- ── Admin bar (always visible) ──────────── -->
+      <div class="admin-bar">
+        <button id="btn-toggle-app-manager" class="btn btn--outline btn--sm" title="Show/hide app enable-disable panel">
+          ⚙ Manage apps
+        </button>
+      </div>
+
+      <!-- ── App Manager (admin panel) ───────────── -->
+      <div id="app-manager" class="app-manager" hidden>
+        <p class="app-manager__hint">
+          Disable an app to hide it from the dashboard, search, and instance manager. Direct URLs are blocked too. Re-enable here anytime — data is preserved.
+        </p>
+        <!-- rows injected by script -->
+      </div>
+
       <!-- ── Instance Manager ────────────────────── -->
       <div id="instance-manager" class="instance-manager" hidden>
         <div class="section-row section-row--compact">
@@ -162,11 +177,28 @@
         }
 
         /**
+         * Read the global disabled-apps list. Tolerates missing/corrupt JSON.
+         */
+        function getDisabled() {
+          try {
+            var raw = localStorage.getItem('ankura_disabled_apps');
+            if (!raw) return [];
+            var arr = JSON.parse(raw);
+            return Array.isArray(arr) ? arr : [];
+          } catch (e) { return []; }
+        }
+        function setDisabled(arr) {
+          try { localStorage.setItem('ankura_disabled_apps', JSON.stringify(arr || [])); } catch (e) {}
+        }
+        function isDisabled(appId) { return getDisabled().indexOf(appId) !== -1; }
+
+        /**
          * Render apps based on current search filter.
          */
         function renderApps(filteredApps) {
           grid.innerHTML = "";
-          var appsToShow = filteredApps || registry;
+          var disabled = getDisabled();
+          var appsToShow = (filteredApps || registry).filter(function (a) { return disabled.indexOf(a.id) === -1; });
 
           if (appsToShow.length === 0) {
             grid.hidden = true;
@@ -200,6 +232,7 @@
             const card = document.createElement("article");
             card.className = "app-card";
             card.innerHTML =
+              '<button class="app-card__hide" type="button" title="Hide from dashboard (re-enable in Manage apps)" aria-label="Hide ' + escapeHTML(app.name) + '">👁️</button>' +
               '<div class="app-card__icon">' + escapeHTML(app.icon || "📦") + '</div>' +
               '<div class="app-card__name-row">' +
                 '<h2 class="app-card__name">' + escapeHTML(app.name) + '</h2>' +
@@ -211,6 +244,15 @@
               '<button class="app-card__expand btn btn--outline btn--sm">Instances</button>' +
               '<button class="app-card__launch" data-path="' + escapeHTML(app.path) + '">&#9654; Launch</button>' +
               '<div class="app-card__instances" hidden></div>';
+
+            // Hide handler — adds appId to disabled list, re-renders everything
+            card.querySelector('.app-card__hide').addEventListener('click', function (ev) {
+              ev.stopPropagation();
+              var d = getDisabled();
+              if (d.indexOf(app.id) === -1) d.push(app.id);
+              setDisabled(d);
+              if (typeof window.__rerenderAll === 'function') window.__rerenderAll();
+            });
 
             // Launch handler
             card.querySelector('.app-card__launch').addEventListener('click', function () { launchApp(app.path); });
@@ -462,9 +504,16 @@
             }
           } catch (e) {}
 
+          // Filter out disabled apps; drop instances whose only apps are all disabled
+          var disabledSet = getDisabled();
           var result = Object.keys(instances).map(function (id) {
-            return { instanceId: id, apps: Array.from(instances[id].apps).sort() };
-          }).sort(function (a, b) { return a.instanceId.localeCompare(b.instanceId); });
+            var apps = Array.from(instances[id].apps)
+              .filter(function (appId) { return disabledSet.indexOf(appId) === -1; })
+              .sort();
+            return { instanceId: id, apps: apps };
+          })
+          .filter(function (r) { return r.apps.length > 0; })
+          .sort(function (a, b) { return a.instanceId.localeCompare(b.instanceId); });
           return result;
         }
 
@@ -677,34 +726,14 @@
           }
 
           // Generate Per-App Cleanup buttons dynamically from registry.
-          // Only show a button if that app actually has data in localStorage.
+          // Only show a button if that app actually has data in localStorage AND is not disabled.
           var cleanupGrid = document.getElementById('per-app-cleanup-grid');
-          if (cleanupGrid) {
-            cleanupGrid.innerHTML = '';
-            registry.forEach(function (app) {
-              // Check if any key in localStorage belongs to this app
-              var hasData = false;
-              try {
-                for (var i = 0; i < localStorage.length; i++) {
-                  var k = localStorage.key(i);
-                  if (k && k.indexOf('__') !== -1 && keyBelongsToApp(k, app.id)) { hasData = true; break; }
-                }
-              } catch (e) {}
-              if (!hasData) return;
-              var btn = document.createElement('button');
-              btn.className = 'btn btn--danger btn--sm';
-              btn.textContent = (app.icon || '') + ' Clear ' + app.name;
-              btn.addEventListener('click', (function (id) {
-                return function () { deleteAppData(id); refreshCleanupGrid(); };
-              })(app.id));
-              cleanupGrid.appendChild(btn);
-            });
-          }
-
           function refreshCleanupGrid() {
             if (!cleanupGrid) return;
+            var disabledSet = getDisabled();
             cleanupGrid.innerHTML = '';
             registry.forEach(function (app) {
+              if (disabledSet.indexOf(app.id) !== -1) return; // hide disabled apps' cleanup
               var hasData = false;
               try {
                 for (var i = 0; i < localStorage.length; i++) {
@@ -722,10 +751,81 @@
               cleanupGrid.appendChild(btn);
             });
           }
+          refreshCleanupGrid();
 
           if (resetBtn) {
             resetBtn.addEventListener('click', resetEverything);
           }
+
+          // ── App Manager (admin panel) ─────────────
+          var appManager   = document.getElementById('app-manager');
+          var toggleAppMgr = document.getElementById('btn-toggle-app-manager');
+
+          function renderAppManager() {
+            if (!appManager) return;
+            var disabledSet = getDisabled();
+            // Preserve the hint <p>; rebuild rows below it
+            var hint = appManager.querySelector('.app-manager__hint');
+            appManager.innerHTML = '';
+            if (hint) appManager.appendChild(hint);
+            registry.forEach(function (app) {
+              var off = disabledSet.indexOf(app.id) !== -1;
+              var row = document.createElement('div');
+              row.className = 'app-manager__row' + (off ? ' app-manager__row--disabled' : '');
+              row.innerHTML =
+                '<span class="app-manager__icon">' + escapeHTML(app.icon || '📦') + '</span>' +
+                '<span class="app-manager__label">' +
+                  '<span class="app-manager__name">' + escapeHTML(app.name) + '</span>' +
+                  '<span class="app-manager__id">' + escapeHTML(app.id) + '</span>' +
+                '</span>' +
+                '<span class="app-manager__state ' + (off ? 'app-manager__state--off' : 'app-manager__state--on') + '">' + (off ? 'Disabled' : 'Enabled') + '</span>' +
+                '<label class="toggle-switch" title="Toggle ' + escapeHTML(app.name) + '">' +
+                  '<input type="checkbox"' + (off ? '' : ' checked') + ' />' +
+                  '<span class="toggle-switch__slider"></span>' +
+                '</label>';
+              row.querySelector('input').addEventListener('change', function (ev) {
+                var d = getDisabled();
+                if (ev.target.checked) {
+                  // enable → remove from disabled list
+                  d = d.filter(function (id) { return id !== app.id; });
+                } else {
+                  // disable → add to disabled list
+                  if (d.indexOf(app.id) === -1) d.push(app.id);
+                }
+                setDisabled(d);
+                rerenderAll();
+              });
+              appManager.appendChild(row);
+            });
+          }
+
+          if (toggleAppMgr && appManager) {
+            toggleAppMgr.addEventListener('click', function () {
+              appManager.hidden = !appManager.hidden;
+              toggleAppMgr.textContent = appManager.hidden ? '⚙ Manage apps' : '✕ Hide manage';
+            });
+          }
+          renderAppManager();
+
+          // Helper: re-render all dashboard surfaces affected by the disabled list.
+          // Exposed on window so the per-card hide-button can call it.
+          window.__rerenderAll = function rerenderAllImpl() {
+            // Re-render grid honoring current search input
+            var term = (searchInput && searchInput.value) || '';
+            var filtered = term ? filterApps(term) : registry;
+            renderApps(filtered);
+            renderAppManager();
+            refreshCleanupGrid();
+            renderInstanceManager();
+          };
+
+          // Cross-tab live sync: react to flips made elsewhere
+          window.addEventListener('storage', function (ev) {
+            if (ev.key === 'ankura_disabled_apps') {
+              window.__rerenderAll();
+            }
+          });
+
           renderInstanceManager();
         })();
       })();
