@@ -27,12 +27,15 @@
   var LANGUAGES = ['HI', 'EN', 'MR', 'TA', 'TE', 'KN'];
 
   // Defaults from the plan — user's Pune theaters
+  // NOTE: bmsCode values are placeholders. Replace with the real BMS venue
+  // code (visible in the BMS URL when you visit the cinema page) once you
+  // have a working live source. They're harmless in mock mode.
   var PUNE_DEFAULT_THEATERS = [
-    { name: 'Cinepolis Seasons Mall',         bmsCode: 'CPSM', area: 'Magarpatta',  city: 'Pune' },
-    { name: 'MovieMax Amanora Town Centre',   bmsCode: 'MXAM', area: 'Hadapsar',    city: 'Pune' },
-    { name: 'City Pride Nyati Plaza Kharadi', bmsCode: 'CPNP', area: 'Kharadi',     city: 'Pune' },
-    { name: 'Bollywood Multiplex Kharadi',    bmsCode: 'BMKH', area: 'Kharadi',     city: 'Pune' },
-    { name: 'Rajan Cinema 93 Avenue Mall',    bmsCode: 'RC93', area: 'Fatima Nagar', city: 'Pune' }
+    { name: 'Cinepolis Seasons Mall',         bmsCode: 'CPSM', area: 'Magarpatta',   city: 'Pune', regionCode: 'PUNE' },
+    { name: 'MovieMax Amanora Town Centre',   bmsCode: 'MXAM', area: 'Hadapsar',     city: 'Pune', regionCode: 'PUNE' },
+    { name: 'City Pride Nyati Plaza Kharadi', bmsCode: 'CPNP', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' },
+    { name: 'Bollywood Multiplex Kharadi',    bmsCode: 'BMKH', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' },
+    { name: 'Rajan Cinema 93 Avenue Mall',    bmsCode: 'RC93', area: 'Fatima Nagar', city: 'Pune', regionCode: 'PUNE' }
   ];
 
   /* ─── Persistent state (loaded once, written via setters) ────────── */
@@ -150,19 +153,156 @@
     return shows;
   }
 
-  // BMS live fetch — shell awaiting the spike. See BMS_ENDPOINTS.md for the
-  // contract this function must populate. Until that's filled in, this throws
-  // and the user is nudged back to mock mode.
+  // BMS live fetch — works via a user-deployed Cloudflare Worker proxy.
+  // Public CORS proxies are blocked by BMS's Cloudflare WAF, so a tiny
+  // self-hosted worker is the realistic path. See WORKER_PROXY.md for the
+  // 5-minute deploy recipe and BMS_ENDPOINTS.md for endpoint findings.
+  //
+  // This parser targets BMS's PWA showtimes endpoint shape. If your worker
+  // hits a different path or returns a different envelope, adjust the
+  // `parseBmsShowtimes()` mapping below.
   function fetchBmsShowtimes(theater, dateStr) {
-    // TODO(spike): once BMS_ENDPOINTS.md is filled in, replace this stub with
-    //   1. Build BMS URL: e.g. `https://in.bookmyshow.com/serv/getData?cmd=GETSHOWTIMES&vc=${theater.bmsCode}&dt=${bmsDate}`
-    //   2. Wrap with proxy: proxyUrl.replace('{url}', encodeURIComponent(bmsUrl))
-    //   3. fetch + parse JSON into the NormalizedShow[] shape (see mock generator above)
-    //   4. Map fields: showId, movieId, movieTitle, language, dimension, premiumTech,
-    //      runtimeMin, startISO, endISO, bookingUrl, priceRange, seatsLabel
-    return Promise.reject(new Error(
-      'BMS live source not implemented yet. Document the endpoint in BMS_ENDPOINTS.md and wire fetchBmsShowtimes() in app.js. Falling back to mock data is recommended for now.'
-    ));
+    if (!proxyUrl || proxyUrl.indexOf('{url}') === -1) {
+      return Promise.reject(new Error(
+        'No proxy configured. Public CORS proxies are blocked by BookMyShow’s Cloudflare WAF. ' +
+        'Deploy the Cloudflare Worker from WORKER_PROXY.md (5 min, free) and paste its URL in Settings.'
+      ));
+    }
+    var regionCode = (theater.regionCode || 'PUNE').toUpperCase();
+    var bmsDate = dateStr.replace(/-/g, ''); // YYYY-MM-DD -> YYYYMMDD
+    // PWA showtimes endpoint — adjust if your worker uses a different path
+    var bmsUrl = 'https://in.bookmyshow.com/pwa/api/de/showtimes?regionCode=' + encodeURIComponent(regionCode) +
+                 '&eventType=MT&venueCode=' + encodeURIComponent(theater.bmsCode) +
+                 '&dateCode=' + encodeURIComponent(bmsDate);
+    var proxiedUrl = proxyUrl.replace('{url}', encodeURIComponent(bmsUrl));
+    return fetch(proxiedUrl, { headers: { 'Accept': 'application/json' } })
+      .then(function (res) {
+        if (!res.ok) throw new Error('Proxy/BMS returned HTTP ' + res.status + '. If 403, your worker IP may be blocked — see WORKER_PROXY.md.');
+        return res.json();
+      })
+      .then(function (data) { return parseBmsShowtimes(data, theater, dateStr); });
+  }
+
+  // Best-effort parser for BMS's PWA showtimes envelope. The exact shape can
+  // vary by endpoint version; this handles the most common one. If your
+  // worker proxies a different endpoint, override this function.
+  function parseBmsShowtimes(data, theater, dateStr) {
+    var shows = [];
+    // Common shape: { ShowDetails: [ { Event: [...], Venues: [...] } ] }
+    // Or: { events: [ { eventCode, eventTitle, language, runtime, sessions: [...] } ] }
+    // We try both and bail gracefully if neither matches.
+    var events = (data && (data.events || data.Events)) || [];
+    if (!events.length && data && data.ShowDetails && data.ShowDetails[0]) {
+      events = data.ShowDetails[0].Event || [];
+    }
+    events.forEach(function (ev, eIdx) {
+      var movieId    = ev.eventCode || ev.EventCode || ev.id || ('mv-' + eIdx);
+      var movieTitle = ev.eventTitle || ev.EventTitle || ev.title || 'Unknown';
+      var lang       = normalizeLang(ev.language || ev.Language || ev.lang);
+      var dim        = normalizeDim(ev.dimension || ev.Dimension || ev.format);
+      var premium    = normalizePremium(ev.eventGenre || ev.experience || ev.audi || ev.Genre);
+      var runtime    = parseInt(ev.runtime || ev.Length || ev.runtimeInMinutes || 120, 10);
+      var sessions   = ev.sessions || ev.ChildEvents || ev.showtimes || ev.Sessions || [];
+      sessions.forEach(function (s, sIdx) {
+        var showTime = s.showTime || s.ShowTime || s.startTime || s.start;
+        if (!showTime) return;
+        var startISO = combineDateTime(dateStr, showTime);
+        var endISO   = new Date(new Date(startISO).getTime() + runtime * 60000).toISOString();
+        shows.push({
+          showId:      (s.sessionId || s.SessionId || s.showId || (theater.bmsCode + '-' + dateStr + '-' + eIdx + '-' + sIdx)),
+          theaterCode: theater.bmsCode,
+          theaterName: theater.name,
+          theaterArea: theater.area,
+          movieId:     movieId,
+          movieTitle:  movieTitle,
+          language:    lang,
+          dimension:   dim,
+          premiumTech: premium,
+          runtimeMin:  runtime,
+          startISO:    startISO,
+          endISO:      endISO,
+          bookingUrl:  buildBookingUrl(theater, ev, s, dateStr),
+          priceRange:  formatPrices(s.priceCategory || s.Categories || s.prices),
+          seatsLabel:  formatAvail(s.availability || s.Availability || s.seatStatus)
+        });
+      });
+    });
+    return shows;
+  }
+
+  function normalizeLang(raw) {
+    if (!raw) return 'EN';
+    var s = String(raw).toLowerCase();
+    if (s.indexOf('hindi') !== -1) return 'HI';
+    if (s.indexOf('marath') !== -1) return 'MR';
+    if (s.indexOf('tamil') !== -1) return 'TA';
+    if (s.indexOf('telug') !== -1) return 'TE';
+    if (s.indexOf('kanna') !== -1) return 'KN';
+    if (s.indexOf('engl') !== -1) return 'EN';
+    return String(raw).slice(0, 2).toUpperCase();
+  }
+  function normalizeDim(raw) {
+    if (!raw) return '2D';
+    var s = String(raw).toUpperCase();
+    if (s.indexOf('4DX') !== -1) return '4DX';
+    if (s.indexOf('3D')  !== -1) return '3D';
+    if (s.indexOf('SCREENX') !== -1 || s.indexOf('SCREEN X') !== -1) return 'ScreenX';
+    return '2D';
+  }
+  function normalizePremium(raw) {
+    if (!raw) return null;
+    var s = String(raw).toUpperCase();
+    if (s.indexOf('IMAX')  !== -1) return 'IMAX';
+    if (s.indexOf('DOLBY') !== -1) return 'Dolby Cinema';
+    if (s.indexOf('ICE')   !== -1) return 'ICE';
+    if (s.indexOf('PXL')   !== -1) return 'PXL';
+    if (s.indexOf('DIRECTOR') !== -1) return "Director's Cut";
+    return null;
+  }
+  function combineDateTime(dateStr, timeStr) {
+    // Accepts "10:30 AM" / "22:15" / "1030" / ISO. Builds a local-tz ISO.
+    var t = String(timeStr).trim();
+    var h = 0, m = 0;
+    var ampmMatch = t.match(/^(\d{1,2}):?(\d{2})\s*(AM|PM)?$/i);
+    if (ampmMatch) {
+      h = parseInt(ampmMatch[1], 10);
+      m = parseInt(ampmMatch[2], 10);
+      var ampm = (ampmMatch[3] || '').toUpperCase();
+      if (ampm === 'PM' && h < 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+    } else if (t.match(/^\d{4}$/)) {
+      h = parseInt(t.slice(0, 2), 10);
+      m = parseInt(t.slice(2), 10);
+    } else if (t.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      return new Date(t).toISOString();
+    }
+    var d = new Date(dateStr + 'T00:00:00');
+    d.setHours(h, m, 0, 0);
+    return d.toISOString();
+  }
+  function buildBookingUrl(theater, ev, session, dateStr) {
+    var sessionId = (session && (session.sessionId || session.SessionId)) || '';
+    var eventCode = (ev && (ev.eventCode || ev.EventCode)) || '';
+    if (sessionId && eventCode) {
+      return 'https://in.bookmyshow.com/buytickets/' + eventCode + '/' + sessionId;
+    }
+    return 'https://in.bookmyshow.com/cinemas/' + encodeURIComponent(theater.bmsCode) + '/' + dateStr.replace(/-/g, '');
+  }
+  function formatPrices(arr) {
+    if (!arr || !arr.length) return '';
+    var prices = arr.map(function (p) { return parseInt(p.price || p.Price || p.amount || 0, 10); }).filter(Boolean);
+    if (!prices.length) return '';
+    var min = Math.min.apply(null, prices), max = Math.max.apply(null, prices);
+    return '₹' + min + (min !== max ? '–₹' + max : '');
+  }
+  function formatAvail(raw) {
+    if (!raw) return '';
+    var s = String(raw).toLowerCase();
+    if (s.indexOf('sold')  !== -1) return 'Sold out';
+    if (s.indexOf('fill')  !== -1) return 'Filling fast';
+    if (s.indexOf('few')   !== -1) return 'Few left';
+    if (s.indexOf('avail') !== -1) return 'Available';
+    return String(raw);
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -671,7 +811,8 @@
     }
     theaters.push({
       name: t.name, bmsCode: t.bmsCode,
-      area: t.area || '', city: t.city || ''
+      area: t.area || '', city: t.city || '',
+      regionCode: t.regionCode || (t.city ? t.city.toUpperCase() : 'PUNE')
     });
     State.save('mm_theaters', theaters);
     clearCache();
@@ -872,10 +1013,13 @@
     bindTheatersTab();
     bindSettingsTab();
 
-    // Save the explicit defaults once on first run, so the user sees something useful
-    if (!theaters.length) {
-      // Don't auto-populate — let user opt in via "Load Pune defaults" so they
-      // see the empty state and make a deliberate choice.
+    // First-run auto-population: load Pune defaults so the user lands on a
+    // working dashboard immediately. They can edit/replace via Theaters tab.
+    var firstRun = !State.load('mm_first_run_done', false);
+    if (firstRun && !theaters.length) {
+      theaters = PUNE_DEFAULT_THEATERS.slice();
+      State.save('mm_theaters', theaters);
+      State.save('mm_first_run_done', true);
     }
 
     // Tick the cache-age label every 30s while the tab is open

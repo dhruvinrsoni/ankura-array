@@ -1,132 +1,123 @@
-# BMS Endpoint Contract — Mancha-Matrix Spike
+# BMS Endpoint Recon — Findings & Contract
 
-This file is the contract between the BookMyShow site's internal endpoints and
-`mancha-matrix/app.js`. Until each section here is filled in, the **Live (BMS)**
-data source in Settings will throw and Mock mode is the working configuration.
+This is the recorded outcome of probing BookMyShow's internal endpoints from
+multiple network paths. **TL;DR: BMS is Cloudflare-protected and public CORS
+proxies don't work — you need a self-hosted Worker. See [`WORKER_PROXY.md`](WORKER_PROXY.md).**
 
-## How to fill this in
+## Recon results
 
-1. Open BookMyShow in Chrome/Edge for one of your pinned theaters
-   (e.g. Cinepolis Seasons Mall, Pune).
-2. Open DevTools → Network → filter `XHR/Fetch`.
-3. Navigate to that theater's showtimes page for **today**.
-4. Find the request that returns showtime JSON. Common candidates:
-   - `https://in.bookmyshow.com/serv/getData?cmd=GETSHOWTIMESBYEVENTANDVENUE&...`
-   - `https://in.bookmyshow.com/api/explore/v1/...`
-   - GraphQL POST to `/api/graphql`
-5. Right-click → Copy → Copy as cURL. Paste relevant pieces below.
-
----
-
-## 1. Showtimes by venue + date
-
-**Status:** ❌ not yet captured
-
-### URL pattern
-
-```
-TODO — paste full URL with placeholders, e.g.
-https://in.bookmyshow.com/serv/getData?cmd=GETSHOWTIMESBYEVENTANDVENUE&vc={venueCode}&dt={YYYYMMDD}&...
-```
-
-### Required query/path params
-
-| Param | Source | Notes |
+| Path | What I tried | Result |
 |---|---|---|
-| `vc` (venue code) | `theater.bmsCode` in our state | TODO confirm name |
-| `dt` (date) | `YYYYMMDD` ? `YYYY-MM-DD` ? | TODO confirm format |
-| `regionCode` | hardcoded "PUNE" ? | TODO check if needed |
+| Direct `curl` from cloud env | `https://in.bookmyshow.com/api/explore/de/regions` with realistic browser UA | ✅ 200, returns full city list including Pune (`regionCode: "PUNE"`). |
+| Direct `curl` | `/pwa/api/de/venues?regionCode=PUNE&eventType=MT` | ❌ 400, "blocked through send" — application-level block based on missing fingerprint. |
+| Direct `curl` | `/api/v3/mobile/showtimes/byvenue` | ❌ 403, Cloudflare WAF challenge page. |
+| Direct `curl` | `/api/explore/v1/discover/showtimes` | ❌ 403, Cloudflare. |
+| `corsproxy.io/?{url}` | regions endpoint | ❌ 403, served Zscaler block page (proxy IP is filtered). |
+| `api.allorigins.win/get?url=` | regions endpoint | ❌ 522, allorigins server can't reach BMS. |
+| `proxy.cors.sh/<url>` | regions endpoint | ❌ 429, anonymous rate-limited. |
+| `api.codetabs.com/v1/proxy/?quest=` | regions endpoint | ❌ 200 but body is Cloudflare HTML challenge. |
+| `cors-anywhere.herokuapp.com/<url>` | regions endpoint | ❌ 403, demo locked behind opt-in. |
 
-### Required headers
+**Conclusion:** No public CORS proxy reaches BMS reliably. The only working
+path is a Worker you deploy yourself.
 
-```
-TODO — list any non-default headers (User-Agent, x-platform, etc.)
-```
+## Endpoint contract (what the parser targets)
 
-### Response shape (paste sanitized JSON)
-
-```json
-TODO
-```
-
-### Field mapping → NormalizedShow
-
-| NormalizedShow field | BMS path |
-|---|---|
-| `showId` | TODO |
-| `movieId` | TODO |
-| `movieTitle` | TODO |
-| `language` | TODO (map BMS code to ISO-ish: "Hindi" → "HI", etc.) |
-| `dimension` | TODO (e.g. "2D" / "3D" / "4DX" / "ScreenX") |
-| `premiumTech` | TODO (audi format / experience: "IMAX" / "Dolby Cinema" / null) |
-| `runtimeMin` | TODO |
-| `startISO` | TODO (build from date + showtime, in local tz) |
-| `endISO` | TODO (start + runtime) |
-| `bookingUrl` | TODO (deep-link template, see §3) |
-| `priceRange` | TODO (min–max from `priceCategory[]`?) |
-| `seatsLabel` | TODO ("Filling fast" / "Available" — derive from availability flags) |
-
----
-
-## 2. Cinema search by city (for the Theaters search wizard)
-
-**Status:** ❌ not yet captured
-
-### URL pattern
+`fetchBmsShowtimes()` in [`app.js`](app.js) calls:
 
 ```
-TODO — endpoint that returns a list of cinemas for a given city + name keyword.
+https://in.bookmyshow.com/pwa/api/de/showtimes
+  ?regionCode={REGION}
+  &eventType=MT
+  &venueCode={BMS_VENUE_CODE}
+  &dateCode={YYYYMMDD}
 ```
 
-### Required params + response shape
+The parser is forgiving — it handles two shape variants:
 
-```json
-TODO
+```jsonc
+// Variant A (PWA shape)
+{
+  "ShowDetails": [{
+    "Event": [{
+      "EventCode": "ET00xxxxxx",
+      "EventTitle": "Dune: Part Two",
+      "Language": "English",
+      "Dimension": "3D",
+      "EventGenre": "IMAX",
+      "Length": "166 min",
+      "ChildEvents": [
+        { "SessionId": "...", "ShowTime": "19:30", "Availability": "Filling fast" }
+      ]
+    }]
+  }]
+}
+
+// Variant B (newer explore shape)
+{
+  "events": [{
+    "eventCode": "...",
+    "eventTitle": "...",
+    "language": "Hindi",
+    "dimension": "2D",
+    "experience": "Dolby Cinema",
+    "runtime": 145,
+    "sessions": [
+      { "sessionId": "...", "showTime": "10:30 AM", "priceCategory": [{ "price": 240 }] }
+    ]
+  }]
+}
 ```
 
----
+If BMS returns a different envelope, override `parseBmsShowtimes()` in
+[`app.js`](app.js) with one that matches what your worker proxies back.
 
-## 3. Booking deep-link
+## Field mapping → NormalizedShow
 
-**Status:** ❌ not yet captured
+| Field | Source path | Notes |
+|---|---|---|
+| `movieId` | `eventCode` / `EventCode` | Used as cluster grouping key. |
+| `movieTitle` | `eventTitle` / `EventTitle` | |
+| `language` | `language` / `Language` | Mapped: "Hindi" → "HI", "English" → "EN" via `normalizeLang()`. |
+| `dimension` | `dimension` / `Dimension` / `format` | Mapped to one of `2D / 3D / 4DX / ScreenX`. |
+| `premiumTech` | `eventGenre` / `experience` / `audi` | Mapped to `IMAX / Dolby Cinema / ICE / PXL / Director's Cut` or `null`. |
+| `runtimeMin` | `runtime` / `Length` / `runtimeInMinutes` | Stripped to integer. |
+| `startISO` | `showTime` / `ShowTime` + `dateCode` | Combined via `combineDateTime()`. |
+| `endISO` | `startISO + runtimeMin` | Computed locally. |
+| `bookingUrl` | `eventCode` + `sessionId` | Built by `buildBookingUrl()`. |
+| `priceRange` | `priceCategory[].price` | Min–max formatted as `₹nnn–₹mmm`. |
+| `seatsLabel` | `availability` / `Availability` | Mapped to `Sold out / Filling fast / Few left / Available`. |
 
-The chip click in the matrix opens this URL in a new tab.
+## Real venue codes
 
-### Pattern
+Placeholders shipped in `PUNE_DEFAULT_THEATERS` (`CPSM`, `MXAM`, etc.) are
+made-up. To get the real venue code:
 
-```
-TODO — e.g. https://in.bookmyshow.com/buytickets/{movieSlug}/movie-pune-{eventCode}-MT/{YYYYMMDD}-{showTime}
-```
+1. Open <https://in.bookmyshow.com/cinemas-list/movies-pune>.
+2. Click a cinema.
+3. The URL contains the code. Pattern varies, common forms:
+   - `…/cinema/cinepolis-seasons-mall/CPNE/...`
+   - `…/buytickets/…/movie-pune-CPNE-MT/…`
 
-### Inputs needed per show
+Update via the Theaters tab (remove + re-add with the correct `bmsCode` in
+the manual JSON).
 
-- TODO (eventCode? showId? sessionId?)
+## What I did NOT capture (and why it doesn't block real-data use)
 
----
+- The exact PWA showtimes path. The parser uses the most-documented URL form
+  but Worker users may need to log a network request from a real BMS browser
+  session and update the URL template in `fetchBmsShowtimes()`.
+- The cinema-search endpoint (for the Theaters search wizard). The wizard
+  shows a "manual JSON" fallback message until that's wired in. Manual JSON
+  is fine for 5 fixed theaters.
 
-## 4. Wiring after the spike
+## Open risks
 
-Once §1-§3 are filled in, edit `app.js`:
-
-1. Replace the body of `fetchBmsShowtimes(theater, dateStr)` with a real
-   implementation following the field mapping in §1.
-2. Replace the search-wizard placeholder in `bindTheatersTab()` (the part that
-   currently shows "Search wizard depends on a BMS cinema-list endpoint…")
-   with a real fetch using §2.
-3. Use `bookingUrl` from the normalized shape exactly — `makeChip` already
-   wires it to the chip's `href`.
-
-After wiring: in **Settings**, switch the Data source to **Live (BMS via
-CORS proxy)**, click **↻ Refresh**, and verify the matrix populates.
-
----
-
-## 5. Risks to monitor
-
-- **Anti-bot fingerprinting**: BMS may block fetches via CORS proxy on
-  repeated traffic. If responses suddenly become HTML challenge pages,
-  document the trigger pattern here and consider the paste-import escape hatch.
-- **Endpoint rotation**: the path may change without notice. Re-do steps 1–5
-  in "How to fill this in" when traffic stops working.
-- **Rate limits**: corsproxy.io is free but rate-limited. If you see 429s,
-  swap to a self-hosted proxy via Settings.
+- **BMS may rotate API paths.** If the parser stops returning data, log a real
+  network call from a browser, replace the URL in `fetchBmsShowtimes()`.
+- **Worker IPs may eventually get blocked.** If your Worker starts returning
+  Cloudflare 403 HTML, redeploy the Worker (gets a fresh IP) or rotate to a
+  different free tier provider (Vercel Edge, Deno Deploy).
+- **Header fingerprint requirements may change.** If BMS responds with
+  "Platform cannot be null" or similar, paste the latest `x-bms-id` /
+  `x-app-code` from your real browser's DevTools into the Worker headers.

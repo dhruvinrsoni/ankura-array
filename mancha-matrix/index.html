@@ -40,7 +40,12 @@
     <!-- ── Online disclaimer ────────────────────────────────────── -->
     <div id="mm-online-banner" class="mm-online-banner">
       <span class="mm-online-banner__dot"></span>
-      <span>Online required — fetches showtimes via CORS proxy. Data may be stale; refresh anytime.</span>
+      <span>
+        <strong>Mock data shown.</strong>
+        Public CORS proxies are blocked by BookMyShow's Cloudflare WAF, so live mode requires a self-hosted proxy.
+        See <a href="WORKER_PROXY.md" target="_blank" rel="noopener">WORKER_PROXY.md</a> (5-min Cloudflare Worker setup) →
+        then switch to <strong>Live (BMS)</strong> in <strong>⚙ Settings</strong>.
+      </span>
     </div>
 
     <!-- ── Pinned theater strip + status ────────────────────────── -->
@@ -127,8 +132,8 @@
 
       <div class="mm-section">
         <h2 class="mm-section-title">Add theater — manual JSON</h2>
-        <p class="mm-help-text">Paste a single theater object: <code>{"name":"Cinepolis Seasons Mall","bmsCode":"CPSM","area":"Magarpatta","city":"Pune"}</code></p>
-        <textarea id="mm-manual-json" class="mm-textarea" rows="3" placeholder='{"name":"...","bmsCode":"...","area":"...","city":"Pune"}'></textarea>
+        <p class="mm-help-text">Paste a single theater object: <code>{"name":"Cinepolis Seasons Mall","bmsCode":"CPSM","area":"Magarpatta","city":"Pune","regionCode":"PUNE"}</code></p>
+        <textarea id="mm-manual-json" class="mm-textarea" rows="3" placeholder='{"name":"...","bmsCode":"...","area":"...","city":"Pune","regionCode":"PUNE"}'></textarea>
         <div class="mm-row">
           <button id="mm-btn-add-manual" class="btn btn--solid btn--sm">＋ Add to pinned</button>
           <button id="mm-btn-load-defaults" class="btn btn--outline btn--sm" title="Load the 5 sample Pune theaters from the plan">⤵ Load Pune defaults</button>
@@ -142,24 +147,31 @@
     <section id="pane-settings" class="mm-pane" role="tabpanel" hidden>
       <div class="mm-section">
         <h2 class="mm-section-title">Data source</h2>
-        <p class="mm-help-text">Mock generates plausible-looking shows so you can validate the UX before the BMS endpoint spike. Switch to "Live (BMS)" once you've documented the endpoint in <code>BMS_ENDPOINTS.md</code>.</p>
+        <p class="mm-help-text">
+          <strong>Mock</strong> generates plausible-looking shows so you can validate the UX without any setup.
+          <strong>Live (BMS)</strong> requires a self-hosted Cloudflare Worker proxy
+          — see <a href="WORKER_PROXY.md" target="_blank" rel="noopener">WORKER_PROXY.md</a> for the 5-min setup. Public CORS proxies do NOT work with BMS.
+        </p>
         <div class="mm-row">
           <label class="mm-radio">
             <input type="radio" name="mm-source" value="mock" id="mm-source-mock" checked />
-            <span>Mock data</span>
+            <span>Mock data (default — works without setup)</span>
           </label>
           <label class="mm-radio">
             <input type="radio" name="mm-source" value="bms" id="mm-source-bms" />
-            <span>Live (BMS via CORS proxy)</span>
+            <span>Live (BMS via your Worker proxy)</span>
           </label>
         </div>
       </div>
 
       <div class="mm-section">
-        <h2 class="mm-section-title">CORS proxy</h2>
-        <p class="mm-help-text">URL template — the literal token <code>{url}</code> will be replaced with the encoded BMS URL.</p>
+        <h2 class="mm-section-title">Proxy URL</h2>
+        <p class="mm-help-text">
+          URL template — the literal token <code>{url}</code> will be replaced with the encoded BMS URL.
+          For your deployed Cloudflare Worker, use something like <code>https://your-worker.workers.dev/?url={url}</code>.
+        </p>
         <div class="mm-row">
-          <input id="mm-proxy-url" type="text" class="mm-input mm-input--wide" placeholder="https://corsproxy.io/?{url}" />
+          <input id="mm-proxy-url" type="text" class="mm-input mm-input--wide" placeholder="https://your-worker.workers.dev/?url={url}" />
           <button id="mm-btn-save-proxy" class="btn btn--solid btn--sm">Save</button>
         </div>
       </div>
