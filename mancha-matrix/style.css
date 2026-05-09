@@ -1,0 +1,551 @@
+/* ═══════════════════════════════════════════════════════
+   Mancha-Matrix — Pinned-Theater Showtime Matrix
+   Builds on root style.css design tokens
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Online disclaimer banner ─────────────────────────── */
+.mm-online-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent-subtle);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--fs-small);
+}
+.mm-online-banner__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(46, 164, 79, 0.18);
+  flex-shrink: 0;
+}
+.mm-online-banner.mm-online-banner--offline .mm-online-banner__dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(224, 89, 89, 0.18);
+}
+
+/* ── Pinned theater strip ─────────────────────────────── */
+.mm-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+.mm-strip__pinned {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+}
+.mm-strip__status {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+.mm-strip__pinned-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: var(--fs-small);
+}
+.mm-cache-age {
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mm-cache-age.mm-cache-age--stale {
+  color: var(--danger);
+}
+
+/* ── Pinned theater pill (in strip) ───────────────────── */
+.mm-theater-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--fs-small);
+  color: var(--text-primary);
+}
+.mm-theater-pill__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Tabs ─────────────────────────────────────────────── */
+.mm-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.mm-tab {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 0.5rem 0.9rem;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+.mm-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+.mm-tab--active {
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border-color: var(--border);
+  position: relative;
+  top: 1px;
+}
+
+/* ── Pane container ───────────────────────────────────── */
+.mm-pane {
+  padding: 1rem;
+}
+
+/* ── Section blocks ───────────────────────────────────── */
+.mm-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.mm-section-title {
+  font-size: var(--fs-h2);
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+}
+.mm-help-text {
+  color: var(--text-muted);
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  margin-bottom: 0.6rem;
+}
+.mm-help-text code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-input);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+}
+.mm-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* ── Filter bar ───────────────────────────────────────── */
+.mm-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+.mm-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.mm-filter-group--actions {
+  flex-direction: row;
+  align-items: flex-end;
+  margin-left: auto;
+}
+.mm-filter-label {
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.mm-filter-select {
+  min-width: 180px;
+}
+
+/* Pill row (used for language, dimension, theater toggle filters) */
+.mm-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.mm-pill {
+  appearance: none;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  color: var(--text-secondary);
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+.mm-pill:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+.mm-pill--active {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.mm-pill--muted {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+/* ── Matrix container & states ────────────────────────── */
+.mm-matrix-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.mm-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+.mm-empty__icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+  opacity: 0.6;
+}
+
+/* ── Day separator ────────────────────────────────────── */
+.mm-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.mm-day-header__title {
+  font-size: var(--fs-h2);
+  color: var(--accent);
+  font-weight: 600;
+}
+.mm-day-header__count {
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+}
+
+/* ── Matrix table ─────────────────────────────────────── */
+.mm-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-body);
+}
+.mm-matrix thead th {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: var(--fs-small);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.mm-matrix tbody td {
+  padding: 0.7rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.mm-matrix tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+.mm-matrix tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.mm-cell-movie {
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: help;
+}
+.mm-cell-movie__runtime {
+  display: block;
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 0.1rem;
+}
+
+.mm-format-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-small);
+  font-family: var(--font-mono);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+}
+.mm-format-badge--premium {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.mm-format-badge--none {
+  opacity: 0.4;
+}
+
+.mm-lang-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-small);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* ── Theater chips inside cluster row ─────────────────── */
+.mm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.mm-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+  text-decoration: none;
+}
+.mm-chip:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.mm-chip__time {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.mm-chip__theater {
+  color: var(--text-secondary);
+}
+.mm-chip:hover .mm-chip__theater {
+  color: var(--accent);
+}
+.mm-chip--past {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── Hover popover ────────────────────────────────────── */
+.mm-popover {
+  position: fixed;
+  max-width: 280px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  box-shadow: var(--shadow-card-hover);
+  font-size: var(--fs-small);
+  color: var(--text-primary);
+  z-index: 100;
+  pointer-events: none;
+}
+.mm-popover__title {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+  color: var(--accent);
+}
+.mm-popover__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.15rem 0;
+  color: var(--text-secondary);
+}
+.mm-popover__row span:last-child {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.mm-popover__hint {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Theaters tab list ────────────────────────────────── */
+.mm-theaters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.mm-theater-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.mm-theater-row__main {
+  flex: 1;
+  min-width: 0;
+}
+.mm-theater-row__name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.mm-theater-row__meta {
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+.mm-theater-row__code {
+  font-family: var(--font-mono);
+  background: var(--bg-card);
+  padding: 0.1em 0.4em;
+  border-radius: var(--radius-xs);
+  font-size: 0.85em;
+}
+
+/* ── Search row + results ─────────────────────────────── */
+.mm-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.mm-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+.mm-search-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Inputs ───────────────────────────────────────────── */
+.mm-input {
+  appearance: none;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.6rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-body);
+  min-width: 0;
+}
+.mm-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-input-focus);
+}
+.mm-input--wide {
+  flex: 1;
+  min-width: 240px;
+}
+.mm-textarea {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.6rem;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  resize: vertical;
+}
+.mm-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Radio rows ───────────────────────────────────────── */
+.mm-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+.mm-radio input { accent-color: var(--accent); }
+.mm-radio:has(input:checked) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--accent-subtle);
+}
+
+/* ── Status banner inside matrix container ────────────── */
+.mm-status-banner {
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-small);
+  color: var(--text-secondary);
+}
+.mm-status-banner--error {
+  background: rgba(224, 89, 89, 0.08);
+  color: var(--danger);
+  border-bottom-color: rgba(224, 89, 89, 0.3);
+}
+
+/* ── Compact responsive tweaks ────────────────────────── */
+@media (max-width: 760px) {
+  .mm-filter-bar { gap: 0.6rem; }
+  .mm-filter-group--actions { margin-left: 0; flex-wrap: wrap; }
+  .mm-matrix thead th,
+  .mm-matrix tbody td { padding: 0.5rem; }
+  .mm-cell-movie__runtime { font-size: 0.7rem; }
+}

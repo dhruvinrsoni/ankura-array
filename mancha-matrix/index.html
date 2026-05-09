@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mancha-Matrix — Pinned-Theater Showtime Matrix</title>
+    <meta name="description"
+      content="Mancha-Matrix — Single-pane comparison matrix for shows across your pinned theaters. Pick a movie + format + theater in one glance." />
+    <link rel="stylesheet" href="../style.css" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="../app_registry.js"></script>
+  </head>
+  <body><script>!function(){try{var id=new URLSearchParams(location.search).get('instanceId')||sessionStorage.getItem('ankura_instanceId')||'';var raw=id?localStorage.getItem(id+'__theme'):null;var v=raw?JSON.parse(raw):'auto';var d=v==='dark'||(v==='auto'&&window.matchMedia('(prefers-color-scheme:dark)').matches);document.body.classList.toggle('dark-theme',d);document.body.classList.toggle('light-theme',!d)}catch(e){}}()</script>
+
+    <!-- ── Top Bar ──────────────────────────────────────────────── -->
+    <header class="top-bar">
+      <h1 class="top-bar__title">
+        <span class="accent">🎬</span> Mancha-Matrix
+        <span class="top-bar__short-form">(MM)</span>
+        <span class="version-badge">v1.0.0</span>
+      </h1>
+      <div class="top-bar__left">
+        <div class="top-bar__meta" title="Instance timestamps">
+          <span id="meta-created" class="meta-item">Created: —</span>
+          <span id="meta-updated" class="meta-item">Updated: —</span>
+        </div>
+      </div>
+      <div class="top-bar__actions">
+        <button id="btn-back"   class="btn btn--outline">← Back</button>
+        <button id="btn-reset"  class="btn btn--danger" title="Clear filters and cache, keep theaters">↺ Reset</button>
+        <button id="btn-delete" class="btn btn--danger-outline">🗑 Delete</button>
+        <select id="theme-select" class="select" title="Theme">
+          <option value="auto">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- ── Online disclaimer ────────────────────────────────────── -->
+    <div id="mm-online-banner" class="mm-online-banner">
+      <span class="mm-online-banner__dot"></span>
+      <span>Online required — fetches showtimes via CORS proxy. Data may be stale; refresh anytime.</span>
+    </div>
+
+    <!-- ── Pinned theater strip + status ────────────────────────── -->
+    <div class="mm-strip" id="mm-strip">
+      <div class="mm-strip__pinned" id="mm-pinned-list">
+        <!-- Theater chips injected by app.js -->
+      </div>
+      <div class="mm-strip__status">
+        <span id="mm-cache-age" class="mm-cache-age" hidden></span>
+        <button id="mm-btn-refresh" class="btn btn--outline btn--sm" title="Refresh now">↻ Refresh</button>
+        <button id="mm-btn-manage"  class="btn btn--outline btn--sm" title="Manage pinned theaters">⚙ Manage</button>
+      </div>
+    </div>
+
+    <!-- ── Tab Navigation ────────────────────────────────────────── -->
+    <nav class="mm-tabs" role="tablist" aria-label="Mancha-Matrix sections">
+      <button class="mm-tab mm-tab--active" id="tab-btn-matrix"
+              role="tab" data-tab="matrix" aria-selected="true">📊 Matrix</button>
+      <button class="mm-tab" id="tab-btn-theaters"
+              role="tab" data-tab="theaters" aria-selected="false">📍 Theaters</button>
+      <button class="mm-tab" id="tab-btn-settings"
+              role="tab" data-tab="settings" aria-selected="false">⚙ Settings</button>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         TAB 1 — MATRIX
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="pane-matrix" class="mm-pane" role="tabpanel">
+
+      <!-- Filter row -->
+      <div class="mm-filter-bar">
+        <div class="mm-filter-group">
+          <label class="mm-filter-label" for="mm-filter-movie">Movie</label>
+          <select id="mm-filter-movie" class="select mm-filter-select">
+            <option value="">All movies</option>
+          </select>
+        </div>
+        <div class="mm-filter-group">
+          <span class="mm-filter-label">Language</span>
+          <div id="mm-filter-lang" class="mm-pill-row"></div>
+        </div>
+        <div class="mm-filter-group">
+          <span class="mm-filter-label">Dimension</span>
+          <div id="mm-filter-dim" class="mm-pill-row"></div>
+        </div>
+        <div class="mm-filter-group">
+          <span class="mm-filter-label">Theaters</span>
+          <div id="mm-filter-theaters" class="mm-pill-row"></div>
+        </div>
+        <div class="mm-filter-group mm-filter-group--actions">
+          <button id="mm-btn-sort" class="btn btn--outline btn--sm" title="Toggle sort direction">↑ Earliest first</button>
+          <button id="mm-btn-clear-filters" class="btn btn--outline btn--sm" title="Clear all filters">✕ Clear filters</button>
+        </div>
+      </div>
+
+      <!-- Matrix table area -->
+      <div id="mm-matrix-container" class="mm-matrix-container">
+        <!-- Status / empty / table injected by app.js -->
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         TAB 2 — THEATERS
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="pane-theaters" class="mm-pane" role="tabpanel" hidden>
+      <div class="mm-section">
+        <h2 class="mm-section-title">Pinned theaters</h2>
+        <p class="mm-help-text">These are the only theaters Mancha-Matrix will fetch. Lock in 3–5 nearby ones for the cleanest comparison.</p>
+        <div id="mm-theaters-list" class="mm-theaters-list">
+          <!-- Theater rows injected by app.js -->
+        </div>
+      </div>
+
+      <div class="mm-section">
+        <h2 class="mm-section-title">Add theater — search</h2>
+        <p class="mm-help-text">Search BookMyShow's cinema list for your city. Click to pin.</p>
+        <div class="mm-search-row">
+          <input id="mm-search-city" type="text" class="mm-input" placeholder="City (e.g. Pune)" value="Pune" />
+          <input id="mm-search-query" type="text" class="mm-input" placeholder="Cinema name keyword (e.g. Cinepolis)" />
+          <button id="mm-btn-search" class="btn btn--solid btn--sm">🔍 Search</button>
+        </div>
+        <div id="mm-search-results" class="mm-search-results"></div>
+      </div>
+
+      <div class="mm-section">
+        <h2 class="mm-section-title">Add theater — manual JSON</h2>
+        <p class="mm-help-text">Paste a single theater object: <code>{"name":"Cinepolis Seasons Mall","bmsCode":"CPSM","area":"Magarpatta","city":"Pune"}</code></p>
+        <textarea id="mm-manual-json" class="mm-textarea" rows="3" placeholder='{"name":"...","bmsCode":"...","area":"...","city":"Pune"}'></textarea>
+        <div class="mm-row">
+          <button id="mm-btn-add-manual" class="btn btn--solid btn--sm">＋ Add to pinned</button>
+          <button id="mm-btn-load-defaults" class="btn btn--outline btn--sm" title="Load the 5 sample Pune theaters from the plan">⤵ Load Pune defaults</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         TAB 3 — SETTINGS
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="pane-settings" class="mm-pane" role="tabpanel" hidden>
+      <div class="mm-section">
+        <h2 class="mm-section-title">Data source</h2>
+        <p class="mm-help-text">Mock generates plausible-looking shows so you can validate the UX before the BMS endpoint spike. Switch to "Live (BMS)" once you've documented the endpoint in <code>BMS_ENDPOINTS.md</code>.</p>
+        <div class="mm-row">
+          <label class="mm-radio">
+            <input type="radio" name="mm-source" value="mock" id="mm-source-mock" checked />
+            <span>Mock data</span>
+          </label>
+          <label class="mm-radio">
+            <input type="radio" name="mm-source" value="bms" id="mm-source-bms" />
+            <span>Live (BMS via CORS proxy)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="mm-section">
+        <h2 class="mm-section-title">CORS proxy</h2>
+        <p class="mm-help-text">URL template — the literal token <code>{url}</code> will be replaced with the encoded BMS URL.</p>
+        <div class="mm-row">
+          <input id="mm-proxy-url" type="text" class="mm-input mm-input--wide" placeholder="https://corsproxy.io/?{url}" />
+          <button id="mm-btn-save-proxy" class="btn btn--solid btn--sm">Save</button>
+        </div>
+      </div>
+
+      <div class="mm-section">
+        <h2 class="mm-section-title">Cache</h2>
+        <p class="mm-help-text">Showtime data is cached for 10 minutes. Manually clear if you suspect stale results.</p>
+        <div class="mm-row">
+          <button id="mm-btn-clear-cache" class="btn btn--outline btn--sm">🧹 Clear cache</button>
+          <span id="mm-cache-info" class="mm-help-text"></span>
+        </div>
+      </div>
+
+      <div class="mm-section">
+        <h2 class="mm-section-title">About</h2>
+        <p class="mm-help-text">
+          Date scope: today + tomorrow. Cluster rule: same movie + same format, within 30 min.
+          Past shows are auto-hidden.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Hover popover (shared, positioned at runtime) ────────── -->
+    <div id="mm-popover" class="mm-popover" hidden role="tooltip">
+      <!-- Populated on hover -->
+    </div>
+
+    <script src="../ankura-core.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
