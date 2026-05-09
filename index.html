@@ -64,9 +64,6 @@
       <div id="instance-manager" class="instance-manager" hidden>
         <div class="section-row section-row--compact">
           <div class="section-label">Instance Storage & Cleanup</div>
-          <button id="btn-toggle-instances" class="btn btn--outline btn--sm">
-            ✕ Hide
-          </button>
         </div>
 
         <div id="instances-list" class="instances-list">
@@ -705,16 +702,7 @@
 
         // Setup instance manager UI
         (function initInstanceManager() {
-          var toggleBtn = document.getElementById("btn-toggle-instances");
           var resetBtn = document.getElementById("btn-reset-all");
-
-          if (toggleBtn) {
-            toggleBtn.addEventListener('click', function () {
-              var manager = document.getElementById("instance-manager");
-              manager.hidden = !manager.hidden;
-              toggleBtn.textContent = manager.hidden ? "✕ Show" : "✕ Hide";
-            });
-          }
 
           // Generate Per-App Cleanup buttons dynamically from registry.
           // Only show a button if that app actually has data in localStorage AND is not disabled.
