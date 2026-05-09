@@ -435,6 +435,11 @@
                   dk.indexOf('tb_last_tool') !== -1) {
                 instances[instanceId].apps.add('tula-bench');
               }
+              if (dk.indexOf('mm_theaters') !== -1 || dk.indexOf('mm_cache') !== -1 ||
+                  dk.indexOf('mm_filters') !== -1 || dk.indexOf('mm_proxy_url') !== -1 ||
+                  dk.indexOf('mm_source') !== -1) {
+                instances[instanceId].apps.add('mancha-matrix');
+              }
               if (dk.indexOf('framework_instance') !== -1 || dk.indexOf('framework_sections') !== -1 || dk.indexOf('userprompt') !== -1 || dk.indexOf('system') !== -1 || dk.indexOf('vaak_global') !== -1) {
                 instances[instanceId].apps.add('vaak-smith');
               }
@@ -492,10 +497,12 @@
           if (appId === 'genai-yukti-deck') return dk.indexOf('yukti') !== -1;
           if (appId === 'yatra-monitor')    return dk.indexOf('yatra') !== -1 || dk.indexOf('gati') !== -1;
           if (appId === 'tula-bench')       return dk.indexOf('__tb_') !== -1 || dk.indexOf('tb_tools') !== -1 || dk.indexOf('tb_events') !== -1 || dk.indexOf('tb_last_tool') !== -1;
+          if (appId === 'mancha-matrix')    return dk.indexOf('__mm_') !== -1;
           // vaak-smith: catch-all — anything not claimed by the above apps
           return dk.indexOf('yukti') === -1 && dk.indexOf('gati') === -1 &&
                  dk.indexOf('__tb_') === -1 && dk.indexOf('tb_tools') === -1 &&
-                 dk.indexOf('tb_events') === -1 && dk.indexOf('tb_last_tool') === -1;
+                 dk.indexOf('tb_events') === -1 && dk.indexOf('tb_last_tool') === -1 &&
+                 dk.indexOf('__mm_') === -1;
         }
 
         /**

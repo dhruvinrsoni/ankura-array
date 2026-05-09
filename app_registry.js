@@ -91,4 +91,27 @@ window.ANKURA_REGISTRY = [
     ],
     version: "1.0.0",
   },
+  {
+    id: "mancha-matrix",
+    name: "Mancha-Matrix",
+    shortForm: "MM",
+    description:
+      "Pinned-theater showtime matrix. Lock in your 3–5 favorite cinemas, see all today + tomorrow shows in one comparison grid, cluster similar shows side-by-side, and pick the best movie + format + theater combo without bouncing across BookMyShow screens.",
+    icon: "🎬",
+    path: "mancha-matrix/index.html",
+    tags: [
+      "movies",
+      "showtimes",
+      "cinema",
+      "BookMyShow",
+      "theater compare",
+      "weekend planner",
+      "IMAX",
+      "Dolby Cinema",
+      "4DX",
+      "Pune",
+      "decision matrix",
+    ],
+    version: "1.0.0",
+  },
 ];
