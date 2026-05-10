@@ -36,27 +36,56 @@
   var PREMIUM_TECH = ['IMAX', 'Dolby Cinema', 'ICE', 'PXL', "Director's Cut"];
   var LANGUAGES = ['HI', 'EN', 'MR', 'TA', 'TE', 'KN'];
 
-  // Defaults from the plan — user's Pune theaters
-  // NOTE: bmsCode values are placeholders. Replace with the real BMS venue
-  // code (visible in the BMS URL when you visit the cinema page) once you
-  // have a working live source. They're harmless in mock mode.
+  // Pinned theaters — web-verified names from BMS / cinema sites.
+  // bmsCode values are placeholders until captured from the bookmarklet's
+  // venue.code on first successful import.
   var PUNE_DEFAULT_THEATERS = [
-    { name: 'Cinepolis Seasons Mall',         bmsCode: 'CPSM', area: 'Magarpatta',   city: 'Pune', regionCode: 'PUNE' },
-    { name: 'MovieMax Amanora Town Centre',   bmsCode: 'MXAM', area: 'Hadapsar',     city: 'Pune', regionCode: 'PUNE' },
-    { name: 'City Pride Nyati Plaza Kharadi', bmsCode: 'CPNP', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' },
-    { name: 'Bollywood Multiplex Kharadi',    bmsCode: 'BMKH', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' },
-    { name: 'Rajan Cinema 93 Avenue Mall',    bmsCode: 'RC93', area: 'Fatima Nagar', city: 'Pune', regionCode: 'PUNE' }
+    { name: 'Cinepolis: Seasons Mall',           bmsCode: 'CPSM', area: 'Hadapsar',     city: 'Pune', regionCode: 'PUNE' },
+    { name: 'MovieMax: Amanora Town Centre',     bmsCode: 'MMAM', area: 'Hadapsar',     city: 'Pune', regionCode: 'PUNE' },
+    { name: 'City Pride: Nyati Plaza, Kharadi',  bmsCode: 'CPNK', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' },
+    { name: 'Bollywood Multiplex, Kharadi',      bmsCode: 'BWKH', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' },
+    { name: 'Rajhans Cinemas: 93 Avenue Mall',   bmsCode: 'RC93', area: 'Fatima Nagar', city: 'Pune', regionCode: 'PUNE' }
   ];
 
   /* ─── Persistent state (loaded once, written via setters) ────────── */
   var theaters     = State.load('mm_theaters', []);
-  var proxyUrl     = State.load('mm_proxy_url', DEFAULT_PROXY);
-  var sourceMode   = State.load('mm_source', 'mock'); // 'mock' | 'bms'
+  var sourceMode   = State.load('mm_source', 'paste'); // only 'paste' is valid now
   var sortDir      = State.load('mm_sort_dir', 'asc');
   var filters      = State.load('mm_filters', { movie: '', languages: [], dimensions: [], mutedTheaters: [] });
   var cache        = State.load('mm_cache', {});
   var cacheTs      = State.load('mm_cache_ts', 0);
   var lastFetchError = null;
+
+  /* ─── One-time migration from older MM versions ──────────────── */
+  (function migrate() {
+    var dirty = false;
+    // Source mode: only 'paste' is valid now (was 'mock' or 'bms' before)
+    if (sourceMode !== 'paste') {
+      sourceMode = 'paste';
+      State.save('mm_source', 'paste');
+      State.clear('mm_proxy_url'); // also retired
+      dirty = true;
+    }
+    // Theater names: replace old defaults with web-verified ones (detect by
+    // old bmsCodes or the misspelled "Rajan Cinema")
+    var hasOldDefaults = theaters.some(function (t) {
+      return ['MXAM', 'CPNP', 'BMKH'].indexOf(t.bmsCode) !== -1 || /^Rajan Cinema/i.test(t.name || '');
+    });
+    if (hasOldDefaults) {
+      theaters = PUNE_DEFAULT_THEATERS.slice();
+      State.save('mm_theaters', theaters);
+      dirty = true;
+    }
+    // Cache: old shape was nested (cache[code][date]); new is flat (cache['code|date'])
+    var sampleKey = Object.keys(cache)[0];
+    var oldShape = sampleKey && sampleKey.indexOf('|') === -1;
+    if (oldShape || dirty) {
+      cache = {};
+      cacheTs = 0;
+      State.clear('mm_cache');
+      State.clear('mm_cache_ts');
+    }
+  })();
 
   /* ─── Date helpers ──────────────────────────────────────────────── */
   function isoDate(d) {
@@ -89,23 +118,10 @@
      §1  DATA SOURCES — pluggable
      ═══════════════════════════════════════════════════════════════════ */
 
-  // Each source exposes: fetchTheaterDate(theater, dateStr) -> Promise<NormalizedShow[]>
+  // Only one source mode: bookmarklet paste. Data lives in the cache after
+  // importFromBmsPaste() writes it; this fetcher just reads back what's there.
   var Sources = {
-    mock: {
-      label: 'Mock data',
-      fetchTheaterDate: function (theater, dateStr) {
-        return Promise.resolve(generateMockShows(theater, dateStr));
-      }
-    },
-    bms: {
-      label: 'Live (BMS via Worker proxy)',
-      fetchTheaterDate: function (theater, dateStr) {
-        return fetchBmsShowtimes(theater, dateStr);
-      }
-    },
     paste: {
-      // No fetch — data is populated by importFromBmsPaste() when the user pastes
-      // a bookmarklet payload. Refresh in this mode just re-reads the cache.
       label: 'Bookmarklet (paste-driven)',
       fetchTheaterDate: function (theater, dateStr) {
         var cached = cache[cacheKey(theater.bmsCode, dateStr)];
@@ -113,141 +129,6 @@
       }
     }
   };
-
-  // Mock generator — produces plausible-looking shows so the UX is testable
-  // without the BMS endpoint spike.
-  var MOCK_CATALOG = [
-    { id: 'mv-dune2', title: 'Dune: Part Two',         lang: 'EN', runtime: 166, dims: ['2D','3D'],  premium: ['IMAX','Dolby Cinema'] },
-    { id: 'mv-pushpa', title: 'Pushpa: The Rule',      lang: 'HI', runtime: 178, dims: ['2D'],       premium: ['Dolby Cinema'] },
-    { id: 'mv-fukrey', title: 'Fukrey 3',              lang: 'HI', runtime: 145, dims: ['2D'],       premium: [] },
-    { id: 'mv-godzilla', title: 'Godzilla x Kong',     lang: 'EN', runtime: 115, dims: ['2D','3D','4DX'], premium: ['IMAX'] },
-    { id: 'mv-vidushak', title: 'Vidushak',            lang: 'MR', runtime: 132, dims: ['2D'],       premium: [] },
-    { id: 'mv-leo', title: 'Leo',                      lang: 'TA', runtime: 168, dims: ['2D','3D'],  premium: ['Dolby Cinema'] }
-  ];
-
-  function generateMockShows(theater, dateStr) {
-    // Deterministic-ish seed by theater + date so reloads look consistent
-    var seed = (theater.bmsCode + dateStr).split('').reduce(function (a,c) { return (a*31 + c.charCodeAt(0)) | 0; }, 7);
-    function rand() { seed = (seed * 9301 + 49297) & 0x7fffffff; return seed / 0x7fffffff; }
-
-    var shows = [];
-    // Each theater gets ~6-10 shows across the day
-    var slots = [10, 13, 15, 17, 19, 20, 21, 22, 23];
-    var theaterPremiumPool = PREMIUM_TECH.filter(function () { return rand() < 0.5; });
-    if (theaterPremiumPool.length === 0) theaterPremiumPool = ['IMAX'];
-
-    slots.forEach(function (hour, idx) {
-      // skip some shows randomly
-      if (rand() < 0.35) return;
-      var movie = MOCK_CATALOG[Math.floor(rand() * MOCK_CATALOG.length)];
-      var dim = movie.dims[Math.floor(rand() * movie.dims.length)];
-      // Premium tech: only if movie supports it AND theater offers it
-      var compatPremium = movie.premium.filter(function (p) { return theaterPremiumPool.indexOf(p) !== -1; });
-      var premium = (compatPremium.length && rand() < 0.6) ? compatPremium[0] : null;
-
-      var minute = Math.floor(rand() * 4) * 15;
-      var startD = new Date(dateStr + 'T00:00:00');
-      startD.setHours(hour, minute, 0, 0);
-      var endD = new Date(startD.getTime() + movie.runtime * 60000);
-
-      shows.push({
-        showId: theater.bmsCode + '-' + dateStr + '-' + idx,
-        theaterCode: theater.bmsCode,
-        theaterName: theater.name,
-        theaterArea: theater.area,
-        movieId: movie.id,
-        movieTitle: movie.title,
-        language: movie.lang,
-        dimension: dim,
-        premiumTech: premium,
-        runtimeMin: movie.runtime,
-        startISO: startD.toISOString(),
-        endISO: endD.toISOString(),
-        bookingUrl: 'https://in.bookmyshow.com/',
-        // Popover-only data
-        priceRange: '₹' + (200 + Math.floor(rand() * 6) * 50) + '–₹' + (500 + Math.floor(rand() * 5) * 100),
-        seatsLabel: ['Filling fast', 'Available', 'Few left', 'Almost full'][Math.floor(rand() * 4)]
-      });
-    });
-    return shows;
-  }
-
-  // BMS live fetch — works via a user-deployed Cloudflare Worker proxy.
-  // Public CORS proxies are blocked by BMS's Cloudflare WAF, so a tiny
-  // self-hosted worker is the realistic path. See WORKER_PROXY.md for the
-  // 5-minute deploy recipe and BMS_ENDPOINTS.md for endpoint findings.
-  //
-  // This parser targets BMS's PWA showtimes endpoint shape. If your worker
-  // hits a different path or returns a different envelope, adjust the
-  // `parseBmsShowtimes()` mapping below.
-  function fetchBmsShowtimes(theater, dateStr) {
-    if (!proxyUrl || proxyUrl.indexOf('{url}') === -1) {
-      return Promise.reject(new Error(
-        'No proxy configured. Public CORS proxies are blocked by BookMyShow’s Cloudflare WAF. ' +
-        'Deploy the Cloudflare Worker from WORKER_PROXY.md (5 min, free) and paste its URL in Settings.'
-      ));
-    }
-    var regionCode = (theater.regionCode || 'PUNE').toUpperCase();
-    var bmsDate = dateStr.replace(/-/g, ''); // YYYY-MM-DD -> YYYYMMDD
-    // PWA showtimes endpoint — adjust if your worker uses a different path
-    var bmsUrl = 'https://in.bookmyshow.com/pwa/api/de/showtimes?regionCode=' + encodeURIComponent(regionCode) +
-                 '&eventType=MT&venueCode=' + encodeURIComponent(theater.bmsCode) +
-                 '&dateCode=' + encodeURIComponent(bmsDate);
-    var proxiedUrl = proxyUrl.replace('{url}', encodeURIComponent(bmsUrl));
-    return fetch(proxiedUrl, { headers: { 'Accept': 'application/json' } })
-      .then(function (res) {
-        if (!res.ok) throw new Error('Proxy/BMS returned HTTP ' + res.status + '. If 403, your worker IP may be blocked — see WORKER_PROXY.md.');
-        return res.json();
-      })
-      .then(function (data) { return parseBmsShowtimes(data, theater, dateStr); });
-  }
-
-  // Best-effort parser for BMS's PWA showtimes envelope. The exact shape can
-  // vary by endpoint version; this handles the most common one. If your
-  // worker proxies a different endpoint, override this function.
-  function parseBmsShowtimes(data, theater, dateStr) {
-    var shows = [];
-    // Common shape: { ShowDetails: [ { Event: [...], Venues: [...] } ] }
-    // Or: { events: [ { eventCode, eventTitle, language, runtime, sessions: [...] } ] }
-    // We try both and bail gracefully if neither matches.
-    var events = (data && (data.events || data.Events)) || [];
-    if (!events.length && data && data.ShowDetails && data.ShowDetails[0]) {
-      events = data.ShowDetails[0].Event || [];
-    }
-    events.forEach(function (ev, eIdx) {
-      var movieId    = ev.eventCode || ev.EventCode || ev.id || ('mv-' + eIdx);
-      var movieTitle = ev.eventTitle || ev.EventTitle || ev.title || 'Unknown';
-      var lang       = normalizeLang(ev.language || ev.Language || ev.lang);
-      var dim        = normalizeDim(ev.dimension || ev.Dimension || ev.format);
-      var premium    = normalizePremium(ev.eventGenre || ev.experience || ev.audi || ev.Genre);
-      var runtime    = parseInt(ev.runtime || ev.Length || ev.runtimeInMinutes || 120, 10);
-      var sessions   = ev.sessions || ev.ChildEvents || ev.showtimes || ev.Sessions || [];
-      sessions.forEach(function (s, sIdx) {
-        var showTime = s.showTime || s.ShowTime || s.startTime || s.start;
-        if (!showTime) return;
-        var startISO = combineDateTime(dateStr, showTime);
-        var endISO   = new Date(new Date(startISO).getTime() + runtime * 60000).toISOString();
-        shows.push({
-          showId:      (s.sessionId || s.SessionId || s.showId || (theater.bmsCode + '-' + dateStr + '-' + eIdx + '-' + sIdx)),
-          theaterCode: theater.bmsCode,
-          theaterName: theater.name,
-          theaterArea: theater.area,
-          movieId:     movieId,
-          movieTitle:  movieTitle,
-          language:    lang,
-          dimension:   dim,
-          premiumTech: premium,
-          runtimeMin:  runtime,
-          startISO:    startISO,
-          endISO:      endISO,
-          bookingUrl:  buildBookingUrl(theater, ev, s, dateStr),
-          priceRange:  formatPrices(s.priceCategory || s.Categories || s.prices),
-          seatsLabel:  formatAvail(s.availability || s.Availability || s.seatStatus)
-        });
-      });
-    });
-    return shows;
-  }
 
   function normalizeLang(raw) {
     if (!raw) return 'EN';
@@ -298,14 +179,6 @@
     var d = new Date(dateStr + 'T00:00:00');
     d.setHours(h, m, 0, 0);
     return d.toISOString();
-  }
-  function buildBookingUrl(theater, ev, session, dateStr) {
-    var sessionId = (session && (session.sessionId || session.SessionId)) || '';
-    var eventCode = (ev && (ev.eventCode || ev.EventCode)) || '';
-    if (sessionId && eventCode) {
-      return 'https://in.bookmyshow.com/buytickets/' + eventCode + '/' + sessionId;
-    }
-    return 'https://in.bookmyshow.com/cinemas/' + encodeURIComponent(theater.bmsCode) + '/' + dateStr.replace(/-/g, '');
   }
   function formatPrices(arr) {
     if (!arr || !arr.length) return '';
@@ -416,10 +289,9 @@
       return;
     }
 
-    // Merge into cache + persist
+    // Merge into cache + persist (FLAT key shape — readCacheAll() expects this)
     if (!cache) cache = {};
-    if (!cache[theater.bmsCode]) cache[theater.bmsCode] = {};
-    Object.keys(byDate).forEach(function (d) { cache[theater.bmsCode][d] = byDate[d]; });
+    Object.keys(byDate).forEach(function (d) { cache[cacheKey(theater.bmsCode, d)] = byDate[d]; });
     cacheTs = Date.now();
     State.save('mm_cache', cache);
     State.save('mm_cache_ts', cacheTs);
@@ -487,32 +359,13 @@
     return cacheTs && (Date.now() - cacheTs) < CACHE_TTL_MS;
   }
 
-  function refresh(force) {
+  // The only data path is the bookmarklet paste-import (writes to cache directly).
+  // Refresh is just a re-render trigger now — useful if filters/sorts changed
+  // outside the normal event flow.
+  function refresh(/* force */) {
     lastFetchError = null;
-    if (!theaters.length) { renderAll(); return Promise.resolve(); }
-    if (!force && isCacheFresh() && Object.keys(cache).length) {
-      renderAll();
-      return Promise.resolve();
-    }
-    var source = Sources[sourceMode] || Sources.mock;
-    var dates = [todayISO(), tomorrowISO()];
-    var jobs = [];
-    theaters.forEach(function (t) {
-      dates.forEach(function (d) {
-        jobs.push(
-          source.fetchTheaterDate(t, d)
-            .then(function (shows) { cache[cacheKey(t.bmsCode, d)] = shows; })
-            .catch(function (err) { lastFetchError = err.message || String(err); })
-        );
-      });
-    });
-    setStatusBanner('Fetching shows…');
-    return Promise.all(jobs).then(function () {
-      cacheTs = Date.now();
-      State.save('mm_cache', cache);
-      State.save('mm_cache_ts', cacheTs);
-      renderAll();
-    });
+    renderAll();
+    return Promise.resolve();
   }
 
   function clearCache() {
@@ -1026,18 +879,8 @@
      ═══════════════════════════════════════════════════════════════════ */
 
   function renderSettingsTab() {
-    var proxyInput = document.getElementById('mm-proxy-url');
-    if (proxyInput) proxyInput.value = proxyUrl;
-
-    var pasteRadio = document.getElementById('mm-source-paste');
-    var mockRadio  = document.getElementById('mm-source-mock');
-    var bmsRadio   = document.getElementById('mm-source-bms');
-    if (pasteRadio) pasteRadio.checked = sourceMode === 'paste';
-    if (mockRadio)  mockRadio.checked  = sourceMode === 'mock';
-    if (bmsRadio)   bmsRadio.checked   = sourceMode === 'bms';
-
-    // Inject the draggable bookmarklet link (we set href to the bookmarklet code
-    // so dragging adds it as a real bookmark; clicking is intercepted with a tip).
+    // Inject the draggable bookmarklet link (href is the bookmarklet code so
+    // dragging adds it as a real bookmark; clicking is intercepted with a tip)
     var host = document.getElementById('mm-bookmarklet-host');
     if (host && !host.querySelector('a')) {
       var link = document.createElement('a');
@@ -1057,42 +900,12 @@
     if (info) {
       var entries = Object.keys(cache).length;
       info.textContent = entries
-        ? entries + ' theater(s) cached, last refresh ' + (cacheTs ? minsAgo(cacheTs) + ' min ago' : 'never')
-        : 'Cache empty.';
+        ? entries + ' (theater × date) entries cached, last imported ' + (cacheTs ? minsAgo(cacheTs) + ' min ago' : 'never')
+        : 'Cache empty — use the bookmarklet to import shows.';
     }
   }
 
   function bindSettingsTab() {
-    document.querySelectorAll('input[name="mm-source"]').forEach(function (r) {
-      r.addEventListener('change', function () {
-        var prev = sourceMode;
-        sourceMode = r.value;
-        State.save('mm_source', sourceMode);
-        // Switching INTO paste mode keeps cache (paste populates it). Other switches reset.
-        if (sourceMode !== 'paste' || prev === 'paste') {
-          if (sourceMode !== 'paste') clearCache();
-        }
-        if (sourceMode === 'paste') renderAll();
-        else refresh(true);
-      });
-    });
-
-    var proxyBtn = document.getElementById('mm-btn-save-proxy');
-    var proxyInput = document.getElementById('mm-proxy-url');
-    if (proxyBtn && proxyInput) {
-      proxyBtn.addEventListener('click', function () {
-        var v = (proxyInput.value || '').trim();
-        if (!v) { alert('Proxy URL cannot be empty.'); return; }
-        if (v.indexOf('{url}') === -1) {
-          if (!confirm('URL has no {url} placeholder — the BMS URL will be appended raw. Continue?')) return;
-        }
-        proxyUrl = v;
-        State.save('mm_proxy_url', proxyUrl);
-        clearCache();
-        refresh(true);
-      });
-    }
-
     var clearBtn = document.getElementById('mm-btn-clear-cache');
     if (clearBtn) {
       clearBtn.addEventListener('click', function () {
@@ -1101,7 +914,6 @@
       });
     }
 
-    // Paste import wiring
     var pasteEl   = document.getElementById('mm-paste-input');
     var importBtn = document.getElementById('mm-btn-import-paste');
     var clearPaste = document.getElementById('mm-btn-clear-paste');
