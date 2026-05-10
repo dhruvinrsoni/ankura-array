@@ -928,6 +928,10 @@
     if (clearPaste && pasteEl) {
       clearPaste.addEventListener('click', function () { pasteEl.value = ''; });
     }
+    // Hover-to-focus so you can come from BMS → Ctrl+V without first clicking
+    if (pasteEl) {
+      pasteEl.addEventListener('mouseenter', function () { pasteEl.focus(); });
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════
