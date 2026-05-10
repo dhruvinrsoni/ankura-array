@@ -41,10 +41,8 @@
     <div id="mm-online-banner" class="mm-online-banner">
       <span class="mm-online-banner__dot"></span>
       <span>
-        <strong>Mock data shown.</strong>
-        Public CORS proxies are blocked by BookMyShow's Cloudflare WAF, so live mode requires a self-hosted proxy.
-        See <a href="WORKER_PROXY.md" target="_blank" rel="noopener">WORKER_PROXY.md</a> (5-min Cloudflare Worker setup) →
-        then switch to <strong>Live (BMS)</strong> in <strong>⚙ Settings</strong>.
+        Real-data path: <strong>Bookmarklet</strong> — see <strong>⚙ Settings → 📌 BMS Bookmarklet</strong>. ~10 s per refresh, no infrastructure.
+        (Default is mock data so the UI is usable immediately.)
       </span>
     </div>
 
@@ -148,14 +146,19 @@
       <div class="mm-section">
         <h2 class="mm-section-title">Data source</h2>
         <p class="mm-help-text">
-          <strong>Mock</strong> generates plausible-looking shows so you can validate the UX without any setup.
-          <strong>Live (BMS)</strong> requires a self-hosted Cloudflare Worker proxy
-          — see <a href="WORKER_PROXY.md" target="_blank" rel="noopener">WORKER_PROXY.md</a> for the 5-min setup. Public CORS proxies do NOT work with BMS.
+          <strong>Bookmarklet</strong> is the working real-data path: zero infrastructure, ~10 s per refresh.
+          <strong>Mock</strong> is the default and shows fake but plausible data for validating the UI.
+          <strong>Live (BMS)</strong> requires a self-hosted Cloudflare Worker — public proxies are blocked by BMS's WAF
+          (see <a href="WORKER_PROXY.md" target="_blank" rel="noopener">WORKER_PROXY.md</a>).
         </p>
         <div class="mm-row">
           <label class="mm-radio">
+            <input type="radio" name="mm-source" value="paste" id="mm-source-paste" />
+            <span>Bookmarklet (paste-driven) — real data, no infra</span>
+          </label>
+          <label class="mm-radio">
             <input type="radio" name="mm-source" value="mock" id="mm-source-mock" checked />
-            <span>Mock data (default — works without setup)</span>
+            <span>Mock data (default)</span>
           </label>
           <label class="mm-radio">
             <input type="radio" name="mm-source" value="bms" id="mm-source-bms" />
@@ -165,10 +168,29 @@
       </div>
 
       <div class="mm-section">
-        <h2 class="mm-section-title">Proxy URL</h2>
+        <h2 class="mm-section-title">📌 BMS Bookmarklet</h2>
+        <ol class="mm-help-text" style="padding-left:1.2rem;line-height:1.7">
+          <li><strong>Drag</strong> the link below to your browser's bookmarks bar (do not click it on this page — it has nothing to extract).</li>
+          <li>Open <a href="https://in.bookmyshow.com/" target="_blank" rel="noopener">bookmyshow.com</a>, navigate to one of your pinned theater's showtimes page (e.g. Cinepolis Seasons Mall → today's shows).</li>
+          <li>Click the bookmark in your bar → it copies showtime JSON to clipboard → switch back to Mancha-Matrix → paste into the box below → <strong>Import</strong>.</li>
+          <li>Repeat for the other theaters. Switch source above to <strong>Bookmarklet</strong>, then go to Matrix tab.</li>
+        </ol>
+        <div class="mm-row" style="margin-top:0.75rem">
+          <span id="mm-bookmarklet-host" class="mm-bookmarklet-host"></span>
+        </div>
+        <h3 class="mm-section-title" style="font-size:1rem;margin-top:1.25rem">Paste from clipboard</h3>
+        <textarea id="mm-paste-input" class="mm-textarea" rows="4" placeholder='Paste the JSON copied by the bookmarklet here, then click Import.'></textarea>
+        <div class="mm-row">
+          <button id="mm-btn-import-paste" class="btn btn--solid btn--sm">⤒ Import</button>
+          <button id="mm-btn-clear-paste" class="btn btn--outline btn--sm">Clear</button>
+        </div>
+      </div>
+
+      <div class="mm-section">
+        <h2 class="mm-section-title">Worker Proxy URL (only for Live BMS mode)</h2>
         <p class="mm-help-text">
-          URL template — the literal token <code>{url}</code> will be replaced with the encoded BMS URL.
-          For your deployed Cloudflare Worker, use something like <code>https://your-worker.workers.dev/?url={url}</code>.
+          URL template — <code>{url}</code> is replaced with the encoded BMS URL. For your deployed Cloudflare Worker:
+          <code>https://your-worker.workers.dev/?url={url}</code>.
         </p>
         <div class="mm-row">
           <input id="mm-proxy-url" type="text" class="mm-input mm-input--wide" placeholder="https://your-worker.workers.dev/?url={url}" />

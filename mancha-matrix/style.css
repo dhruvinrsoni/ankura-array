@@ -541,6 +541,31 @@
   border-bottom-color: rgba(224, 89, 89, 0.3);
 }
 
+/* ── Bookmarklet draggable link ───────────────────────── */
+.mm-bookmarklet-host { display: inline-block; }
+.mm-bookmarklet-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  background: var(--accent-subtle);
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: grab;
+  user-select: none;
+  font-size: var(--fs-body);
+  transition: var(--transition);
+}
+.mm-bookmarklet-link:hover {
+  background: var(--accent-glow);
+  border-style: solid;
+  transform: translateY(-1px);
+}
+.mm-bookmarklet-link:active { cursor: grabbing; }
+
 /* ── Compact responsive tweaks ────────────────────────── */
 @media (max-width: 760px) {
   .mm-filter-bar { gap: 0.6rem; }

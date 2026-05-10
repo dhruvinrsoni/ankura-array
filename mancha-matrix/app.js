@@ -22,6 +22,11 @@
   var CACHE_TTL_MS = 10 * 60 * 1000;
   var CLUSTER_WINDOW_MS = 30 * 60 * 1000;
 
+  // Bookmarklet — clicked while on a BookMyShow cinema/showtimes tab. Same-origin,
+  // no CORS. Reads __NEXT_DATA__ (Next.js SSR blob), recursively walks for show
+  // objects, copies an envelope to clipboard for pasting into MM → Settings.
+  var BOOKMARKLET = "javascript:(function(){try{var e=document.getElementById('__NEXT_DATA__');if(!e){alert('Mancha-Matrix: No __NEXT_DATA__ on this page. Open a BookMyShow cinema or showtimes page first.');return}var d=JSON.parse(e.textContent),s=[],v=null;function w(o,p){if(p>10||!o)return;if(Array.isArray(o)){o.forEach(function(i){w(i,p+1)});return}if(typeof o!=='object')return;var k=Object.keys(o),t=k.some(function(x){return /(showtime|sessiontime|starttime|sessionstart|sessiondatetime|showdatetime)/i.test(x)}),m=k.some(function(x){return /(eventtitle|movietitle|moviename|^title$|^name$)/i.test(x)})&&!k.some(function(x){return /^(venuename|cinemaname)$/i.test(x)});if(t&&(m||k.indexOf('eventCode')!==-1||k.indexOf('EventCode')!==-1))s.push(o);var V=k.some(function(x){return /^(venuename|cinemaname|name)$/i.test(x)})&&k.some(function(x){return /^(venuecode|cinemacode|code)$/i.test(x)});if(V&&!v)v=o;k.forEach(function(x){w(o[x],p+1)})}w(d.props||d,0);var env={_bookmarklet:'mancha-matrix-v1',capturedAt:new Date().toISOString(),sourceUrl:location.href,venue:v||{hint:location.pathname},shows:s},j=JSON.stringify(env),done=function(){alert('Mancha-Matrix: Copied '+s.length+' show entries to clipboard. Paste into MM → Settings → Import.')};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(j).then(done,function(){window.prompt('Copy this JSON manually:',j)})}else{window.prompt('Copy this JSON manually:',j)}}catch(e){alert('Mancha-Matrix bookmarklet error: '+(e&&e.message?e.message:e))}})();";
+
   var DIMENSIONS = ['2D', '3D', '4DX', 'ScreenX'];
   var PREMIUM_TECH = ['IMAX', 'Dolby Cinema', 'ICE', 'PXL', "Director's Cut"];
   var LANGUAGES = ['HI', 'EN', 'MR', 'TA', 'TE', 'KN'];
@@ -88,9 +93,18 @@
       }
     },
     bms: {
-      label: 'Live (BMS via proxy)',
+      label: 'Live (BMS via Worker proxy)',
       fetchTheaterDate: function (theater, dateStr) {
         return fetchBmsShowtimes(theater, dateStr);
+      }
+    },
+    paste: {
+      // No fetch — data is populated by importFromBmsPaste() when the user pastes
+      // a bookmarklet payload. Refresh in this mode just re-reads the cache.
+      label: 'Bookmarklet (paste-driven)',
+      fetchTheaterDate: function (theater, dateStr) {
+        var cached = cache[cacheKey(theater.bmsCode, dateStr)];
+        return Promise.resolve(cached || []);
       }
     }
   };
@@ -303,6 +317,125 @@
     if (s.indexOf('few')   !== -1) return 'Few left';
     if (s.indexOf('avail') !== -1) return 'Available';
     return String(raw);
+  }
+
+  /* ─── Bookmarklet paste import ─────────────────────────────────── */
+  // Accepts the envelope copied to clipboard by BOOKMARKLET (above), validates,
+  // normalizes shows to NormalizedShow shape, merges into mm_cache.
+  function importFromBmsPaste(text) {
+    if (!text || !text.trim()) { alert('Paste is empty.'); return; }
+    var env;
+    try { env = JSON.parse(text); }
+    catch (e) { alert('Invalid JSON: ' + e.message); return; }
+
+    if (!env || env._bookmarklet !== 'mancha-matrix-v1') {
+      if (!confirm('Payload doesn\'t look like a Mancha-Matrix bookmarklet capture. Try to import anyway?')) return;
+    }
+    if (!Array.isArray(env.shows) || !env.shows.length) {
+      alert('No shows found in payload. Make sure the bookmarklet was clicked on a BMS showtimes page.');
+      return;
+    }
+
+    // Match bookmarklet's venue to a pinned theater
+    var venueName = env.venue && (env.venue.venueName || env.venue.cinemaName || env.venue.name) || '';
+    var venueCode = env.venue && (env.venue.venueCode || env.venue.cinemaCode || env.venue.code) || '';
+    function fuzzyMatch(t) {
+      if (venueCode && t.bmsCode === venueCode) return true;
+      if (venueName && t.name) {
+        var a = venueName.toLowerCase(), b = t.name.toLowerCase();
+        if (a.indexOf(b.split(/\s+/)[0]) !== -1) return true;
+        if (b.indexOf(a.split(/\s+/)[0]) !== -1) return true;
+      }
+      return false;
+    }
+    var theater = theaters.find(fuzzyMatch);
+    if (!theater) {
+      var hint = (venueName || '(unknown)') + (venueCode ? ' / ' + venueCode : '');
+      var choices = theaters.map(function (t, i) { return (i + 1) + '. ' + t.name + ' (' + t.bmsCode + ')'; }).join('\n');
+      var pick = window.prompt(
+        'Could not auto-match BMS venue to a pinned theater.\n\n' +
+        'Detected: ' + hint + '\n\n' +
+        'Pinned theaters:\n' + choices + '\n\n' +
+        'Enter a number (1-' + theaters.length + ') to assign this paste to that theater, or Cancel.',
+        '1'
+      );
+      var idx = parseInt(pick, 10) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= theaters.length) return;
+      theater = theaters[idx];
+    }
+
+    // Normalize each raw show into NormalizedShow shape, group by date
+    var byDate = {};
+    env.shows.forEach(function (raw, i) {
+      var startISO = pickStartISO(raw);
+      if (!startISO) return;
+      var dateStr = startISO.slice(0, 10);
+      var movieTitle = raw.eventTitle || raw.EventTitle || raw.movieTitle || raw.MovieTitle || raw.title || raw.name || 'Unknown';
+      var movieId = raw.eventCode || raw.EventCode || raw.id || raw.eventId || ('mv-' + movieTitle.toLowerCase().replace(/\s+/g, '-').slice(0, 20));
+      var lang = normalizeLang(raw.language || raw.Language || raw.lang);
+      var dim = normalizeDim(raw.dimension || raw.Dimension || raw.format || raw.eventDimension);
+      var premium = normalizePremium(raw.experience || raw.eventGenre || raw.audi || raw.Genre || raw.eventGenres);
+      var runtime = parseInt(raw.runtime || raw.Length || raw.runtimeInMinutes || raw.duration || 120, 10);
+      var endISO = new Date(new Date(startISO).getTime() + runtime * 60000).toISOString();
+
+      var show = {
+        showId:      raw.sessionId || raw.SessionId || raw.showId || (theater.bmsCode + '-' + dateStr + '-' + i),
+        theaterCode: theater.bmsCode,
+        theaterName: theater.name,
+        theaterArea: theater.area,
+        movieId:     movieId,
+        movieTitle:  movieTitle,
+        language:    lang,
+        dimension:   dim,
+        premiumTech: premium,
+        runtimeMin:  runtime,
+        startISO:    startISO,
+        endISO:      endISO,
+        bookingUrl:  raw.bookingUrl || raw.URL || env.sourceUrl || 'https://in.bookmyshow.com/',
+        priceRange:  formatPrices(raw.priceCategory || raw.Categories || raw.prices),
+        seatsLabel:  formatAvail(raw.availability || raw.Availability || raw.seatStatus)
+      };
+      if (!byDate[dateStr]) byDate[dateStr] = [];
+      byDate[dateStr].push(show);
+    });
+
+    if (!Object.keys(byDate).length) {
+      alert(
+        'Found ' + env.shows.length + ' raw show entries but couldn\'t extract any show times. ' +
+        'BMS may have changed its page shape. Open the bookmarklet output and share a sample so the parser can be adjusted.'
+      );
+      return;
+    }
+
+    // Merge into cache + persist
+    if (!cache) cache = {};
+    if (!cache[theater.bmsCode]) cache[theater.bmsCode] = {};
+    Object.keys(byDate).forEach(function (d) { cache[theater.bmsCode][d] = byDate[d]; });
+    cacheTs = Date.now();
+    State.save('mm_cache', cache);
+    State.save('mm_cache_ts', cacheTs);
+
+    var totalShows = 0;
+    Object.keys(byDate).forEach(function (d) { totalShows += byDate[d].length; });
+    var dates = Object.keys(byDate).sort().join(', ');
+    alert('✓ Imported ' + totalShows + ' shows for ' + theater.name + ' (' + dates + ')');
+    renderAll();
+  }
+
+  // Permissive start-time extractor — handles ISO strings, "10:30 AM", "1830", or
+  // separate date+time fields, returns ISO string or null.
+  function pickStartISO(raw) {
+    var t = raw.showDateTime || raw.ShowDateTime || raw.startISO || raw.startDateTime || raw.sessionDateTime;
+    if (t) { try { return new Date(t).toISOString(); } catch (e) {} }
+    var d = raw.dateCode || raw.dateString || raw.showDate || raw.ShowDate || raw.date;
+    var hm = raw.showTime || raw.ShowTime || raw.startTime || raw.startTimeStr || raw.sessionTime;
+    if (d && hm) {
+      var iso = String(d);
+      if (/^\d{8}$/.test(iso)) iso = iso.slice(0, 4) + '-' + iso.slice(4, 6) + '-' + iso.slice(6, 8);
+      else if (/^\d{4}-\d{2}-\d{2}/.test(iso)) iso = iso.slice(0, 10);
+      try { return combineDateTime(iso, hm); } catch (e) {}
+    }
+    return null;
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -870,16 +1003,35 @@
     var proxyInput = document.getElementById('mm-proxy-url');
     if (proxyInput) proxyInput.value = proxyUrl;
 
-    var mockRadio = document.getElementById('mm-source-mock');
-    var bmsRadio  = document.getElementById('mm-source-bms');
-    if (mockRadio) mockRadio.checked = sourceMode === 'mock';
-    if (bmsRadio)  bmsRadio.checked  = sourceMode === 'bms';
+    var pasteRadio = document.getElementById('mm-source-paste');
+    var mockRadio  = document.getElementById('mm-source-mock');
+    var bmsRadio   = document.getElementById('mm-source-bms');
+    if (pasteRadio) pasteRadio.checked = sourceMode === 'paste';
+    if (mockRadio)  mockRadio.checked  = sourceMode === 'mock';
+    if (bmsRadio)   bmsRadio.checked   = sourceMode === 'bms';
+
+    // Inject the draggable bookmarklet link (we set href to the bookmarklet code
+    // so dragging adds it as a real bookmark; clicking is intercepted with a tip).
+    var host = document.getElementById('mm-bookmarklet-host');
+    if (host && !host.querySelector('a')) {
+      var link = document.createElement('a');
+      link.className = 'mm-bookmarklet-link';
+      link.href = BOOKMARKLET;
+      link.draggable = true;
+      link.textContent = '📌 BMS → Mancha-Matrix';
+      link.title = 'Drag me to your browser bookmarks bar';
+      link.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        alert('Drag this link to your browser bookmarks bar.\nDon\'t click it here — it needs to run on a BookMyShow page.');
+      });
+      host.appendChild(link);
+    }
 
     var info = document.getElementById('mm-cache-info');
     if (info) {
       var entries = Object.keys(cache).length;
       info.textContent = entries
-        ? entries + ' (theater × date) entries cached, last refresh ' + (cacheTs ? minsAgo(cacheTs) + ' min ago' : 'never')
+        ? entries + ' theater(s) cached, last refresh ' + (cacheTs ? minsAgo(cacheTs) + ' min ago' : 'never')
         : 'Cache empty.';
     }
   }
@@ -887,10 +1039,15 @@
   function bindSettingsTab() {
     document.querySelectorAll('input[name="mm-source"]').forEach(function (r) {
       r.addEventListener('change', function () {
+        var prev = sourceMode;
         sourceMode = r.value;
         State.save('mm_source', sourceMode);
-        clearCache();
-        refresh(true);
+        // Switching INTO paste mode keeps cache (paste populates it). Other switches reset.
+        if (sourceMode !== 'paste' || prev === 'paste') {
+          if (sourceMode !== 'paste') clearCache();
+        }
+        if (sourceMode === 'paste') renderAll();
+        else refresh(true);
       });
     });
 
@@ -916,6 +1073,20 @@
         clearCache();
         renderAll();
       });
+    }
+
+    // Paste import wiring
+    var pasteEl   = document.getElementById('mm-paste-input');
+    var importBtn = document.getElementById('mm-btn-import-paste');
+    var clearPaste = document.getElementById('mm-btn-clear-paste');
+    if (importBtn && pasteEl) {
+      importBtn.addEventListener('click', function () {
+        importFromBmsPaste(pasteEl.value);
+        pasteEl.value = '';
+      });
+    }
+    if (clearPaste && pasteEl) {
+      clearPaste.addEventListener('click', function () { pasteEl.value = ''; });
     }
   }
 
