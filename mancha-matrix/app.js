@@ -22,10 +22,12 @@
   var CACHE_TTL_MS = 10 * 60 * 1000;
   var CLUSTER_WINDOW_MS = 30 * 60 * 1000;
 
-  // Bookmarklet — clicked while on a BookMyShow cinema/showtimes tab. Same-origin,
-  // no CORS. Reads __NEXT_DATA__ (Next.js SSR blob), recursively walks for show
-  // objects, copies an envelope to clipboard for pasting into MM → Settings.
-  var BOOKMARKLET = "javascript:(function(){try{var e=document.getElementById('__NEXT_DATA__');if(!e){alert('Mancha-Matrix: No __NEXT_DATA__ on this page. Open a BookMyShow cinema or showtimes page first.');return}var d=JSON.parse(e.textContent),s=[],v=null;function w(o,p){if(p>10||!o)return;if(Array.isArray(o)){o.forEach(function(i){w(i,p+1)});return}if(typeof o!=='object')return;var k=Object.keys(o),t=k.some(function(x){return /(showtime|sessiontime|starttime|sessionstart|sessiondatetime|showdatetime)/i.test(x)}),m=k.some(function(x){return /(eventtitle|movietitle|moviename|^title$|^name$)/i.test(x)})&&!k.some(function(x){return /^(venuename|cinemaname)$/i.test(x)});if(t&&(m||k.indexOf('eventCode')!==-1||k.indexOf('EventCode')!==-1))s.push(o);var V=k.some(function(x){return /^(venuename|cinemaname|name)$/i.test(x)})&&k.some(function(x){return /^(venuecode|cinemacode|code)$/i.test(x)});if(V&&!v)v=o;k.forEach(function(x){w(o[x],p+1)})}w(d.props||d,0);var env={_bookmarklet:'mancha-matrix-v1',capturedAt:new Date().toISOString(),sourceUrl:location.href,venue:v||{hint:location.pathname},shows:s},j=JSON.stringify(env),done=function(){alert('Mancha-Matrix: Copied '+s.length+' show entries to clipboard. Paste into MM → Settings → Import.')};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(j).then(done,function(){window.prompt('Copy this JSON manually:',j)})}else{window.prompt('Copy this JSON manually:',j)}}catch(e){alert('Mancha-Matrix bookmarklet error: '+(e&&e.message?e.message:e))}})();";
+  // Bookmarklet — clicked while on a BookMyShow cinema/showtimes tab. Same-origin
+  // so no CORS. Pure DOM scraper: doesn't depend on __NEXT_DATA__ or any framework
+  // internals. Walks the visible page for time-shaped text, climbs up to find the
+  // nearest heading (movie title) plus format/language hints, copies an envelope
+  // to clipboard for pasting into MM → Settings.
+  var BOOKMARKLET = "javascript:(function(){try{var T=/^\\s*(\\d{1,2}):(\\d{2})\\s*(AM|PM)?\\s*$/i,F=/\\b(2D|3D|4DX|IMAX|ScreenX|Dolby\\s*Cinema|ICE|PXL|Director's\\s*Cut)\\b/gi,L=/\\b(Hindi|English|Marathi|Tamil|Telugu|Kannada|Punjabi|Bengali|Malayalam|Gujarati)\\b/i,els=document.querySelectorAll('a,button,span,div'),hits=[];for(var i=0;i<els.length;i++){var el=els[i];if(el.children.length>0)continue;var t=(el.textContent||'').trim();if(t.length<3||t.length>10)continue;if(T.test(t))hits.push({el:el,time:t})}if(!hits.length){alert('Mancha-Matrix: No showtime-shaped text found on this page. Open a cinema or showtimes page that lists times like 7:30 PM.');return}var shows=[],seen={};hits.forEach(function(h){var c=h.el,title=null,dim=null,lang=null,prem=null,url=(h.el.tagName==='A'&&h.el.href)||null;for(var d=0;d<8&&c;d++){c=c.parentElement;if(!c)break;var hd=c.querySelector('h1,h2,h3,h4,h5');if(hd&&hd.textContent.trim().length>1&&hd.textContent.trim().length<120){title=hd.textContent.trim();var txt=c.textContent,fm=txt.match(F);if(fm)fm.forEach(function(m){var u=m.toUpperCase();if(/4DX/.test(u))dim='4DX';else if(/IMAX/.test(u))prem='IMAX';else if(/DOLBY/.test(u))prem='Dolby Cinema';else if(/ICE/.test(u))prem='ICE';else if(/SCREENX/.test(u))dim='ScreenX';else if(/PXL/.test(u))prem='PXL';else if(/3D/.test(u))dim=dim||'3D';else if(/2D/.test(u))dim=dim||'2D'});var lm=txt.match(L);if(lm)lang=lm[1];break}}if(!title)return;var key=title+'|'+h.time+'|'+(dim||'')+'|'+(prem||'');if(seen[key])return;seen[key]=true;shows.push({showTime:h.time,movieTitle:title,dimension:dim||'2D',language:lang||'English',premiumTech:prem,bookingUrl:url})});var venue={sourceUrl:location.href,pageTitle:document.title,hint:location.pathname},pp=location.pathname.split('/').filter(Boolean);for(var p=0;p<pp.length;p++){if(/^[A-Z][A-Z0-9]{2,8}$/.test(pp[p])){venue.code=pp[p];break}}var hd2=document.querySelectorAll('h1,h2,h3,h4'),dh=null;for(var hi=0;hi<hd2.length;hi++){var ht=hd2[hi].textContent.trim();if(/(\\d{1,2}\\s+)?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(ht)&&ht.length<60){dh=ht;break}}var env={_bookmarklet:'mancha-matrix-v2',_scrapeMethod:'dom',capturedAt:new Date().toISOString(),sourceUrl:location.href,pageTitle:document.title,venue:venue,dateHint:dh,shows:shows,rawCounts:{timesFound:hits.length,showsExtracted:shows.length}},j=JSON.stringify(env),done=function(){alert('Mancha-Matrix: Copied '+shows.length+' shows (from '+hits.length+' time elements). Paste into MM \\u2192 Settings \\u2192 Import.')};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(j).then(done,function(){window.prompt('Copy this JSON:',j)})}else{window.prompt('Copy this JSON:',j)}}catch(e){alert('Mancha-Matrix bookmarklet error: '+(e&&e.message?e.message:e))}})();";
 
   var DIMENSIONS = ['2D', '3D', '4DX', 'ScreenX'];
   var PREMIUM_TECH = ['IMAX', 'Dolby Cinema', 'ICE', 'PXL', "Director's Cut"];
@@ -328,7 +330,7 @@
     try { env = JSON.parse(text); }
     catch (e) { alert('Invalid JSON: ' + e.message); return; }
 
-    if (!env || env._bookmarklet !== 'mancha-matrix-v1') {
+    if (!env || (env._bookmarklet !== 'mancha-matrix-v1' && env._bookmarklet !== 'mancha-matrix-v2')) {
       if (!confirm('Payload doesn\'t look like a Mancha-Matrix bookmarklet capture. Try to import anyway?')) return;
     }
     if (!Array.isArray(env.shows) || !env.shows.length) {
@@ -336,8 +338,11 @@
       return;
     }
 
-    // Match bookmarklet's venue to a pinned theater
-    var venueName = env.venue && (env.venue.venueName || env.venue.cinemaName || env.venue.name) || '';
+    // Resolve the date: v2 envelopes carry only HH:MM strings + a dateHint heading.
+    var dateForShows = parseDateHint(env.dateHint) || todayISO();
+
+    // Match bookmarklet's venue to a pinned theater (try venue obj + page title + URL)
+    var venueName = env.venue && (env.venue.venueName || env.venue.cinemaName || env.venue.name) || env.pageTitle || '';
     var venueCode = env.venue && (env.venue.venueCode || env.venue.cinemaCode || env.venue.code) || '';
     function fuzzyMatch(t) {
       if (venueCode && t.bmsCode === venueCode) return true;
@@ -367,7 +372,7 @@
     // Normalize each raw show into NormalizedShow shape, group by date
     var byDate = {};
     env.shows.forEach(function (raw, i) {
-      var startISO = pickStartISO(raw);
+      var startISO = pickStartISO(raw, dateForShows);
       if (!startISO) return;
       var dateStr = startISO.slice(0, 10);
       var movieTitle = raw.eventTitle || raw.EventTitle || raw.movieTitle || raw.MovieTitle || raw.title || raw.name || 'Unknown';
@@ -423,11 +428,12 @@
   }
 
   // Permissive start-time extractor — handles ISO strings, "10:30 AM", "1830", or
-  // separate date+time fields, returns ISO string or null.
-  function pickStartISO(raw) {
+  // separate date+time fields. Accepts an optional fallback date for v2 (DOM-scraped)
+  // shows that only carry HH:MM AM/PM strings.
+  function pickStartISO(raw, fallbackDate) {
     var t = raw.showDateTime || raw.ShowDateTime || raw.startISO || raw.startDateTime || raw.sessionDateTime;
     if (t) { try { return new Date(t).toISOString(); } catch (e) {} }
-    var d = raw.dateCode || raw.dateString || raw.showDate || raw.ShowDate || raw.date;
+    var d = raw.dateCode || raw.dateString || raw.showDate || raw.ShowDate || raw.date || fallbackDate;
     var hm = raw.showTime || raw.ShowTime || raw.startTime || raw.startTimeStr || raw.sessionTime;
     if (d && hm) {
       var iso = String(d);
@@ -436,6 +442,22 @@
       try { return combineDateTime(iso, hm); } catch (e) {}
     }
     return null;
+  }
+
+  // Parse a heading like "Sun 10 May" / "10 May 2026" / "Today, 10 May" into YYYY-MM-DD,
+  // assuming the year is the current year when missing. Returns null if no match.
+  function parseDateHint(s) {
+    if (!s) return null;
+    var months = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+    var m = String(s).match(/(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?:[a-z]*)?\s*(\d{4})?/i);
+    if (!m) return null;
+    var day = parseInt(m[1], 10);
+    var mon = months[m[2].toLowerCase().slice(0,3)];
+    var year = m[3] ? parseInt(m[3], 10) : new Date().getFullYear();
+    if (mon == null || isNaN(day)) return null;
+    var d = new Date(year, mon, day);
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   }
 
   /* ═══════════════════════════════════════════════════════════════════

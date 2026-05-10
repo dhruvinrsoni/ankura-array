@@ -168,13 +168,17 @@
       </div>
 
       <div class="mm-section">
-        <h2 class="mm-section-title">📌 BMS Bookmarklet</h2>
+        <h2 class="mm-section-title">📌 BMS Bookmarklet (DOM scraper)</h2>
         <ol class="mm-help-text" style="padding-left:1.2rem;line-height:1.7">
-          <li><strong>Drag</strong> the link below to your browser's bookmarks bar (do not click it on this page — it has nothing to extract).</li>
-          <li>Open <a href="https://in.bookmyshow.com/" target="_blank" rel="noopener">bookmyshow.com</a>, navigate to one of your pinned theater's showtimes page (e.g. Cinepolis Seasons Mall → today's shows).</li>
-          <li>Click the bookmark in your bar → it copies showtime JSON to clipboard → switch back to Mancha-Matrix → paste into the box below → <strong>Import</strong>.</li>
-          <li>Repeat for the other theaters. Switch source above to <strong>Bookmarklet</strong>, then go to Matrix tab.</li>
+          <li><strong>Drag</strong> the orange link below to your browser's bookmarks bar (don't click it here — it scrapes whatever page you're on, and this isn't BMS).</li>
+          <li>Open <a href="https://in.bookmyshow.com/" target="_blank" rel="noopener">bookmyshow.com</a>, navigate to one of your theaters' showtimes page (e.g. Cinepolis Seasons Mall → today's shows). Make sure showtimes like <code>7:30 PM</code> are visible on screen.</li>
+          <li>Click the bookmark → alert says <code>✓ Copied N shows</code>. JSON is on your clipboard.</li>
+          <li>Come back here → paste into the box below → <strong>⤒ Import</strong>. If MM can't auto-match the venue, it'll prompt you to pick which pinned theater this paste belongs to.</li>
+          <li>Repeat for each theater. Then switch source to <strong>Bookmarklet</strong> above and go to Matrix tab.</li>
         </ol>
+        <p class="mm-help-text" style="font-size:0.78rem;font-style:italic">
+          The bookmarklet doesn't depend on BMS internals — it scrapes the visible DOM for time-shaped text and picks up movie titles, formats (2D/3D/4DX/IMAX/Dolby), and languages from neighboring elements. If a page renders different markup, we'll iterate on the parser.
+        </p>
         <div class="mm-row" style="margin-top:0.75rem">
           <span id="mm-bookmarklet-host" class="mm-bookmarklet-host"></span>
         </div>
