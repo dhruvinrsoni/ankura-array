@@ -661,6 +661,27 @@
   color: var(--accent);
 }
 
+/* ── Theater-view row spanning & grouping ──────────────── */
+.mm-theater-col {
+  font-weight: 600;
+  vertical-align: top;
+  border-right: 2px solid var(--accent);
+  padding-right: 1rem;
+  white-space: nowrap;
+  color: var(--accent);
+  font-size: var(--fs-body);
+}
+.mm-theater-col__count {
+  display: block;
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 0.2rem;
+}
+.mm-matrix tbody tr.mm-theater-group-end td {
+  border-bottom: 1px solid var(--border);
+}
+
 /* ── Compact responsive tweaks ────────────────────────── */
 @media (max-width: 760px) {
   .mm-filter-bar { gap: 0.6rem; }
@@ -669,4 +690,5 @@
   .mm-matrix tbody td { padding: 0.5rem; }
   .mm-cell-movie__runtime { font-size: 0.7rem; }
   .mm-smart-filter__trigger { min-width: 120px; }
+  .mm-theater-col { padding-right: 0.5rem; border-right-width: 1px; }
 }

@@ -416,6 +416,24 @@
     return clusters;
   }
 
+  // clusterShowsByTheater: groups shows by theatre first, then clusters within each theatre
+  function clusterShowsByTheater(shows) {
+    var byTheater = {};
+    shows.forEach(function (s) {
+      if (!byTheater[s.theaterCode]) byTheater[s.theaterCode] = [];
+      byTheater[s.theaterCode].push(s);
+    });
+    var result = [];
+    theaters.forEach(function (t) {
+      var tShows = byTheater[t.bmsCode] || [];
+      if (!tShows.length) return;
+      var clusters = clusterShows(tShows);
+      var sorted = sortClusters(clusters);
+      result.push({ theaterCode: t.bmsCode, theaterName: t.name, clusters: sorted });
+    });
+    return result;
+  }
+
   function applyFilters(clusters) {
     var muted = filters.mutedTheaters || [];
     return clusters
@@ -829,31 +847,78 @@
         '<span class="mm-day-header__count">' + dayShows.length + ' shows</span>';
       c.appendChild(head);
 
-      // Single table with theatre as a column (in pinned order)
-      var dir = sortDir === 'desc' ? -1 : 1;
-      dayShows.sort(function (a, b) {
-        var aTheaterIdx = theaters.findIndex(function (t) { return t.bmsCode === a.theaterCode; });
-        var bTheaterIdx = theaters.findIndex(function (t) { return t.bmsCode === b.theaterCode; });
-        var theaterCmp = aTheaterIdx - bTheaterIdx;
-        if (theaterCmp !== 0) return theaterCmp;
-        return (new Date(a.startISO) - new Date(b.startISO)) * dir;
-      });
+      // Cluster by theater
+      var theaterGroups = clusterShowsByTheater(dayShows);
+      if (!theaterGroups.length) return;
 
       var table = document.createElement('table');
       table.className = 'mm-matrix';
       table.innerHTML =
         '<thead><tr>' +
           '<th>Theater</th>' +
-          '<th>Time</th>' +
+          '<th>Times</th>' +
           '<th>Movie</th>' +
           '<th>Lang</th>' +
           '<th>Dim</th>' +
         '</tr></thead><tbody></tbody>';
       var tbody = table.querySelector('tbody');
 
-      dayShows.forEach(function (show) {
-        tbody.appendChild(renderTheaterViewRow(show));
+      theaterGroups.forEach(function (tGroup, tIdx) {
+        var isLastTheater = tIdx === theaterGroups.length - 1;
+        tGroup.clusters.forEach(function (cluster, cIdx) {
+          var isFirstCluster = cIdx === 0;
+          var tr = document.createElement('tr');
+          if (!isLastTheater) tr.className = 'mm-theater-group-end';
+
+          // Theater cell with rowspan (only on first cluster of each theater)
+          if (isFirstCluster) {
+            var theaterTd = document.createElement('td');
+            theaterTd.className = 'mm-theater-col';
+            theaterTd.rowSpan = tGroup.clusters.length;
+            theaterTd.innerHTML =
+              '<div>' + escapeHtml(tGroup.theaterName) + '</div>' +
+              '<div class="mm-theater-col__count">' + tGroup.clusters.length + ' show' + (tGroup.clusters.length !== 1 ? 's' : '') + '</div>';
+            tr.appendChild(theaterTd);
+          }
+
+          // Times column (chips for each show in cluster)
+          var timesTd = document.createElement('td');
+          var chipsWrap = document.createElement('div');
+          chipsWrap.className = 'mm-chips';
+          cluster.shows
+            .slice()
+            .sort(function (a, b) { return new Date(a.startISO) - new Date(b.startISO); })
+            .forEach(function (show) {
+              chipsWrap.appendChild(makeTheaterViewChip(show));
+            });
+          timesTd.appendChild(chipsWrap);
+          tr.appendChild(timesTd);
+
+          // Movie title
+          var movieTd = document.createElement('td');
+          var endTime = new Date(new Date(cluster.shows[0].startISO).getTime() + cluster.runtimeMin * 60000);
+          movieTd.className = 'mm-cell-movie';
+          movieTd.title = 'Runtime: ' + cluster.runtimeMin + ' min\nHome by ~' + fmtTime(endTime.toISOString());
+          movieTd.innerHTML =
+            escapeHtml(cluster.movieTitle) +
+            '<span class="mm-cell-movie__runtime">⏱ ' + cluster.runtimeMin + ' min · home by ~' + fmtTime(endTime.toISOString()) + '</span>';
+          tr.appendChild(movieTd);
+
+          // Language
+          var langTd = document.createElement('td');
+          langTd.innerHTML = '<span class="mm-lang-badge">' + escapeHtml(cluster.language) + '</span>';
+          tr.appendChild(langTd);
+
+          // Dimension
+          var dimLabel = escapeHtml(cluster.dimension) + (cluster.premiumTech ? ' · ' + escapeHtml(cluster.premiumTech) : '');
+          var dimTd = document.createElement('td');
+          dimTd.innerHTML = '<span class="mm-format-badge' + (cluster.premiumTech ? ' mm-format-badge--premium' : '') + '">' + dimLabel + '</span>';
+          tr.appendChild(dimTd);
+
+          tbody.appendChild(tr);
+        });
       });
+
       c.appendChild(table);
     });
   }
@@ -956,6 +1021,22 @@
     a.innerHTML =
       '<span class="mm-chip__theater">' + escapeHtml(shortName(show.theaterName)) + '</span>' +
       '<span class="mm-chip__time">' + fmtTime(show.startISO) + '</span>';
+    a.dataset.showId = show.showId;
+    a.addEventListener('mouseenter', function (e) { showPopover(e, show); });
+    a.addEventListener('mousemove',  function (e) { positionPopover(e); });
+    a.addEventListener('mouseleave', hidePopover);
+    a.addEventListener('focus',      function (e) { showPopover(e, show); });
+    a.addEventListener('blur',       hidePopover);
+    return a;
+  }
+
+  function makeTheaterViewChip(show) {
+    var a = document.createElement('a');
+    a.className = 'mm-chip';
+    a.href = show.bookingUrl || '#';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.innerHTML = '<span class="mm-chip__time">' + fmtTime(show.startISO) + '</span>';
     a.dataset.showId = show.showId;
     a.addEventListener('mouseenter', function (e) { showPopover(e, show); });
     a.addEventListener('mousemove',  function (e) { positionPopover(e); });
