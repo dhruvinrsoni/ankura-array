@@ -51,6 +51,7 @@
   /* ─── Persistent state (loaded once, written via setters) ────────── */
   var theaters     = State.load('mm_theaters', []);
   var sourceMode   = State.load('mm_source', 'paste'); // only 'paste' is valid now
+  var viewMode     = State.load('mm_view', 'movie');   // 'movie' | 'theater'
   var sortDir      = State.load('mm_sort_dir', 'asc');
   var filters      = State.load('mm_filters', { movie: '', languages: [], dimensions: [], mutedTheaters: [] });
   var cache        = State.load('mm_cache', {});
@@ -570,6 +571,12 @@
     }
   }
 
+  function updateViewToggleUI() {
+    document.querySelectorAll('#mm-view-toggle button').forEach(function (btn) {
+      btn.classList.toggle('mm-pill--active', btn.dataset.view === viewMode);
+    });
+  }
+
   function makePill(value, label, active, onClick) {
     var btn = document.createElement('button');
     btn.className = 'mm-pill' + (active ? ' mm-pill--active' : '');
@@ -589,6 +596,23 @@
     buildFilterPills();
   }
 
+  // Show-level filter helpers (theater view bypasses clustering, so we apply
+  // the same filters at the show level)
+  function applyFiltersToShows(shows) {
+    var muted = filters.mutedTheaters || [];
+    return shows.filter(function (s) {
+      if (muted.indexOf(s.theaterCode) !== -1) return false;
+      if (filters.movie && s.movieId !== filters.movie) return false;
+      if (filters.languages && filters.languages.length && filters.languages.indexOf(s.language) === -1) return false;
+      if (filters.dimensions && filters.dimensions.length && filters.dimensions.indexOf(s.dimension) === -1) return false;
+      return true;
+    });
+  }
+  function hidePastShowsFromList(shows) {
+    var now = Date.now();
+    return shows.filter(function (s) { return new Date(s.endISO).getTime() > now; });
+  }
+
   function renderMatrix() {
     var c = document.getElementById('mm-matrix-container');
     if (!c) return;
@@ -600,28 +624,30 @@
 
     var allShows = readCacheAll();
     if (!allShows.length) {
-      c.innerHTML = '<div class="mm-empty"><span class="mm-empty__icon">⏳</span>No data yet. Click <strong>↻ Refresh</strong> to fetch shows.</div>';
+      c.innerHTML = '<div class="mm-empty"><span class="mm-empty__icon">⏳</span>No data yet. Use the <strong>📌 Bookmarklet</strong> in Settings to import shows.</div>';
       return;
     }
 
+    if (viewMode === 'theater') {
+      renderTheaterView(c, allShows);
+    } else {
+      renderMovieView(c, allShows);
+    }
+  }
+
+  function renderMovieView(c, allShows) {
     var clusters = clusterShows(allShows);
     clusters = hidePastShows(clusters);
     clusters = applyFilters(clusters);
     clusters = sortClusters(clusters);
 
     if (!clusters.length) {
-      c.innerHTML = '';
-      if (lastFetchError) setStatusBanner('Fetch error: ' + lastFetchError, true);
-      var empty = document.createElement('div');
-      empty.className = 'mm-empty';
-      empty.innerHTML = '<span class="mm-empty__icon">🔭</span>No shows match the current filters.';
-      c.appendChild(empty);
+      c.innerHTML = '<div class="mm-empty"><span class="mm-empty__icon">🔭</span>No shows match the current filters.</div>';
       return;
     }
 
     var byDate = clustersByDate(clusters);
     c.innerHTML = '';
-    if (lastFetchError) setStatusBanner('Fetch error (showing cached): ' + lastFetchError, true);
 
     [todayISO(), tomorrowISO()].forEach(function (d) {
       var dayClusters = byDate[d] || [];
@@ -651,6 +677,106 @@
       });
       c.appendChild(table);
     });
+  }
+
+  function renderTheaterView(c, allShows) {
+    var shows = hidePastShowsFromList(allShows);
+    shows = applyFiltersToShows(shows);
+
+    if (!shows.length) {
+      c.innerHTML = '<div class="mm-empty"><span class="mm-empty__icon">🔭</span>No shows match the current filters.</div>';
+      return;
+    }
+
+    c.innerHTML = '';
+
+    [todayISO(), tomorrowISO()].forEach(function (d) {
+      var dayShows = shows.filter(function (s) { return s.startISO.slice(0, 10) === d; });
+      if (!dayShows.length) return;
+
+      var head = document.createElement('div');
+      head.className = 'mm-day-header';
+      head.innerHTML =
+        '<span class="mm-day-header__title">' + escapeHtml(fmtDayLabel(d)) + '</span>' +
+        '<span class="mm-day-header__count">' + dayShows.length + ' shows</span>';
+      c.appendChild(head);
+
+      // Group by theater (in pinned order)
+      theaters.forEach(function (t) {
+        var tShows = dayShows.filter(function (s) { return s.theaterCode === t.bmsCode; });
+        if (!tShows.length) return;
+
+        var dir = sortDir === 'desc' ? -1 : 1;
+        tShows.sort(function (a, b) {
+          return (new Date(a.startISO) - new Date(b.startISO)) * dir;
+        });
+
+        var sec = document.createElement('div');
+        sec.className = 'mm-theater-section';
+        sec.innerHTML =
+          '<div class="mm-theater-section__title">' +
+            '<span>📍 ' + escapeHtml(t.name) + '</span>' +
+            '<span class="mm-theater-section__count">' + tShows.length + ' shows</span>' +
+          '</div>';
+
+        var table = document.createElement('table');
+        table.className = 'mm-matrix';
+        table.innerHTML =
+          '<thead><tr>' +
+            '<th>Time</th>' +
+            '<th>Movie</th>' +
+            '<th>Lang</th>' +
+            '<th>Dim</th>' +
+          '</tr></thead><tbody></tbody>';
+        var tbody = table.querySelector('tbody');
+
+        tShows.forEach(function (show) {
+          tbody.appendChild(renderTheaterShowRow(show));
+        });
+        sec.appendChild(table);
+        c.appendChild(sec);
+      });
+    });
+  }
+
+  function renderTheaterShowRow(show) {
+    var tr = document.createElement('tr');
+    var dimLabel = escapeHtml(show.dimension) + (show.premiumTech ? ' · ' + escapeHtml(show.premiumTech) : '');
+    var endTime = new Date(new Date(show.startISO).getTime() + show.runtimeMin * 60000);
+    var movieTitle = escapeHtml(show.movieTitle);
+
+    // Time chip (clickable for booking, hover for popover)
+    var timeTd = document.createElement('td');
+    var chip = document.createElement('a');
+    chip.className = 'mm-chip';
+    chip.href = show.bookingUrl || '#';
+    chip.target = '_blank';
+    chip.rel = 'noopener noreferrer';
+    chip.innerHTML = '<span class="mm-chip__time">' + fmtTime(show.startISO) + '</span>';
+    chip.addEventListener('mouseenter', function (e) { showPopover(e, show); });
+    chip.addEventListener('mousemove',  function (e) { positionPopover(e); });
+    chip.addEventListener('mouseleave', hidePopover);
+    timeTd.appendChild(chip);
+    tr.appendChild(timeTd);
+
+    // Movie title
+    var movieTd = document.createElement('td');
+    movieTd.className = 'mm-cell-movie';
+    movieTd.title = 'Runtime: ' + show.runtimeMin + ' min\nHome by ~' + fmtTime(endTime.toISOString());
+    movieTd.innerHTML = movieTitle;
+    tr.appendChild(movieTd);
+
+    // Language
+    var langTd = document.createElement('td');
+    langTd.innerHTML = '<span class="mm-lang-badge">' + escapeHtml(show.language) + '</span>';
+    tr.appendChild(langTd);
+
+    // Dim (+ premium)
+    var dimTd = document.createElement('td');
+    dimTd.innerHTML = '<span class="mm-format-badge' + (show.premiumTech ? ' mm-format-badge--premium' : '') + '">' + dimLabel + '</span>';
+    tr.appendChild(dimTd);
+
+    return tr;
   }
 
   function renderClusterRow(cluster) {
@@ -1003,6 +1129,17 @@
       renderMatrix();
     });
     if (sortBtn) sortBtn.textContent = sortDir === 'asc' ? '↑ Earliest first' : '↓ Latest first';
+
+    // View toggle (movie vs theater)
+    document.querySelectorAll('#mm-view-toggle button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        viewMode = btn.dataset.view;
+        State.save('mm_view', viewMode);
+        updateViewToggleUI();
+        renderMatrix();
+      });
+    });
+    updateViewToggleUI();
 
     var clearFiltersBtn = document.getElementById('mm-btn-clear-filters');
     if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', function () {
