@@ -127,12 +127,37 @@ window.AnkuraCore = (function () {
   }
 
   /* ── Theme ────────────────────────────────────────────── */
+  // Module-level MediaQueryList ref so Auto mode can subscribe to OS changes
+  var _autoMql = null;
+  var _autoMqlHandler = null;
+  function _detachAutoListener() {
+    if (_autoMql && _autoMqlHandler) {
+      if (_autoMql.removeEventListener) _autoMql.removeEventListener('change', _autoMqlHandler);
+      else if (_autoMql.removeListener) _autoMql.removeListener(_autoMqlHandler); // Safari < 14
+    }
+    _autoMqlHandler = null;
+  }
   function applyTheme(mode) {
     var useDark = false;
     if (mode === 'dark') { useDark = true; }
-    else if (mode === 'auto') { try { useDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {} }
+    else if (mode === 'auto') {
+      try { useDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    }
     document.body.classList.toggle('dark-theme', useDark);
     document.body.classList.toggle('light-theme', !useDark);
+
+    // Auto: subscribe to OS theme changes; explicit dark/light: unsubscribe
+    if (mode === 'auto') {
+      try {
+        if (!_autoMql) _autoMql = window.matchMedia('(prefers-color-scheme: dark)');
+        _detachAutoListener();
+        _autoMqlHandler = function () { applyTheme('auto'); };
+        if (_autoMql.addEventListener) _autoMql.addEventListener('change', _autoMqlHandler);
+        else if (_autoMql.addListener) _autoMql.addListener(_autoMqlHandler); // Safari < 14
+      } catch (e) {}
+    } else {
+      _detachAutoListener();
+    }
   }
 
   /* ── Button + theme wiring ────────────────────────────── */
@@ -146,23 +171,36 @@ window.AnkuraCore = (function () {
     var themeSelect = document.getElementById('theme-select');
 
     if (btnBack) btnBack.addEventListener('click', function () {
-      if (window.history.length > 1) {
+      // Reliable: history.back() only when there's actually a same-origin
+      // referrer history entry; otherwise navigate to backUrl directly.
+      // (window.close() silently no-ops for tabs not opened by script.)
+      var sameOriginRef = false;
+      try {
+        sameOriginRef = !!document.referrer && new URL(document.referrer).origin === window.location.origin;
+      } catch (e) {}
+      if (sameOriginRef && window.history.length > 1) {
         window.history.back();
       } else {
-        // Opened in a new tab (ctrl+click / shift+click) — close it
-        window.close();
-        // Fallback: if browser blocks close(), navigate after a short delay
-        setTimeout(function () { window.location.href = backUrl; }, 200);
+        window.location.href = backUrl;
       }
     });
 
     if (btnDelete) btnDelete.addEventListener('click', function () {
-      if (opts.onDelete) opts.onDelete();
-      else { try { State.clearAll(); } catch (e) {} }
-      try { window.close(); } catch (e) { window.location.href = backUrl; }
+      if (!confirm('Delete all data for this instance? This cannot be undone.')) return;
+      try { if (opts.onDelete) opts.onDelete(); else State.clearAll(); } catch (e) {}
+      window.location.href = backUrl;
     });
 
-    if (btnReset && opts.onReset) btnReset.addEventListener('click', opts.onReset);
+    if (btnReset) btnReset.addEventListener('click', function () {
+      try { if (opts.onReset) opts.onReset(); } catch (e) {}
+      var orig = btnReset.textContent;
+      btnReset.textContent = '✓ Reset';
+      btnReset.disabled = true;
+      setTimeout(function () {
+        btnReset.textContent = orig || '↺ Reset';
+        btnReset.disabled = false;
+      }, 1200);
+    });
 
     if (themeSelect) {
       var saved = State.load('theme', 'auto');

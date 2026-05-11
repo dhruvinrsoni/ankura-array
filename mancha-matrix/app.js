@@ -1110,7 +1110,19 @@
 
     // Strip buttons
     var refreshBtn = document.getElementById('mm-btn-refresh');
-    if (refreshBtn) refreshBtn.addEventListener('click', function () { refresh(true); });
+    if (refreshBtn) refreshBtn.addEventListener('click', function () {
+      var orig = refreshBtn.textContent;
+      refreshBtn.textContent = '↻ Refreshing…';
+      refreshBtn.disabled = true;
+      refresh(true);
+      setTimeout(function () {
+        refreshBtn.textContent = '✓ Refreshed';
+        setTimeout(function () {
+          refreshBtn.textContent = orig || '↻ Refresh';
+          refreshBtn.disabled = false;
+        }, 1200);
+      }, 250);
+    });
     var manageBtn = document.getElementById('mm-btn-manage');
     if (manageBtn) manageBtn.addEventListener('click', function () { switchTab('theaters'); });
 
