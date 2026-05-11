@@ -58,8 +58,8 @@
   var cacheTs      = State.load('mm_cache_ts', 0);
   var lastFetchError = null;
 
-  /* ─── Transient UI state (not persisted) ────────────────────────── */
-  var activeTimeSlots = {}; // { 'morning': true|false, 'afternoon': ..., 'evening': ..., 'night': ... }
+  /* ─── Transient UI state ──────────────────────────────────────── */
+  var activeTimeSlots = State.load('mm_time_slots', {}); // persisted with other filters
 
   /* ─── One-time migration from older MM versions ──────────────── */
   (function migrate() {
@@ -630,6 +630,7 @@
             activeTimeSlots[slot] || false,
             function() {
               activeTimeSlots[slot] = !activeTimeSlots[slot];
+              State.save('mm_time_slots', activeTimeSlots);
               renderMatrix();
             }
           ));
@@ -1415,9 +1416,6 @@
       btn.addEventListener('click', function () {
         viewMode = btn.dataset.view;
         State.save('mm_view', viewMode);
-        if (viewMode !== 'theater') {
-          activeTimeSlots = {};
-        }
         updateViewToggleUI();
         buildFilterPills();
         renderMatrix();
@@ -1429,6 +1427,8 @@
     if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', function () {
       filters = { movies: [], languages: [], dimensions: [], mutedTheaters: [] };
       State.save('mm_filters', filters);
+      activeTimeSlots = {};
+      State.save('mm_time_slots', activeTimeSlots);
       buildFilterPills();
       renderMatrix();
     });
