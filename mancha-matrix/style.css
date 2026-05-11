@@ -338,12 +338,6 @@
   pointer-events: none;
 }
 
-.mm-chip--stacked {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
-}
-
 .mm-chip__end-time {
   font-family: var(--font-mono);
   font-size: calc(var(--fs-small) * 0.88);

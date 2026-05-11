@@ -116,9 +116,8 @@
   }
   function fmtRuntime(min) {
     var h = Math.floor(min / 60), m = min % 60;
-    if (h > 0 && m > 0) return h + 'h ' + m + 'm';
-    if (h > 0) return h + 'h';
-    return m + 'm';
+    if (h === 0) return m + 'm';
+    return h + 'h ' + m + 'm';
   }
   function chipSeatClass(seatsLabel) {
     if (!seatsLabel) return '';
@@ -1125,7 +1124,7 @@
 
   function makeTheaterViewChip(show) {
     var a = document.createElement('a');
-    a.className = 'mm-chip mm-chip--stacked' + chipSeatClass(show.seatsLabel);
+    a.className = 'mm-chip' + chipSeatClass(show.seatsLabel);
     a.href = show.bookingUrl || '#';
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
@@ -1160,7 +1159,7 @@
       '<div class="mm-popover__row"><span>Time</span><span>' + fmtTime(show.startISO) + ' → ' + fmtTime(show.endISO) + '</span></div>' +
       '<div class="mm-popover__row"><span>Format</span><span>' + escapeHtml(show.dimension) + (show.premiumTech ? ' · ' + escapeHtml(show.premiumTech) : '') + '</span></div>' +
       '<div class="mm-popover__row"><span>Language</span><span>' + escapeHtml(show.language) + '</span></div>' +
-      '<div class="mm-popover__row"><span>Runtime</span><span>' + show.runtimeMin + ' min</span></div>' +
+      '<div class="mm-popover__row"><span>Runtime</span><span>' + fmtRuntime(show.runtimeMin) + '</span></div>' +
       (show.priceRange ? '<div class="mm-popover__row"><span>Price</span><span>' + escapeHtml(show.priceRange) + '</span></div>' : '') +
       (show.seatsLabel  ? '<div class="mm-popover__row"><span>Seats</span><span>' + escapeHtml(show.seatsLabel) + '</span></div>'  : '') +
       (show.theaterArea ? '<div class="mm-popover__row"><span>Area</span><span>' + escapeHtml(show.theaterArea) + '</span></div>'  : '') +
