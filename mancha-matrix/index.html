@@ -37,26 +37,21 @@
       </div>
     </header>
 
-    <!-- ── Pinned theater strip + status ────────────────────────── -->
-    <div class="mm-strip" id="mm-strip">
-      <div class="mm-strip__pinned" id="mm-pinned-list">
-        <!-- Theater chips injected by app.js -->
+    <!-- ── Tab Navigation + Actions ────────────────────────────── -->
+    <nav class="mm-tabs" role="tablist" aria-label="Mancha-Matrix sections">
+      <div class="mm-tabs__left">
+        <button class="mm-tab mm-tab--active" id="tab-btn-matrix"
+                role="tab" data-tab="matrix" aria-selected="true">📊 Matrix</button>
+        <button class="mm-tab" id="tab-btn-theaters"
+                role="tab" data-tab="theaters" aria-selected="false">📍 Theaters</button>
+        <button class="mm-tab" id="tab-btn-settings"
+                role="tab" data-tab="settings" aria-selected="false">⚙ Settings</button>
       </div>
-      <div class="mm-strip__status">
+      <div class="mm-tabs__right">
         <span id="mm-cache-age" class="mm-cache-age" hidden></span>
         <button id="mm-btn-refresh" class="btn btn--outline btn--sm" title="Refresh now">↻ Refresh</button>
         <button id="mm-btn-manage"  class="btn btn--outline btn--sm" title="Manage pinned theaters">⚙ Manage</button>
       </div>
-    </div>
-
-    <!-- ── Tab Navigation ────────────────────────────────────────── -->
-    <nav class="mm-tabs" role="tablist" aria-label="Mancha-Matrix sections">
-      <button class="mm-tab mm-tab--active" id="tab-btn-matrix"
-              role="tab" data-tab="matrix" aria-selected="true">📊 Matrix</button>
-      <button class="mm-tab" id="tab-btn-theaters"
-              role="tab" data-tab="theaters" aria-selected="false">📍 Theaters</button>
-      <button class="mm-tab" id="tab-btn-settings"
-              role="tab" data-tab="settings" aria-selected="false">⚙ Settings</button>
     </nav>
 
     <!-- ═══════════════════════════════════════════════════════════
