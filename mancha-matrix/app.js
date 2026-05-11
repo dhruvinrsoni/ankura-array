@@ -642,7 +642,6 @@
           '<th>Movie</th>' +
           '<th>Lang</th>' +
           '<th>Dim</th>' +
-          '<th>Premium</th>' +
           '<th>Theaters · times</th>' +
         '</tr></thead><tbody></tbody>';
       var tbody = table.querySelector('tbody');
@@ -676,19 +675,11 @@
     langTd.innerHTML = '<span class="mm-lang-badge">' + escapeHtml(cluster.language) + '</span>';
     tr.appendChild(langTd);
 
-    // Dimension
+    // Dimension (combined with premium tech if present, since Premium column is gone)
     var dimTd = document.createElement('td');
-    dimTd.innerHTML = '<span class="mm-format-badge">' + escapeHtml(cluster.dimension) + '</span>';
+    var dimLabel = escapeHtml(cluster.dimension) + (cluster.premiumTech ? ' · ' + escapeHtml(cluster.premiumTech) : '');
+    dimTd.innerHTML = '<span class="mm-format-badge' + (cluster.premiumTech ? ' mm-format-badge--premium' : '') + '">' + dimLabel + '</span>';
     tr.appendChild(dimTd);
-
-    // Premium tech
-    var premTd = document.createElement('td');
-    if (cluster.premiumTech) {
-      premTd.innerHTML = '<span class="mm-format-badge mm-format-badge--premium">' + escapeHtml(cluster.premiumTech) + '</span>';
-    } else {
-      premTd.innerHTML = '<span class="mm-format-badge mm-format-badge--none">—</span>';
-    }
-    tr.appendChild(premTd);
 
     // Theater chips
     var chipsTd = document.createElement('td');
