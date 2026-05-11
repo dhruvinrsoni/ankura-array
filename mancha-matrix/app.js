@@ -384,6 +384,14 @@
     State.clear('mm_cache_ts');
   }
 
+  function clearTheaterCache(bmsCode) {
+    var prefix = bmsCode + '|';
+    Object.keys(cache).forEach(function (k) {
+      if (k.indexOf(prefix) === 0) delete cache[k];
+    });
+    State.save('mm_cache', cache);
+  }
+
   /* ═══════════════════════════════════════════════════════════════════
      §3  CLUSTERING + FILTER + SORT
      ═══════════════════════════════════════════════════════════════════ */
@@ -1123,12 +1131,13 @@
         if (!btn) return;
         var idx = parseInt(btn.dataset.i, 10);
         var action = btn.dataset.action;
-        if (action === 'remove') theaters.splice(idx, 1);
+        if (action === 'remove') {
+          clearTheaterCache(theaters[idx].bmsCode);
+          theaters.splice(idx, 1);
+        }
         if (action === 'up'   && idx > 0) { var s = theaters.splice(idx,1)[0]; theaters.splice(idx-1,0,s); }
         if (action === 'down' && idx < theaters.length - 1) { var s2 = theaters.splice(idx,1)[0]; theaters.splice(idx+1,0,s2); }
         State.save('mm_theaters', theaters);
-        // When theaters change, drop their cache entries to avoid orphan keys
-        clearCache();
         renderAll();
       });
       list.appendChild(row);
@@ -1150,7 +1159,6 @@
       regionCode: t.regionCode || (t.city ? t.city.toUpperCase() : 'PUNE')
     });
     State.save('mm_theaters', theaters);
-    clearCache();
     return true;
   }
 
