@@ -563,7 +563,7 @@
         return (filters.mutedTheaters || []).indexOf(code) === -1;
       });
       var theaterItems = theaters.map(function (t) {
-        return { value: t.bmsCode, label: t.bmsCode };
+        return { value: t.bmsCode, label: t.name };
       });
       var smartFilter = makeSmartFilter({
         summaryLabel: 'theaters',
