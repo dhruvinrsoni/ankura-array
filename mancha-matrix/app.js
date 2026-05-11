@@ -554,18 +554,33 @@
       });
     }
 
-    // Theater toggle pills — show all pinned, "muted" means filtered-out
-    var theaterContainer = document.getElementById('mm-filter-theaters');
-    if (theaterContainer) {
-      theaterContainer.innerHTML = '';
-      theaters.forEach(function (t) {
-        var muted = (filters.mutedTheaters || []).indexOf(t.bmsCode) !== -1;
-        var btn = makePill(t.bmsCode, t.name, !muted, function () {
-          toggleArrayFilter('mutedTheaters', t.bmsCode);
-        });
-        if (muted) btn.classList.add('mm-pill--muted');
-        theaterContainer.appendChild(btn);
+    // Theater smart multi-select (inverse logic: selected = visible, not in mutedTheaters)
+    var theaterHost = document.getElementById('mm-theater-filter-host');
+    if (theaterHost && theaters.length) {
+      theaterHost.innerHTML = '';
+      var allTheaterCodes = theaters.map(function (t) { return t.bmsCode; });
+      var visibleTheaters = allTheaterCodes.filter(function (code) {
+        return (filters.mutedTheaters || []).indexOf(code) === -1;
       });
+      var theaterItems = theaters.map(function (t) {
+        return { value: t.bmsCode, label: t.bmsCode };
+      });
+      var smartFilter = makeSmartFilter({
+        summaryLabel: 'theaters',
+        allLabel: 'All theaters',
+        items: theaterItems,
+        selected: visibleTheaters,
+        invertLogic: true,
+        onChange: function (visible) {
+          var muted = allTheaterCodes.filter(function (code) {
+            return visible.indexOf(code) === -1;
+          });
+          filters.mutedTheaters = muted;
+          State.save('mm_filters', filters);
+          renderMatrix();
+        }
+      });
+      theaterHost.appendChild(smartFilter);
     }
   }
 
