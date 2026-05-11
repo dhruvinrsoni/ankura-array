@@ -114,6 +114,25 @@
       return pad(h) + ':' + pad(m);
     } catch (e) { return '—'; }
   }
+  function fmtRuntime(min) {
+    var h = Math.floor(min / 60), m = min % 60;
+    if (h > 0 && m > 0) return h + 'h ' + m + 'm';
+    if (h > 0) return h + 'h';
+    return m + 'm';
+  }
+  function chipSeatClass(seatsLabel) {
+    if (!seatsLabel) return '';
+    if (seatsLabel === 'Sold out') return ' mm-chip--sold-out';
+    if (seatsLabel === 'Filling fast' || seatsLabel === 'Few left') return ' mm-chip--urgent';
+    return '';
+  }
+  function chipSeatBadge(seatsLabel) {
+    if (!seatsLabel || seatsLabel === 'Available') return '';
+    return '<span class="mm-chip__seats-label">' + escapeHtml(seatsLabel) + '</span>';
+  }
+  function chipEndTime(show) {
+    return fmtTime(new Date(new Date(show.startISO).getTime() + show.runtimeMin * 60000).toISOString());
+  }
   function fmtDayLabel(dateStr) {
     var d = new Date(dateStr + 'T00:00:00');
     var today = todayISO();
@@ -968,12 +987,15 @@
           tr.appendChild(timesTd);
 
           var movieTd = document.createElement('td');
-          var endTime = new Date(new Date(cluster.shows[0].startISO).getTime() + cluster.runtimeMin * 60000);
           movieTd.className = 'mm-cell-movie';
-          movieTd.title = 'Runtime: ' + cluster.runtimeMin + ' min\nHome by ~' + fmtTime(endTime.toISOString());
+          var priceTag = cluster.shows[0].priceRange
+            ? '<span class="mm-price-tag">' + escapeHtml(cluster.shows[0].priceRange) + '</span>' : '';
           movieTd.innerHTML =
             escapeHtml(cluster.movieTitle) +
-            '<span class="mm-cell-movie__runtime">⏱ ' + cluster.runtimeMin + ' min · home by ~' + fmtTime(endTime.toISOString()) + '</span>';
+            '<span class="mm-cell-movie__meta">' +
+              '<span class="mm-runtime-badge">⏱ ' + fmtRuntime(cluster.runtimeMin) + '</span>' +
+              priceTag +
+            '</span>';
           tr.appendChild(movieTd);
 
           var langTd = document.createElement('td');
@@ -1042,18 +1064,16 @@
   function renderClusterRow(cluster) {
     var tr = document.createElement('tr');
 
-    // Movie cell with runtime + return-time tooltip
     var movieTd = document.createElement('td');
-    var earliest = new Date(clusterEarliest(cluster));
-    var endTime = new Date(earliest.getTime() + cluster.runtimeMin * 60000);
     movieTd.className = 'mm-cell-movie';
-    movieTd.title =
-      'Runtime: ' + cluster.runtimeMin + ' min\n' +
-      'Earliest start: ' + fmtTime(earliest.toISOString()) + '\n' +
-      'Approx return: ' + fmtTime(endTime.toISOString());
+    var priceTag = cluster.shows[0].priceRange
+      ? '<span class="mm-price-tag">' + escapeHtml(cluster.shows[0].priceRange) + '</span>' : '';
     movieTd.innerHTML =
       escapeHtml(cluster.movieTitle) +
-      '<span class="mm-cell-movie__runtime">⏱ ' + cluster.runtimeMin + ' min · home by ~' + fmtTime(endTime.toISOString()) + '</span>';
+      '<span class="mm-cell-movie__meta">' +
+        '<span class="mm-runtime-badge">⏱ ' + fmtRuntime(cluster.runtimeMin) + '</span>' +
+        priceTag +
+      '</span>';
     tr.appendChild(movieTd);
 
     // Language
@@ -1085,13 +1105,15 @@
 
   function makeChip(show) {
     var a = document.createElement('a');
-    a.className = 'mm-chip';
+    a.className = 'mm-chip' + chipSeatClass(show.seatsLabel);
     a.href = show.bookingUrl || '#';
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
     a.innerHTML =
       '<span class="mm-chip__theater">' + escapeHtml(shortName(show.theaterName)) + '</span>' +
-      '<span class="mm-chip__time">' + fmtTime(show.startISO) + '</span>';
+      '<span class="mm-chip__time">' + fmtTime(show.startISO) + '</span>' +
+      '<span class="mm-chip__end-time">→' + chipEndTime(show) + '</span>' +
+      chipSeatBadge(show.seatsLabel);
     a.dataset.showId = show.showId;
     a.addEventListener('mouseenter', function (e) { showPopover(e, show); });
     a.addEventListener('mousemove',  function (e) { positionPopover(e); });
@@ -1103,11 +1125,14 @@
 
   function makeTheaterViewChip(show) {
     var a = document.createElement('a');
-    a.className = 'mm-chip';
+    a.className = 'mm-chip mm-chip--stacked' + chipSeatClass(show.seatsLabel);
     a.href = show.bookingUrl || '#';
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
-    a.innerHTML = '<span class="mm-chip__time">' + fmtTime(show.startISO) + '</span>';
+    a.innerHTML =
+      '<span class="mm-chip__time">' + fmtTime(show.startISO) + '</span>' +
+      '<span class="mm-chip__end-time">→ ' + chipEndTime(show) + '</span>' +
+      chipSeatBadge(show.seatsLabel);
     a.dataset.showId = show.showId;
     a.addEventListener('mouseenter', function (e) { showPopover(e, show); });
     a.addEventListener('mousemove',  function (e) { positionPopover(e); });

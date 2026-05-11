@@ -338,6 +338,65 @@
   pointer-events: none;
 }
 
+.mm-chip--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+
+.mm-chip__end-time {
+  font-family: var(--font-mono);
+  font-size: calc(var(--fs-small) * 0.88);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mm-chip__seats-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 1px;
+}
+
+.mm-chip--urgent {
+  border-color: #b07820;
+}
+.mm-chip--urgent .mm-chip__seats-label { color: #c97c20; }
+.mm-chip--urgent:hover { border-color: #c97c20; }
+
+.mm-chip--sold-out {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.mm-chip--sold-out .mm-chip__seats-label { color: var(--danger); }
+
+.mm-cell-movie__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.mm-runtime-badge {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+}
+
+.mm-price-tag {
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
 /* ── Hover popover ────────────────────────────────────── */
 .mm-popover {
   position: fixed;
