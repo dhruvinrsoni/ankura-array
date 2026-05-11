@@ -471,22 +471,6 @@
      §4  RENDER — pinned strip, filter pills, matrix
      ═══════════════════════════════════════════════════════════════════ */
 
-  function renderPinnedStrip() {
-    var el = document.getElementById('mm-pinned-list');
-    if (!el) return;
-    if (!theaters.length) {
-      el.innerHTML = '<span class="mm-strip__pinned-empty">No theaters pinned — go to <strong>📍 Theaters</strong> to add some.</span>';
-      return;
-    }
-    el.innerHTML = '';
-    theaters.forEach(function (t) {
-      var span = document.createElement('span');
-      span.className = 'mm-theater-pill';
-      span.innerHTML = '<span class="mm-theater-pill__dot"></span>' + escapeHtml(t.name);
-      span.title = t.area + ' · ' + t.bmsCode;
-      el.appendChild(span);
-    });
-  }
 
   function renderCacheAge() {
     var el = document.getElementById('mm-cache-age');
@@ -1071,7 +1055,6 @@
   }
 
   function renderAll() {
-    renderPinnedStrip();
     renderCacheAge();
     buildFilterPills();
     renderMatrix();
