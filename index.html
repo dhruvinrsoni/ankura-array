@@ -239,11 +239,18 @@
               (app.version ? '<span class="app-card__version">v' + escapeHTML(app.version) + '</span>' : '') +
               (rel ? '<span class="app-card__meta" title="Updated: ' + (latest ? (latest.isoUpdated || '') : '') + '\nCreated: ' + (latest ? (latest.isoCreated || '') : '') + '\nAbsolute: ' + (latest && latest.updated ? latest.updated.toLocaleString() : '') + '">Updated: ' + rel + '</span>' : '') +
               '<button class="app-card__expand btn btn--outline btn--sm">Instances</button>' +
+              '<button class="app-card__copy btn btn--outline btn--sm" aria-label="Copy link to ' + escapeHTML(app.name) + '">🔗 Copy</button>' +
               '<button class="app-card__launch" data-path="' + escapeHTML(app.path) + '">&#9654; Launch</button>' +
               '<div class="app-card__instances" hidden></div>';
 
             // Launch handler
             card.querySelector('.app-card__launch').addEventListener('click', function () { launchApp(app.path); });
+
+            // Copy link handler
+            card.querySelector('.app-card__copy').addEventListener('click', function (e) {
+              var a = document.createElement('a'); a.href = app.path;
+              copyLink(a.href, app.name, e.currentTarget);
+            });
 
             // Expand instances handler
             var expBtn = card.querySelector('.app-card__expand');
@@ -433,6 +440,35 @@
           var div = document.createElement("div");
           div.appendChild(document.createTextNode(str));
           return div.innerHTML;
+        }
+
+        async function copyLink(url, title, btn) {
+          const html = '<a href="' + escapeHTML(url) + '">' + escapeHTML(title || url) + '</a>';
+          let copied = false;
+          if (navigator.clipboard && typeof window.ClipboardItem === 'function') {
+            try {
+              await navigator.clipboard.write([new ClipboardItem({
+                'text/html': new Blob([html], { type: 'text/html' }),
+                'text/plain': new Blob([url], { type: 'text/plain' })
+              })]);
+              copied = true;
+            } catch (e) {}
+          }
+          if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+            try { await navigator.clipboard.writeText(url); copied = true; } catch (e) {}
+          }
+          if (!copied) {
+            const ta = document.createElement('textarea');
+            ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta);
+          }
+          if (btn) {
+            const orig = btn.textContent;
+            btn.classList.add('btn--copied'); btn.textContent = '✓ Copied';
+            setTimeout(function() { btn.classList.remove('btn--copied'); btn.textContent = orig; }, 1400);
+          }
         }
 
         /* ── Instance Manager ──────────────────────── */
