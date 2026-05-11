@@ -829,49 +829,45 @@
         '<span class="mm-day-header__count">' + dayShows.length + ' shows</span>';
       c.appendChild(head);
 
-      // Group by theater (in pinned order)
-      theaters.forEach(function (t) {
-        var tShows = dayShows.filter(function (s) { return s.theaterCode === t.bmsCode; });
-        if (!tShows.length) return;
-
-        var dir = sortDir === 'desc' ? -1 : 1;
-        tShows.sort(function (a, b) {
-          return (new Date(a.startISO) - new Date(b.startISO)) * dir;
-        });
-
-        var sec = document.createElement('div');
-        sec.className = 'mm-theater-section';
-        sec.innerHTML =
-          '<div class="mm-theater-section__title">' +
-            '<span>📍 ' + escapeHtml(t.name) + '</span>' +
-            '<span class="mm-theater-section__count">' + tShows.length + ' shows</span>' +
-          '</div>';
-
-        var table = document.createElement('table');
-        table.className = 'mm-matrix';
-        table.innerHTML =
-          '<thead><tr>' +
-            '<th>Time</th>' +
-            '<th>Movie</th>' +
-            '<th>Lang</th>' +
-            '<th>Dim</th>' +
-          '</tr></thead><tbody></tbody>';
-        var tbody = table.querySelector('tbody');
-
-        tShows.forEach(function (show) {
-          tbody.appendChild(renderTheaterShowRow(show));
-        });
-        sec.appendChild(table);
-        c.appendChild(sec);
+      // Single table with theatre as a column (in pinned order)
+      var dir = sortDir === 'desc' ? -1 : 1;
+      dayShows.sort(function (a, b) {
+        var aTheaterIdx = theaters.findIndex(function (t) { return t.bmsCode === a.theaterCode; });
+        var bTheaterIdx = theaters.findIndex(function (t) { return t.bmsCode === b.theaterCode; });
+        var theaterCmp = aTheaterIdx - bTheaterIdx;
+        if (theaterCmp !== 0) return theaterCmp;
+        return (new Date(a.startISO) - new Date(b.startISO)) * dir;
       });
+
+      var table = document.createElement('table');
+      table.className = 'mm-matrix';
+      table.innerHTML =
+        '<thead><tr>' +
+          '<th>Theater</th>' +
+          '<th>Time</th>' +
+          '<th>Movie</th>' +
+          '<th>Lang</th>' +
+          '<th>Dim</th>' +
+        '</tr></thead><tbody></tbody>';
+      var tbody = table.querySelector('tbody');
+
+      dayShows.forEach(function (show) {
+        tbody.appendChild(renderTheaterViewRow(show));
+      });
+      c.appendChild(table);
     });
   }
 
-  function renderTheaterShowRow(show) {
+  function renderTheaterViewRow(show) {
     var tr = document.createElement('tr');
     var dimLabel = escapeHtml(show.dimension) + (show.premiumTech ? ' · ' + escapeHtml(show.premiumTech) : '');
     var endTime = new Date(new Date(show.startISO).getTime() + show.runtimeMin * 60000);
     var movieTitle = escapeHtml(show.movieTitle);
+
+    // Theater name
+    var theaterTd = document.createElement('td');
+    theaterTd.innerHTML = escapeHtml(show.theaterName);
+    tr.appendChild(theaterTd);
 
     // Time chip (clickable for booking, hover for popover)
     var timeTd = document.createElement('td');

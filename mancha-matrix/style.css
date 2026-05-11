@@ -338,34 +338,6 @@
   pointer-events: none;
 }
 
-/* ── Theater-view section (one per pinned theater) ────── */
-.mm-theater-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  margin-bottom: 1rem;
-}
-.mm-theater-section__title {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 0.6rem 1rem;
-  background: var(--bg-secondary);
-  color: var(--accent);
-  font-size: var(--fs-h2);
-  font-weight: 600;
-  border-bottom: 1px solid var(--border);
-}
-.mm-theater-section__count {
-  font-size: var(--fs-small);
-  color: var(--text-muted);
-  font-weight: 400;
-}
-.mm-theater-section .mm-matrix {
-  border-radius: 0;
-}
-
 /* ── Hover popover ────────────────────────────────────── */
 .mm-popover {
   position: fixed;
