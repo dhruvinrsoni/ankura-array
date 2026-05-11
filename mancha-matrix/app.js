@@ -43,9 +43,9 @@
   var PUNE_DEFAULT_THEATERS = [
     { name: 'Cinepolis: Seasons Mall',           bmsCode: 'PUNB', area: 'Hadapsar',     city: 'Pune', regionCode: 'PUNE' },
     { name: 'MovieMax: Amanora Town Centre',     bmsCode: 'MATK', area: 'Hadapsar',     city: 'Pune', regionCode: 'PUNE' },
+    { name: 'Rajhans Cinemas: 93 Avenue Mall',   bmsCode: 'RC93', area: 'Fatima Nagar', city: 'Pune', regionCode: 'PUNE' },
     { name: 'City Pride: Nyati Plaza, Kharadi',  bmsCode: 'CPNK', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' },
-    { name: 'Bollywood Multiplex, Kharadi',      bmsCode: 'BWKH', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' },
-    { name: 'Rajhans Cinemas: 93 Avenue Mall',   bmsCode: 'RC93', area: 'Fatima Nagar', city: 'Pune', regionCode: 'PUNE' }
+    { name: 'Bollywood Multiplex, Kharadi',      bmsCode: 'BWKH', area: 'Kharadi',      city: 'Pune', regionCode: 'PUNE' }
   ];
 
   /* ─── Persistent state (loaded once, written via setters) ────────── */
