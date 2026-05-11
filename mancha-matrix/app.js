@@ -53,7 +53,7 @@
   var sourceMode   = State.load('mm_source', 'paste'); // only 'paste' is valid now
   var viewMode     = State.load('mm_view', 'movie');   // 'movie' | 'theater'
   var sortDir      = State.load('mm_sort_dir', 'asc');
-  var filters      = State.load('mm_filters', { movie: '', languages: [], dimensions: [], mutedTheaters: [] });
+  var filters      = State.load('mm_filters', { movies: [], languages: [], dimensions: [], mutedTheaters: [] });
   var cache        = State.load('mm_cache', {});
   var cacheTs      = State.load('mm_cache_ts', 0);
   var lastFetchError = null;
@@ -86,6 +86,13 @@
       cacheTs = 0;
       State.clear('mm_cache');
       State.clear('mm_cache_ts');
+    }
+    // Filter migration: filters.movie (single string) → filters.movies (array, multi-select)
+    if (filters.movie !== undefined) {
+      filters.movies = filters.movie ? [filters.movie] : [];
+      delete filters.movie;
+      State.save('mm_filters', filters);
+      dirty = true;
     }
   })();
 
@@ -420,7 +427,7 @@
       })
       .filter(Boolean)
       .filter(function (c) {
-        if (filters.movie && c.movieId !== filters.movie) return false;
+        if (filters.movies && filters.movies.length && filters.movies.indexOf(c.movieId) === -1) return false;
         if (filters.languages && filters.languages.length && filters.languages.indexOf(c.language) === -1) return false;
         if (filters.dimensions && filters.dimensions.length && filters.dimensions.indexOf(c.dimension) === -1) return false;
         return true;
@@ -500,18 +507,25 @@
     var allShows = readCacheAll();
     var movies = {};
     allShows.forEach(function (s) { movies[s.movieId] = s.movieTitle; });
-    var sel = document.getElementById('mm-filter-movie');
-    if (sel) {
-      var current = filters.movie || '';
-      sel.innerHTML = '<option value="">All movies</option>';
-      Object.keys(movies).sort(function (a, b) {
-        return movies[a].localeCompare(movies[b]);
-      }).forEach(function (id) {
-        var o = document.createElement('option');
-        o.value = id; o.textContent = movies[id];
-        if (id === current) o.selected = true;
-        sel.appendChild(o);
+    var movieItems = Object.keys(movies).sort(function (a, b) {
+      return movies[a].localeCompare(movies[b]);
+    }).map(function (id) { return { value: id, label: movies[id] }; });
+    var host = document.getElementById('mm-movie-filter-host');
+    if (host) {
+      host.innerHTML = '';
+      var smartFilter = makeSmartFilter({
+        summaryLabel: 'movies',
+        allLabel: 'All movies',
+        items: movieItems,
+        selected: filters.movies || [],
+        invertLogic: false,
+        onChange: function (selected) {
+          filters.movies = selected;
+          State.save('mm_filters', filters);
+          renderMatrix();
+        }
       });
+      host.appendChild(smartFilter);
     }
 
     // Language pills — only those present in cached data
@@ -570,6 +584,121 @@
     return btn;
   }
 
+  // Smart multi-select dropdown filter component
+  function makeSmartFilter(opts) {
+    var container = document.createElement('div');
+    container.className = 'mm-smart-filter';
+    var trigger = document.createElement('button');
+    trigger.className = 'mm-smart-filter__trigger';
+    var label = document.createElement('span');
+    label.className = 'mm-smart-filter__trigger-label';
+    var chevron = document.createElement('span');
+    chevron.className = 'mm-smart-filter__trigger-chevron';
+    chevron.textContent = '▾';
+    trigger.appendChild(label);
+    trigger.appendChild(chevron);
+    var panel = document.createElement('div');
+    panel.className = 'mm-smart-filter__panel';
+    panel.hidden = true;
+    var updateTriggerLabel = function () {
+      var selected = opts.selected || [];
+      if (selected.length === 0 || selected.length === opts.items.length) {
+        label.textContent = opts.allLabel;
+      } else if (selected.length === 1) {
+        var item = opts.items.find(function (it) { return it.value === selected[0]; });
+        label.textContent = item ? item.label : 'Mixed';
+      } else {
+        label.textContent = selected.length + ' ' + (opts.summaryLabel || '');
+      }
+    };
+    var updatePanel = function () {
+      var selected = opts.selected || [];
+      // Rebuild checkboxes to reflect current state
+      var items = panel.querySelector('.mm-smart-filter__list');
+      if (items) {
+        items.querySelectorAll('input[type="checkbox"]').forEach(function (cb, i) {
+          cb.checked = selected.indexOf(opts.items[i].value) !== -1;
+        });
+      }
+    };
+    var setSelected = function (newSelected) {
+      opts.selected = newSelected || [];
+      updateTriggerLabel();
+      updatePanel();
+      if (opts.onChange) opts.onChange(opts.selected);
+    };
+    var actions = document.createElement('div');
+    actions.className = 'mm-smart-filter__actions';
+    var allBtn = document.createElement('button');
+    allBtn.className = 'mm-smart-filter__action';
+    allBtn.textContent = 'All';
+    allBtn.addEventListener('click', function () {
+      setSelected(opts.items.map(function (it) { return it.value; }));
+    });
+    var noneBtn = document.createElement('button');
+    noneBtn.className = 'mm-smart-filter__action';
+    noneBtn.textContent = 'None';
+    noneBtn.addEventListener('click', function () { setSelected([]); });
+    var invertBtn = document.createElement('button');
+    invertBtn.className = 'mm-smart-filter__action';
+    invertBtn.textContent = 'Invert';
+    invertBtn.addEventListener('click', function () {
+      var selected = opts.selected || [];
+      var allValues = opts.items.map(function (it) { return it.value; });
+      var inverted = allValues.filter(function (v) { return selected.indexOf(v) === -1; });
+      setSelected(inverted);
+    });
+    actions.appendChild(allBtn);
+    actions.appendChild(noneBtn);
+    actions.appendChild(invertBtn);
+    var list = document.createElement('div');
+    list.className = 'mm-smart-filter__list';
+    opts.items.forEach(function (item) {
+      var itemRow = document.createElement('div');
+      itemRow.className = 'mm-smart-filter__item';
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = item.value;
+      checkbox.checked = (opts.selected || []).indexOf(item.value) !== -1;
+      checkbox.addEventListener('change', function () {
+        var selected = opts.selected || [];
+        if (checkbox.checked && selected.indexOf(item.value) === -1) {
+          selected = selected.slice();
+          selected.push(item.value);
+        } else if (!checkbox.checked && selected.indexOf(item.value) !== -1) {
+          selected = selected.filter(function (v) { return v !== item.value; });
+        }
+        setSelected(selected);
+      });
+      var itemLabel = document.createElement('label');
+      itemLabel.className = 'mm-smart-filter__item-label';
+      itemLabel.textContent = item.label;
+      itemLabel.addEventListener('click', function () { checkbox.click(); });
+      var onlyBtn = document.createElement('button');
+      onlyBtn.className = 'mm-smart-filter__only';
+      onlyBtn.textContent = 'Only';
+      onlyBtn.addEventListener('click', function () { setSelected([item.value]); });
+      itemRow.appendChild(checkbox);
+      itemRow.appendChild(itemLabel);
+      itemRow.appendChild(onlyBtn);
+      list.appendChild(itemRow);
+    });
+    panel.appendChild(actions);
+    panel.appendChild(list);
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      panel.hidden = !panel.hidden;
+    });
+    var closePanel = function () { panel.hidden = true; };
+    document.addEventListener('mousedown', function (e) {
+      if (!container.contains(e.target)) closePanel();
+    });
+    container.appendChild(trigger);
+    container.appendChild(panel);
+    updateTriggerLabel();
+    return container;
+  }
+
   function toggleArrayFilter(key, value) {
     var arr = (filters[key] || []).slice();
     var idx = arr.indexOf(value);
@@ -586,7 +715,7 @@
     var muted = filters.mutedTheaters || [];
     return shows.filter(function (s) {
       if (muted.indexOf(s.theaterCode) !== -1) return false;
-      if (filters.movie && s.movieId !== filters.movie) return false;
+      if (filters.movies && filters.movies.length && filters.movies.indexOf(s.movieId) === -1) return false;
       if (filters.languages && filters.languages.length && filters.languages.indexOf(s.language) === -1) return false;
       if (filters.dimensions && filters.dimensions.length && filters.dimensions.indexOf(s.dimension) === -1) return false;
       return true;
@@ -1064,7 +1193,7 @@
 
   function resetSession() {
     // Reset clears filters + cache, keeps theaters and settings
-    filters = { movie: '', languages: [], dimensions: [], mutedTheaters: [] };
+    filters = { movies: [], languages: [], dimensions: [], mutedTheaters: [] };
     sortDir = 'asc';
     State.save('mm_filters', filters);
     State.save('mm_sort_dir', sortDir);
@@ -1110,12 +1239,6 @@
     if (manageBtn) manageBtn.addEventListener('click', function () { switchTab('theaters'); });
 
     // Filter row
-    var movieSel = document.getElementById('mm-filter-movie');
-    if (movieSel) movieSel.addEventListener('change', function () {
-      filters.movie = movieSel.value;
-      State.save('mm_filters', filters);
-      renderMatrix();
-    });
     var sortBtn = document.getElementById('mm-btn-sort');
     if (sortBtn) sortBtn.addEventListener('click', function () {
       sortDir = sortDir === 'asc' ? 'desc' : 'asc';
@@ -1138,11 +1261,9 @@
 
     var clearFiltersBtn = document.getElementById('mm-btn-clear-filters');
     if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', function () {
-      filters = { movie: '', languages: [], dimensions: [], mutedTheaters: [] };
+      filters = { movies: [], languages: [], dimensions: [], mutedTheaters: [] };
       State.save('mm_filters', filters);
       buildFilterPills();
-      var sel = document.getElementById('mm-filter-movie');
-      if (sel) sel.value = '';
       renderMatrix();
     });
 
