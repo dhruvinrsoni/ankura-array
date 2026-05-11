@@ -58,6 +58,9 @@
   var cacheTs      = State.load('mm_cache_ts', 0);
   var lastFetchError = null;
 
+  /* ─── Transient UI state (not persisted) ────────────────────────── */
+  var activeTimeSlots = {}; // { 'morning': true|false, 'afternoon': ..., 'evening': ..., 'night': ... }
+
   /* ─── One-time migration from older MM versions ──────────────── */
   (function migrate() {
     var dirty = false;
@@ -608,6 +611,31 @@
       });
       theaterHost.appendChild(smartFilter);
     }
+
+    // Time-slot filter pills (only shown in theater view)
+    var timeSlotContainer = document.getElementById('mm-filter-timeslot');
+    if (timeSlotContainer) {
+      timeSlotContainer.innerHTML = '';
+      if (viewMode === 'theater') {
+        var slots = ['morning', 'afternoon', 'evening', 'night'];
+        var slotLabels = {
+          'morning': '🌅 Morning (6–12)',
+          'afternoon': '☀️ Afternoon (12–17)',
+          'evening': '🌆 Evening (17–21)',
+          'night': '🌙 Night (21+)'
+        };
+        slots.forEach(function(slot) {
+          timeSlotContainer.appendChild(makePill(
+            slot, slotLabels[slot],
+            activeTimeSlots[slot] || false,
+            function() {
+              activeTimeSlots[slot] = !activeTimeSlots[slot];
+              renderMatrix();
+            }
+          ));
+        });
+      }
+    }
   }
 
   function updateViewToggleUI() {
@@ -767,6 +795,37 @@
     return shows.filter(function (s) { return new Date(s.endISO).getTime() > now; });
   }
 
+  function getTimeSlot(isoString) {
+    var hour = new Date(isoString).getHours();
+    if (hour >= 6 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 21) return 'evening';
+    return 'night';
+  }
+
+  function filterShowsByTimeSlot(shows, activeSlots) {
+    var hasActive = Object.keys(activeSlots).some(function(k) { return activeSlots[k]; });
+    if (!hasActive) return shows;
+    return shows.filter(function(s) { return activeSlots[getTimeSlot(s.startISO)]; });
+  }
+
+  function computeTheaterStats(shows) {
+    var movieIds = {};
+    var earliest = Infinity, latest = -Infinity;
+    shows.forEach(function(s) {
+      movieIds[s.movieId] = true;
+      var t = new Date(s.startISO).getTime();
+      if (t < earliest) earliest = t;
+      if (t > latest) latest = t;
+    });
+    return {
+      movieCount: Object.keys(movieIds).length,
+      showCount: shows.length,
+      earliestTime: earliest === Infinity ? null : new Date(earliest).toISOString(),
+      latestTime: latest === Infinity ? null : new Date(latest).toISOString()
+    };
+  }
+
   function renderMatrix() {
     var c = document.getElementById('mm-matrix-container');
     if (!c) return;
@@ -836,6 +895,7 @@
   function renderTheaterView(c, allShows) {
     var shows = hidePastShowsFromList(allShows);
     shows = applyFiltersToShows(shows);
+    shows = filterShowsByTimeSlot(shows, activeTimeSlots);
 
     if (!shows.length) {
       c.innerHTML = '<div class="mm-empty"><span class="mm-empty__icon">🔭</span>No shows match the current filters.</div>';
@@ -855,41 +915,45 @@
         '<span class="mm-day-header__count">' + dayShows.length + ' shows</span>';
       c.appendChild(head);
 
-      // Cluster by theater
       var theaterGroups = clusterShowsByTheater(dayShows);
       if (!theaterGroups.length) return;
 
-      var table = document.createElement('table');
-      table.className = 'mm-matrix';
-      table.innerHTML =
-        '<thead><tr>' +
-          '<th>Theater</th>' +
-          '<th>Times</th>' +
-          '<th>Movie</th>' +
-          '<th>Lang</th>' +
-          '<th>Dim</th>' +
-        '</tr></thead><tbody></tbody>';
-      var tbody = table.querySelector('tbody');
+      theaterGroups.forEach(function (tGroup) {
+        var section = document.createElement('div');
+        section.className = 'mm-theater-section';
 
-      theaterGroups.forEach(function (tGroup, tIdx) {
-        var isLastTheater = tIdx === theaterGroups.length - 1;
-        tGroup.clusters.forEach(function (cluster, cIdx) {
-          var isFirstCluster = cIdx === 0;
+        var allTheaterShows = tGroup.clusters.reduce(function (acc, cl) {
+          return acc.concat(cl.shows);
+        }, []);
+        var stats = computeTheaterStats(allTheaterShows);
+        var theaterArea = allTheaterShows.length > 0 ? allTheaterShows[0].theaterArea : 'Area unknown';
+
+        var sectionHeader = document.createElement('div');
+        sectionHeader.className = 'mm-theater-section__header';
+        sectionHeader.innerHTML =
+          '<div class="mm-theater-section__theater-name">' + escapeHtml(tGroup.theaterName) + '</div>' +
+          '<div class="mm-theater-section__area">' + escapeHtml(theaterArea) + '</div>' +
+          '<div class="mm-theater-section__stats">' +
+            stats.movieCount + ' movies · ' +
+            stats.showCount + ' shows · ' +
+            (stats.earliestTime ? fmtTime(stats.earliestTime) + ' – ' + fmtTime(stats.latestTime) : '—') +
+          '</div>';
+        section.appendChild(sectionHeader);
+
+        var table = document.createElement('table');
+        table.className = 'mm-matrix mm-matrix--compact';
+        table.innerHTML =
+          '<thead><tr>' +
+            '<th>Times</th>' +
+            '<th>Movie</th>' +
+            '<th>Lang</th>' +
+            '<th>Dim</th>' +
+          '</tr></thead><tbody></tbody>';
+        var tbody = table.querySelector('tbody');
+
+        tGroup.clusters.forEach(function (cluster) {
           var tr = document.createElement('tr');
-          if (!isLastTheater) tr.className = 'mm-theater-group-end';
 
-          // Theater cell with rowspan (only on first cluster of each theater)
-          if (isFirstCluster) {
-            var theaterTd = document.createElement('td');
-            theaterTd.className = 'mm-theater-col';
-            theaterTd.rowSpan = tGroup.clusters.length;
-            theaterTd.innerHTML =
-              '<div>' + escapeHtml(tGroup.theaterName) + '</div>' +
-              '<div class="mm-theater-col__count">' + tGroup.clusters.length + ' show' + (tGroup.clusters.length !== 1 ? 's' : '') + '</div>';
-            tr.appendChild(theaterTd);
-          }
-
-          // Times column (chips for each show in cluster)
           var timesTd = document.createElement('td');
           var chipsWrap = document.createElement('div');
           chipsWrap.className = 'mm-chips';
@@ -902,7 +966,6 @@
           timesTd.appendChild(chipsWrap);
           tr.appendChild(timesTd);
 
-          // Movie title
           var movieTd = document.createElement('td');
           var endTime = new Date(new Date(cluster.shows[0].startISO).getTime() + cluster.runtimeMin * 60000);
           movieTd.className = 'mm-cell-movie';
@@ -912,12 +975,10 @@
             '<span class="mm-cell-movie__runtime">⏱ ' + cluster.runtimeMin + ' min · home by ~' + fmtTime(endTime.toISOString()) + '</span>';
           tr.appendChild(movieTd);
 
-          // Language
           var langTd = document.createElement('td');
           langTd.innerHTML = '<span class="mm-lang-badge">' + escapeHtml(cluster.language) + '</span>';
           tr.appendChild(langTd);
 
-          // Dimension
           var dimLabel = escapeHtml(cluster.dimension) + (cluster.premiumTech ? ' · ' + escapeHtml(cluster.premiumTech) : '');
           var dimTd = document.createElement('td');
           dimTd.innerHTML = '<span class="mm-format-badge' + (cluster.premiumTech ? ' mm-format-badge--premium' : '') + '">' + dimLabel + '</span>';
@@ -925,9 +986,10 @@
 
           tbody.appendChild(tr);
         });
-      });
 
-      c.appendChild(table);
+        section.appendChild(table);
+        c.appendChild(section);
+      });
     });
   }
 
@@ -1353,7 +1415,11 @@
       btn.addEventListener('click', function () {
         viewMode = btn.dataset.view;
         State.save('mm_view', viewMode);
+        if (viewMode !== 'theater') {
+          activeTimeSlots = {};
+        }
         updateViewToggleUI();
+        buildFilterPills();
         renderMatrix();
       });
     });

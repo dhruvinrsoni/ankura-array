@@ -682,6 +682,68 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* ── Theater-view section layout ────────────────────────────────────── */
+.mm-theater-section {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.mm-theater-section__header {
+  position: sticky;
+  top: 48px;
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--accent);
+  padding: 0.6rem 0.8rem;
+  z-index: 2;
+}
+
+.mm-theater-section__theater-name {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: var(--fs-body);
+}
+
+.mm-theater-section__area {
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.mm-theater-section__stats {
+  font-size: var(--fs-small);
+  color: var(--text-secondary);
+  margin-top: 0.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mm-matrix--compact {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.mm-matrix--compact thead th {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.75rem;
+}
+
+.mm-matrix--compact tbody td {
+  padding: 0.5rem 0.8rem;
+}
+
+.mm-matrix--compact tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#mm-filter-timeslot-group[hidden] {
+  display: none !important;
+}
+
 /* ── Compact responsive tweaks ────────────────────────── */
 @media (max-width: 760px) {
   .mm-filter-bar { gap: 0.6rem; }
@@ -691,4 +753,12 @@
   .mm-cell-movie__runtime { font-size: 0.7rem; }
   .mm-smart-filter__trigger { min-width: 120px; }
   .mm-theater-col { padding-right: 0.5rem; border-right-width: 1px; }
+
+  .mm-theater-section__header {
+    top: 40px;
+  }
+
+  .mm-theater-section__stats {
+    font-size: 0.7rem;
+  }
 }
