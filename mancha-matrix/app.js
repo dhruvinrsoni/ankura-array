@@ -692,11 +692,14 @@
       var selected = opts.selected || [];
       if (selected.length === 0 || selected.length === opts.items.length) {
         label.textContent = opts.allLabel;
+        trigger.title = '';
       } else if (selected.length === 1) {
         var item = opts.items.find(function (it) { return it.value === selected[0]; });
         label.textContent = item ? item.label : 'Mixed';
+        trigger.title = item ? item.label : '';
       } else {
         label.textContent = selected.length + ' ' + (opts.summaryLabel || '');
+        trigger.title = '';
       }
     };
     var updatePanel = function () {
@@ -761,6 +764,7 @@
       var itemLabel = document.createElement('label');
       itemLabel.className = 'mm-smart-filter__item-label';
       itemLabel.textContent = item.label;
+      itemLabel.title = item.label;
       itemLabel.addEventListener('click', function () { checkbox.click(); });
       var onlyBtn = document.createElement('button');
       onlyBtn.className = 'mm-smart-filter__only';
@@ -1188,6 +1192,13 @@
      §6  THEATERS TAB
      ═══════════════════════════════════════════════════════════════════ */
 
+  function bmsTheaterUrl(t) {
+    var today = new Date().toISOString().slice(0, 10);
+    var city  = (t.city || 'pune').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    var slug  = (t.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return 'https://in.bookmyshow.com/cinemas/' + city + '/' + slug + '/buytickets/' + t.bmsCode + '/' + today;
+  }
+
   function renderTheatersTab() {
     var list = document.getElementById('mm-theaters-list');
     if (!list) return;
@@ -1209,6 +1220,7 @@
           '</div>' +
         '</div>' +
         '<div class="mm-row">' +
+          '<a href="' + escapeHtml(bmsTheaterUrl(t)) + '" target="_blank" rel="noopener" class="btn btn--outline btn--sm" title="Open on BookMyShow">🎟</a>' +
           (i > 0 ? '<button class="btn btn--outline btn--sm" data-action="up" data-i="' + i + '" title="Move up">↑</button>' : '') +
           (i < theaters.length - 1 ? '<button class="btn btn--outline btn--sm" data-action="down" data-i="' + i + '" title="Move down">↓</button>' : '') +
           '<button class="btn btn--danger btn--sm" data-action="remove" data-i="' + i + '">Remove</button>' +
