@@ -815,3 +815,12 @@
     font-size: 0.7rem;
   }
 }
+
+/* ── Overflow safety (responsive baseline) — keep content inside its box.
+   Generic & additive; mirrors the agentskills-garden `responsive-design` skill.
+   :where() keeps specificity 0 so existing component styles always win. ── */
+*, *::before, *::after { box-sizing: border-box; }
+img, svg, video, canvas, iframe, embed, object { max-width: 100%; }
+img, video, canvas { height: auto; }
+pre { overflow-x: auto; }
+:where(h1, h2, h3, h4, h5, h6, p, li, dt, dd, td, th, figcaption, blockquote) { overflow-wrap: break-word; }
